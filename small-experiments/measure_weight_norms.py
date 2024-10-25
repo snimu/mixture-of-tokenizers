@@ -59,6 +59,8 @@ if __name__ == "__main__":
     print(f"Base model weight norm: {base_norm:.4f}")
     print(f"Instruct model weight norm: {instruct_norm:.4f}")
     print(f"Diff model weight norm: {diff_norm:.4f}")
+    print(f"base_norm / instruct_norm: {base_norm / instruct_norm:.4f}")
+    print(f"diff_norm / instruct_norm: {diff_norm / instruct_norm:.4f}")
     print(f"diff_norm / base_norm: {diff_norm / base_norm:.4f}")
 
     """
