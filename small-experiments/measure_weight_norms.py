@@ -66,8 +66,19 @@ if __name__ == "__main__":
     """
     RESULTS:
 
-    Base model weight norm: 30886.8619
-    Instruct model weight norm: 27765.2804
-    Diff model weight norm: 1127.5273
-    diff_norm / base_norm: 0.0365
+    MEASURE: L1
+    Base model weight norm: 0.0154
+    Instruct model weight norm: 0.0150
+    Diff model weight norm: 0.0026
+    base_norm / instruct_norm: 1.0260
+    diff_norm / instruct_norm: 0.1744
+    diff_norm / base_norm: 0.1699
+
+    MEASURE: L2
+    Base model weight norm: 0.0004
+    Instruct model weight norm: 0.0004
+    Diff model weight norm: 0.0000
+    base_norm / instruct_norm: 1.0532
+    diff_norm / instruct_norm: 0.0285
+    diff_norm / base_norm: 0.0270
     """
