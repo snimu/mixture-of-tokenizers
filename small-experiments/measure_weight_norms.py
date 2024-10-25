@@ -46,11 +46,10 @@ if __name__ == "__main__":
     base_norm = measure_weight_norm(base_model)
     instruct_norm = measure_weight_norm(instruct_model)
 
-    diff_model = instruct_model.copy()
     for param_base, param_instruct in zip(base_model.parameters(), instruct_model.parameters()):
         param_instruct.data = param_instruct.data - param_base.data
 
-    diff_norm = measure_weight_norm(diff_model)
+    diff_norm = measure_weight_norm(instruct_model)
 
     print(f"Base model weight norm: {base_norm:.4f}")
     print(f"Instruct model weight norm: {instruct_norm:.4f}")
