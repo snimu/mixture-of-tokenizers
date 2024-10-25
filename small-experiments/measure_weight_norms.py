@@ -30,13 +30,9 @@ def measure_weight_norm(model: nn.Module, measure: Literal["L1", "L2"] = "L2") -
 
     for param in model.parameters():
         numels.append(param.numel())
-        norms.append(torch.abs(param).sum().item() if measure == "L1" else param.pow(2).sum().item()) 
+        norms.append(torch.abs(param).sum().item() if measure == "L1" else param.pow(2).sum().item())
 
-    results = 0.0
-    for i in range(len(numels)):
-        results += norms[i] * numels[i]
-
-    return results / sum(numels)
+    return sum(norms) / sum(numels)
 
 
 if __name__ == "__main__":
