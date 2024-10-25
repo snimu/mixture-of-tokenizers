@@ -1,4 +1,15 @@
 
+
+"""
+INSTRUCTIONS:
+
+- you need to run `huggingface-cli login` once and add your token
+- you need access to the meta-llama weights
+
+ON LAMBDA LABS:
+
+- you need to run `pip install -U torch torchvision` before running this script
+"""
 from typing import Literal
 
 import torch
@@ -19,7 +30,7 @@ def measure_weight_norm(model: nn.Module, measure: Literal["L1", "L2"] = "L2") -
 
     for param in model.parameters():
         numels.append(param.numel())
-    norms.append(torch.abs(param).sum().item() if measure == "L1" else param.pow(2).sum().item()) 
+        norms.append(torch.abs(param).sum().item() if measure == "L1" else param.pow(2).sum().item()) 
 
     results = 0.0
     for i in range(len(numels)):
