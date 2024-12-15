@@ -1,3 +1,13 @@
+# /// script
+# requires-python = "==3.12"
+# dependencies = [
+#   "torch",
+#   "wandb",
+#   "polars",
+#   "tqdm",
+#   "wandb",
+# ]
+# ///
 
 import argparse
 import itertools
