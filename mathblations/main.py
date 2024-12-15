@@ -6,6 +6,7 @@ from typing import Any, Literal, Generator
 from dataclasses import dataclass
 from pathlib import Path
 
+import wandb
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
@@ -27,6 +28,9 @@ def _to_list(item: Any, dtype: type) -> list:
 
 def get_args():
     parser = argparse.ArgumentParser()
+
+    # General parameters
+    parser.add_argument("--use-wandb", action="store_true")
 
     # Data parameters
     parser.add_argument("--max-digits-per-token", type=int, default=3, nargs="+")
@@ -55,8 +59,6 @@ def get_args():
     parser.add_argument("--n-layer", type=int, default=12)
     parser.add_argument("--n-head", type=int, default=6)
     parser.add_argument("--n-embd", type=int, default=768)
-
-    # Model parameters
     parser.add_argument("--sliding-window-size", type=int, default=100)
 
     
@@ -113,23 +115,19 @@ def iterate_dataset(
 def slice_logits_and_targets(
         logits: torch.Tensor, y_indices: torch.Tensor, y_tokens: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    max_target_length = (y_indices[:, 1] - y_indices[:, 0]).max()  # longest target sequence
-
-    # Create a mask for each batch element
-    batch_arange = torch.arange(max_target_length, device=y_indices.device)[None, :]  # [1, max_len]
-    starts = y_indices[:, 0, None]  # [B, 1]
-    target_positions = batch_arange + starts  # [B, max_len] via broadcasting
-
-    logits = logits.gather(1, target_positions.unsqueeze(-1).expand(-1, -1, logits.size(-1)))  # [B, max_len, vocab_size]
-    targets = y_tokens.gather(1, target_positions)  # [B, max_len]
-
-    return logits, targets
+    # Handle each batch element separately
+    batch_logits = [logits[i, start:end] for i, (start, end) in enumerate(y_indices)]
+    batch_targets = [y_tokens[i, start:end] for i, (start, end) in enumerate(y_indices)]
+    
+    # Stack them all together
+    return torch.cat(batch_logits), torch.cat(batch_targets)
 
 
 @dataclass
 class EvalResult:
     loss: float
     accuracy: float
+    full_accuracy: float
 
 
 @torch.inference_mode()
@@ -138,19 +136,32 @@ def evaluate(
         valset: dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list],
         args: argparse.Namespace,
 ) -> EvalResult:
-    model.to(args.device).eval()
+    model.eval()
     loss = 0.0
     accuracy = 0.0
+    full_accuracy = 0.0
     for x_tokens, x_digit_tokens, y_tokens, y_indices in iterate_dataset(valset, args):
         logits = model(x_tokens, x_digit_tokens)
 
-        logits, targets = slice_logits_and_targets(logits, y_indices, y_tokens)
-        loss += F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1).item()
-        accuracy += (logits.argmax(dim=-1) == targets).float().mean().item()
+        token_logits, token_targets = slice_logits_and_targets(logits, y_indices, y_tokens)
+        loss += F.cross_entropy(token_logits, token_targets).item()
+        accuracy += (token_logits.argmax(dim=-1) == token_targets).float().mean().item()
+        # full accuracy: all target tokens are correct
+        full_correct = 0
+        for i, (start, end) in enumerate(y_indices):
+            pred_tokens = logits[i, start:end].argmax(dim=-1)
+            target_tokens = y_tokens[i, start:end]
+            # Only count as correct if ALL tokens match
+            if torch.all(pred_tokens == target_tokens):
+                full_correct += 1
+
+        full_accuracy += full_correct / len(y_indices)
 
     loss /= args.num_steps_val
     accuracy /= args.num_steps_val
-    return EvalResult(loss=loss, accuracy=accuracy)
+    full_accuracy /= args.num_steps_val
+    model.train()
+    return EvalResult(loss=loss, accuracy=accuracy, full_accuracy=full_accuracy)
 
 
 def train(
@@ -194,10 +205,12 @@ def train(
     train_losses = []
     val_losses = []
     val_accuracies = []
+    val_full_accuracies = []
     for step in range(args.num_steps):
         # Forward pass
         x_tokens, x_digit_tokens, y_tokens, y_indices = next(iterate_dataset(trainset, args))
         logits = net(x_tokens, x_digit_tokens)
+        # TODO: only calculate loss at the y_indices
         loss = F.cross_entropy(logits.view(-1, logits.size(-1)), y_tokens.view(-1), ignore_index=-1)
         
         # Backward pass
@@ -207,15 +220,24 @@ def train(
         scheduler.step()
 
         # Logging
+        if args.use_wandb:
+            wandb.log({"train/loss": loss.item(), "train/step": step})
         train_losses.append(loss.item())
 
         if step % args.eval_every == 0:
             val_result = evaluate(net, valset, args)
             val_losses.append(val_result.loss)
             val_accuracies.append(val_result.accuracy)
+            val_full_accuracies.append(val_result.full_accuracy)
             print(f"step={step} train_loss={loss.item():.4f} val_loss={val_result.loss:.4f} val_accuracy={val_result.accuracy:.4f}")
+            if args.use_wandb:
+                wandb.log({
+                    "val/loss": val_result.loss, 
+                    "val/accuracy": val_result.accuracy,
+                    "val/full_accuracy": val_result.full_accuracy,
+                })
 
-    return train_losses, val_losses, val_accuracies
+    return train_losses, val_losses, val_accuracies, val_full_accuracies
 
 
 def make_run_name(
@@ -239,6 +261,7 @@ def make_run_name(
     name += f"_{max_digits_per_token=}_{max_tokens_per_num=}_{op=}_{mod=}"
     name += f"_{seed=}_{batchsize=}_{num_steps=}"
     name += f"_{length_factor=}_{sliding_window_size=}"
+    name += f"_{T=}"
     return name
 
 
@@ -282,7 +305,10 @@ def train_and_save(
         batchsize=args.batchsize,
         num_steps=args.num_steps,
     )
-    train_losses, val_losses, val_accuracies = train(net, trainset, valset, args)
+    if args.use_wandb:
+        wandb.finish()
+        wandb.init(name=run_name, project="mathblations", config=vars(args))
+    train_losses, val_losses, val_accuracies, val_full_accuracies = train(net, trainset, valset, args)
 
     save(
         results=dict(
@@ -302,6 +328,7 @@ def train_and_save(
             train_losses=[str(train_losses)],
             val_losses=[str(val_losses)],
             val_accuracies=[str(val_accuracies)],
+            val_full_accuracies=[str(val_full_accuracies)],
         ),
         run_name=run_name,
     )
