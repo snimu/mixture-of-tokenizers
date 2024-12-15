@@ -41,6 +41,7 @@ def get_args():
 
     # General parameters
     parser.add_argument("--use-wandb", action="store_true")
+    parser.add_argument("--print-every", type=int, default=100)
 
     # Data parameters
     parser.add_argument("--max-digits-per-token", type=int, default=3, nargs="+")
@@ -79,6 +80,9 @@ def get_args():
     args.op = _to_list(args.op, str)
     if args.mod is not None:
         args.mod = _to_list(args.mod, int)
+
+    assert args.print_every % args.eval_every == 0, \
+        f"print_every ({args.print_every}) must be a multiple of eval_every ({args.eval_every})"
     
     return args
 
@@ -145,12 +149,14 @@ def evaluate(
         model: model.GPT, 
         valset: dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list],
         args: argparse.Namespace,
+        gen: data.GenerateEquations | None = None,
+        print_sample: bool = False,
 ) -> EvalResult:
     model.eval()
     loss = 0.0
     accuracy = 0.0
     full_accuracy = 0.0
-    for x_tokens, x_digit_tokens, y_tokens, y_indices in iterate_dataset(valset, args):
+    for batch_idx, (x_tokens, x_digit_tokens, y_tokens, y_indices) in enumerate(iterate_dataset(valset, args)):
         logits = model(x_tokens, x_digit_tokens)
 
         token_logits, token_targets = slice_logits_and_targets(logits, y_indices, y_tokens)
@@ -163,8 +169,11 @@ def evaluate(
             pred_tokens = logits[i, start:end].argmax(dim=-1)
             target_tokens = y_tokens[i, start:end]
             # Only count as correct if ALL tokens match
-            if torch.all(pred_tokens == target_tokens):
-                full_correct += 1
+            is_correct = 1 if torch.all(pred_tokens == target_tokens) else 0
+            full_correct += is_correct
+            if print_sample and i == batch_idx == 0:
+                # to see if the full-accuracy calc is correct
+                print(f"{pred_tokens=} {target_tokens=}, {is_correct=}")
 
         full_accuracy += full_correct / len(y_indices)
 
@@ -180,6 +189,7 @@ def train(
         trainset: pl.DataFrame, 
         valset: pl.DataFrame, 
         args: argparse.Namespace,
+        gen: data.GenerateEquations | None = None,
 ):
     net.to(args.device).train()
 
@@ -236,7 +246,7 @@ def train(
         train_losses.append(loss.item())
 
         if step % args.eval_every == 0:
-            val_result = evaluate(net, valset, args)
+            val_result = evaluate(net, valset, args, gen=gen, print_sample=step % args.print_every == 0)
             val_losses.append(val_result.loss)
             val_accuracies.append(val_result.accuracy)
             val_full_accuracies.append(val_result.full_accuracy)
@@ -319,7 +329,9 @@ def train_and_save(
     if args.use_wandb:
         wandb.finish()
         wandb.init(name=run_name, project="mathblations", config=vars(args))
-    train_losses, val_losses, val_accuracies, val_full_accuracies = train(net, trainset, valset, args)
+    train_losses, val_losses, val_accuracies, val_full_accuracies = train(
+        net, trainset, valset, args, gen=gen
+    )
 
     save(
         results=dict(
