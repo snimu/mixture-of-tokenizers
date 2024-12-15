@@ -156,6 +156,7 @@ def evaluate(
         token_logits, token_targets = slice_logits_and_targets(logits, y_indices, y_tokens)
         loss += F.cross_entropy(token_logits, token_targets).item()
         accuracy += (token_logits.argmax(dim=-1) == token_targets).float().mean().item()
+        del token_logits, token_targets
         # full accuracy: all target tokens are correct
         full_correct = 0
         for i, (start, end) in enumerate(y_indices):
@@ -220,8 +221,8 @@ def train(
         # Forward pass
         x_tokens, x_digit_tokens, y_tokens, y_indices = next(iterate_dataset(trainset, args))
         logits = net(x_tokens, x_digit_tokens)
-        # TODO: only calculate loss at the y_indices
-        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), y_tokens.view(-1), ignore_index=-1)
+        logits, targets = slice_logits_and_targets(logits, y_indices, y_tokens)
+        loss = F.cross_entropy(logits, targets)
         
         # Backward pass
         optimizer.zero_grad(set_to_none=True)
