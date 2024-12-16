@@ -191,7 +191,9 @@ def train(
         args: argparse.Namespace,
         gen: data.GenerateEquations | None = None,
 ):
-    net.to(args.device).train()
+    net = torch.compile(net)
+    net = net.to(args.device)
+    net.train()
 
     # Optimizer
     adamw_params = net.lm_head.parameters()
