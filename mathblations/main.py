@@ -157,6 +157,10 @@ def evaluate(
     accuracy = 0.0
     full_accuracy = 0.0
     for batch_idx, (x_tokens, x_digit_tokens, y_tokens, y_indices) in enumerate(iterate_dataset(valset, args)):
+        x_tokens = x_tokens.to(args.device)
+        x_digit_tokens = x_digit_tokens.to(args.device) if args.use_digits else None
+        y_tokens = y_tokens.to(args.device)
+        y_indices = y_indices.to(args.device)
         logits = model(x_tokens, x_digit_tokens)
 
         token_logits, token_targets = slice_logits_and_targets(logits, y_indices, y_tokens)
@@ -232,6 +236,10 @@ def train(
     for step in range(args.num_steps):
         # Forward pass
         x_tokens, x_digit_tokens, y_tokens, y_indices = next(iterate_dataset(trainset, args))
+        x_tokens = x_tokens.to(args.device)
+        x_digit_tokens = x_digit_tokens.to(args.device) if args.use_digits else None
+        y_tokens = y_tokens.to(args.device)
+        y_indices = y_indices.to(args.device)
         logits = net(x_tokens, x_digit_tokens)
         logits, targets = slice_logits_and_targets(logits, y_indices, y_tokens)
         loss = F.cross_entropy(logits, targets)
