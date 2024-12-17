@@ -135,7 +135,7 @@ class CrossAttention(nn.Module):
         B_kv, T_kv, C = x_kv.size()
         assert B_q == B_kv, f"Batch sizes must match: {B_q} vs {B_kv}"
         assert C == self.n_embd, f"Input dimension {C} doesn't match model {self.n_embd}"
-        assert T_q == T_kv * self.length_factor, f"Query length {T_q} must be {self.length_factor}x KV length {T_kv}"
+        assert T_kv == T_q * self.length_factor, f"KV length {T_kv} must be {self.length_factor}x Q length {T_q}"
 
         # Project queries from x_q
         q = self.c_q(x_q).view(B_q, T_q, self.n_head, self.head_dim)
