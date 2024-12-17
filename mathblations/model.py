@@ -198,9 +198,9 @@ class GPT(nn.Module):
         self.config = config
 
         self.transformer = nn.ModuleDict(dict(
-            dte = nn.Embedding(config.vocab_size, config.n_embd) if config.use_digits else None,
-            digit_attn = CausalSelfAttention(config) if config.use_digits else None,
-            cross_attn = CrossAttention(config) if config.use_digits else None,
+            dte = nn.Embedding(config.vocab_size, config.n_embd) if config.use_digits else nn.Identity(),
+            digit_attn = CausalSelfAttention(config) if config.use_digits else nn.Identity(),
+            cross_attn = CrossAttention(config) if config.use_digits else nn.Identity(),
             wte = nn.Embedding(config.vocab_size, config.n_embd),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
         ))
