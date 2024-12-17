@@ -67,10 +67,11 @@ class CausalSelfAttention(nn.Module):
         self.c_proj.weight.data.zero_() # zero init suggested by @Grad62304977
         self.rotary = Rotary(self.head_dim)
 
-        if config.sliding_window_size is not None:
+        self.sliding_window_size = config.sliding_window_size
+        if self.sliding_window_size is not None:
             def sliding_window_causal(b, h, q_idx, kv_idx):
                 causal_mask = q_idx >= kv_idx
-                window_mask = q_idx - kv_idx <= config.sliding_window_size 
+                window_mask = q_idx - kv_idx <= self.sliding_window_size 
                 return causal_mask & window_mask
             self.block_mask = create_block_mask(sliding_window_causal, B=None, H=None, 
                                                 Q_LEN=config.T, KV_LEN=config.T)
@@ -216,7 +217,7 @@ class GPT(nn.Module):
         if self.config.use_digits:
             de = self.transformer.dte(digits)
             de = self.transformer.digit_attn(de)
-            x = self.cross_attn(x_q=we, x_kv=de)
+            x = self.transformer.cross_attn(x_q=we, x_kv=de)
         else:
             x = we
         for block in self.transformer.h:
