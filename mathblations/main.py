@@ -222,11 +222,11 @@ def train(
         if it < args.warmup_steps:
             return (it+1) / args.warmup_steps
         # 2) constant lr for a while
-        elif it < args.num_iterations - args.cooldow_steps:
+        elif it < args.num_steps - args.cooldow_steps:
             return 1.0
         # 3) linear warmdown
         else:
-            decay_ratio = (args.num_iterations - it) / args.cooldown_steps
+            decay_ratio = (args.num_steps - it) / args.cooldown_steps
             return decay_ratio
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, get_lr)
 
