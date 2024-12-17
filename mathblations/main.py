@@ -28,13 +28,14 @@ import model
 from muon import Muon
 
 
-def _to_list(item: Any, dtype: type) -> list:
+def _to_list(item: Any, dtype: type | None) -> list:
+    if dtype is None and item is None:
+        return [None]
     if isinstance(item, dtype):
         return [item]
-    elif isinstance(item, list):
+    if isinstance(item, list):
         return item
-    else:
-        raise ValueError(f"Expected {dtype} or list of {dtype}, got {item}")
+    raise ValueError(f"Expected {dtype} or list of {dtype}, got {item}")
 
 
 def get_args():
@@ -79,7 +80,7 @@ def get_args():
     args.max_digits_per_token = _to_list(args.max_digits_per_token, int)
     args.max_tokens_per_num = _to_list(args.max_tokens_per_num, int)
     args.op = _to_list(args.op, str)
-    args.mod = _to_list(args.mod, int)
+    args.mod = _to_list(args.mod, None)
 
     assert args.print_every % args.eval_every == 0, \
         f"print_every ({args.print_every}) must be a multiple of eval_every ({args.eval_every})"
