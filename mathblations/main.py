@@ -45,33 +45,33 @@ def get_args():
     parser.add_argument("--print-every", type=int, default=100)
 
     # Data parameters
-    parser.add_argument("--max-digits-per-token", type=int, default=3, nargs="+")
-    parser.add_argument("--max-tokens-per-num", type=int, default=1, nargs="+")
-    parser.add_argument("--op", type=str, choices=("+", "-", "*", "/"), default="+", nargs="+")
-    parser.add_argument("--mod", type=int, default=None, nargs="+")
+    parser.add_argument("--max-digits-per-token", type=int, default=3, nargs="+", help="type=int, default=3, nargs=+")
+    parser.add_argument("--max-tokens-per-num", type=int, default=1, nargs="+", help="type=int, default=1, nargs=+")
+    parser.add_argument("--op", type=str, choices=("+", "-", "*", "/"), default="+", nargs="+", help="type=str, choices=('+', '-', '*', '/'), default='+', nargs=+")
+    parser.add_argument("--mod", type=int, default=None, nargs="+", help="type=int, default=None, nargs=+")
 
     # Training parameters
-    parser.add_argument("--batchsize", type=int, default=1024)
-    parser.add_argument("--num-steps", type=int, default=50_000)
-    parser.add_argument("--num-steps-val", type=int, default=5)
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--learning-rate", type=float, default=0.001)
-    parser.add_argument("--warmup-steps", type=int, default=0)
-    parser.add_argument("--cooldown-steps", type=int, default=5_000)
-    parser.add_argument("--weight-decay", type=float, default=0)
-    parser.add_argument("--clip-min", type=int, default=0)
-    parser.add_argument("--clip-max", type=int, default=15)
-    parser.add_argument("--eval-every", type=int, default=100)
+    parser.add_argument("--batchsize", type=int, default=1024, help="type=int, default=1024")
+    parser.add_argument("--num-steps", type=int, default=50_000, help="type=int, default=50_000")
+    parser.add_argument("--num-steps-val", type=int, default=5, help="type=int, default=5")
+    parser.add_argument("--device", type=str, default="cuda", help="type=str, default='cuda'")
+    parser.add_argument("--learning-rate", type=float, default=0.001, help="type=float, default=0.001")
+    parser.add_argument("--warmup-steps", type=int, default=0, help="type=int, default=0")
+    parser.add_argument("--cooldown-steps", type=int, default=5_000, help="type=int, default=5_000")
+    parser.add_argument("--weight-decay", type=float, default=0, help="type=float, default=0")
+    parser.add_argument("--clip-min", type=int, default=0, help="type=int, default=0")
+    parser.add_argument("--clip-max", type=int, default=15, help="type=int, default=1")
+    parser.add_argument("--eval-every", type=int, default=100, help="type=int, default=100")
     
     # Ablation parameters
-    parser.add_argument("--num-runs", type=int, default=1)
-    parser.add_argument("--seed", type=int, default=385)
+    parser.add_argument("--num-runs", type=int, default=1, help="type=int, default=1")
+    parser.add_argument("--seed", type=int, default=385, help="type=int, default=385")
 
     # Model parameters
-    parser.add_argument("--n-layer", type=int, default=12)
-    parser.add_argument("--n-head", type=int, default=6)
-    parser.add_argument("--n-embd", type=int, default=768)
-    parser.add_argument("--sliding-window-size", type=int, default=100)
+    parser.add_argument("--n-layer", type=int, default=12, help="type=int, default=12")
+    parser.add_argument("--n-head", type=int, default=6, help="type=int, default=6")
+    parser.add_argument("--n-embd", type=int, default=768, help="type=int, default=768")
+    parser.add_argument("--sliding-window-size", type=int, default=100, help="type=int, default=100")
 
     
     args = parser.parse_args()
