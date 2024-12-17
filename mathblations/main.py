@@ -114,11 +114,15 @@ def iterate_dataset(
         dataset: dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list],
         args: argparse.Namespace,
 ) -> Generator[tuple[torch.Tensor, torch.Tensor | None, torch.Tensor, torch.Tensor], None, None]:
-    loop = zip(
-        dataset["x_tokens"], dataset["x_digit_tokens"], dataset["y_tokens"], dataset["y_indices"], 
-        strict=True,
-    )
-    loop = itertools.batched(loop, n=args.batchsize)
+    # Batch each list separately first
+    x_tokens_batched = itertools.batched(dataset["x_tokens"], n=args.batchsize)
+    x_digit_tokens_batched = itertools.batched(dataset["x_digit_tokens"], n=args.batchsize)
+    y_tokens_batched = itertools.batched(dataset["y_tokens"], n=args.batchsize)
+    y_indices_batched = itertools.batched(dataset["y_indices"], n=args.batchsize)
+    
+    # Then zip the batches
+    loop = zip(x_tokens_batched, x_digit_tokens_batched, y_tokens_batched, y_indices_batched, strict=True)
+    
     for x_tokens, x_digit_tokens, y_tokens, y_indices in loop:
         x_tokens = torch.tensor(x_tokens, dtype=torch.long).to(args.device)
         x_digit_tokens = torch.tensor(x_digit_tokens, dtype=torch.long).to(args.device) if args.use_digits else None
