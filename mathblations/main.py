@@ -136,6 +136,13 @@ def slice_logits_and_targets(
     # Stack them all together
     return torch.cat(batch_logits), torch.cat(batch_targets)
 
+def get_l1_grad_norm(net: model.GPT) -> float:
+    norm = 0.0
+    for p in net.parameters():
+        if p.grad is not None:
+            norm += p.grad.abs().sum().item()
+    return norm
+
 
 @dataclass
 class EvalResult:
@@ -156,11 +163,8 @@ def evaluate(
     loss = 0.0
     accuracy = 0.0
     full_accuracy = 0.0
-    for batch_idx, (x_tokens, x_digit_tokens, y_tokens, y_indices) in enumerate(iterate_dataset(valset, args, config)):
-        x_tokens = x_tokens.to(args.device)
-        x_digit_tokens = x_digit_tokens.to(args.device) if config.use_digits else None
-        y_tokens = y_tokens.to(args.device)
-        y_indices = y_indices.to(args.device)
+    val_iterator = iterate_dataset(valset, args, config)
+    for batch_idx, (x_tokens, x_digit_tokens, y_tokens, y_indices) in enumerate(val_iterator):
         logits = model(x_tokens, x_digit_tokens)
 
         token_logits, token_targets = slice_logits_and_targets(logits, y_indices, y_tokens)
@@ -230,16 +234,15 @@ def train(
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, get_lr)
 
     train_losses = []
+    train_l1_grad_norms = []
     val_losses = []
     val_accuracies = []
     val_full_accuracies = []
+    train_iterator = iterate_dataset(trainset, args, config)
+
     for step in range(args.num_steps):
         # Forward pass
-        x_tokens, x_digit_tokens, y_tokens, y_indices = next(iterate_dataset(trainset, args, config))
-        x_tokens = x_tokens.to(args.device)
-        x_digit_tokens = x_digit_tokens.to(args.device) if config.use_digits else None
-        y_tokens = y_tokens.to(args.device)
-        y_indices = y_indices.to(args.device)
+        x_tokens, x_digit_tokens, y_tokens, y_indices = next(train_iterator)
         logits = net(x_tokens, x_digit_tokens)
         logits, targets = slice_logits_and_targets(logits, y_indices, y_tokens)
         loss = F.cross_entropy(logits, targets)
@@ -250,17 +253,21 @@ def train(
         optimizer.step()
         scheduler.step()
 
+        grad_norm = get_l1_grad_norm(net)
+        train_l1_grad_norms.append(grad_norm)
+
         # Logging
         if args.use_wandb:
-            wandb.log({"train/loss": loss.item(), "train/step": step})
+            wandb.log({"train/loss": loss.item(), "train/step": step, "train/l1_grad_norm": grad_norm})
         train_losses.append(loss.item())
+
 
         if step % args.eval_every == 0:
             val_result = evaluate(net, valset, args, config=config, print_sample=step % args.print_every == 0)
             val_losses.append(val_result.loss)
             val_accuracies.append(val_result.accuracy)
             val_full_accuracies.append(val_result.full_accuracy)
-            print(f"step={step} train_loss={loss.item():.4f} val_loss={val_result.loss:.4f} val_accuracy={val_result.accuracy:.4f}")
+            print(f"step={step} train_loss={loss.item():.4f} train_l1_grad_norm={grad_norm:.4f} val_loss={val_result.loss:.4f} val_accuracy={val_result.accuracy:.4f}")
             if args.use_wandb:
                 wandb.log({
                     "val/loss": val_result.loss, 
