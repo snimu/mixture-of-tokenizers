@@ -227,7 +227,7 @@ class GPT(nn.Module):
             x = block(x)
         x = F.rms_norm(x, (x.size(-1),))
 
-        logits = self.lm_head(x[:, [-1], :]) # note: using list [-1] to preserve the time dim
+        logits = self.lm_head(x)
         logits = logits.float() # use tf32/fp32 for logits
 
         return logits
