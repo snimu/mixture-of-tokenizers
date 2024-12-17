@@ -124,10 +124,10 @@ def iterate_dataset(
     loop = zip(x_tokens_batched, x_digit_tokens_batched, y_tokens_batched, y_indices_batched, strict=True)
     
     for x_tokens, x_digit_tokens, y_tokens, y_indices in loop:
-        x_tokens = torch.tensor(x_tokens, dtype=torch.long).to(args.device)
-        x_digit_tokens = torch.tensor(x_digit_tokens, dtype=torch.long).to(args.device) if args.use_digits else None
-        y_tokens = torch.tensor(y_tokens, dtype=torch.long).to(args.device)
-        y_indices = torch.tensor(y_indices, dtype=torch.long).to(args.device)
+        x_tokens = torch.tensor(list(x_tokens), dtype=torch.long).to(args.device)
+        x_digit_tokens = torch.tensor(list(x_digit_tokens), dtype=torch.long).to(args.device) if args.use_digits else None
+        y_tokens = torch.tensor(list(y_tokens), dtype=torch.long).to(args.device)
+        y_indices = torch.tensor(list(y_indices), dtype=torch.long).to(args.device)
         yield x_tokens, x_digit_tokens, y_tokens, y_indices
 
 
