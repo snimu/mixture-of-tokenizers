@@ -152,7 +152,7 @@ class GenerateEquations:
         x_digit_tokens = self.eq_to_digits(x_tokens)
 
         # Shift indices to fit y
-        y_indices = (indices[0] - 1, indices[1] - 1)
+        y_indices = torch.tensor([indices[0] - 1, indices[1] - 1])
         return x_tokens, x_digit_tokens, y_tokens, y_indices
 
 
