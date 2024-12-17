@@ -79,8 +79,7 @@ def get_args():
     args.max_digits_per_token = _to_list(args.max_digits_per_token, int)
     args.max_tokens_per_num = _to_list(args.max_tokens_per_num, int)
     args.op = _to_list(args.op, str)
-    if args.mod is not None:
-        args.mod = _to_list(args.mod, int)
+    args.mod = _to_list(args.mod, int)
 
     assert args.print_every % args.eval_every == 0, \
         f"print_every ({args.print_every}) must be a multiple of eval_every ({args.eval_every})"
@@ -371,12 +370,7 @@ def train_and_save(
 def main():
     args = get_args()
 
-    total = (
-        len(args.max_digits_per_token) 
-        * len(args.max_tokens_per_num) 
-        * len(args.op) 
-        * (len(args.mod) if args.mod else 1)
-)
+    total = len(args.max_digits_per_token) * len(args.max_tokens_per_num) * len(args.op) * len(args.mod)
     loop = tqdm(
         itertools.product(
             args.max_digits_per_token, args.max_tokens_per_num, args.op, args.mod
