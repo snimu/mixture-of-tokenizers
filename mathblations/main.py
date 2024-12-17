@@ -377,6 +377,7 @@ def main():
         ), 
         total=total,
     )
+    torch.set_float32_matmul_precision('high')
 
     for max_digits_per_token, max_tokens_per_num, op, mod in loop:
         loop.set_description(f"{max_digits_per_token=}, {max_tokens_per_num=}, {op=}, {mod=}")
