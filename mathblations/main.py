@@ -114,20 +114,22 @@ def iterate_dataset(
         dataset: dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list],
         args: argparse.Namespace,
 ) -> Generator[tuple[torch.Tensor, torch.Tensor | None, torch.Tensor, torch.Tensor], None, None]:
-    # Get the total number of samples
-    num_samples = len(dataset["x_tokens"])
+    # Convert lists to tensors once 
+    x_tokens = torch.tensor(dataset["x_tokens"], dtype=torch.long)
+    x_digit_tokens = torch.tensor(dataset["x_digit_tokens"], dtype=torch.long) if args.use_digits else None
+    y_tokens = torch.tensor(dataset["y_tokens"], dtype=torch.long)
+    y_indices = torch.tensor(dataset["y_indices"], dtype=torch.long)
     
-    # Iterate over batches
+    # Then just yield slices
+    num_samples = len(dataset["x_tokens"])
     for i in range(0, num_samples, args.batchsize):
         batch_slice = slice(i, i + args.batchsize)
-        
-        # Extract batch from each dataset component
-        x_tokens = torch.tensor(dataset["x_tokens"][batch_slice], dtype=torch.long).to(args.device)
-        x_digit_tokens = torch.tensor(dataset["x_digit_tokens"][batch_slice], dtype=torch.long).to(args.device) if args.use_digits else None
-        y_tokens = torch.tensor(dataset["y_tokens"][batch_slice], dtype=torch.long).to(args.device)
-        y_indices = torch.tensor(dataset["y_indices"][batch_slice], dtype=torch.long).to(args.device)
-        
-        yield x_tokens, x_digit_tokens, y_tokens, y_indices
+        yield (
+            x_tokens[batch_slice].to(args.device),
+            x_digit_tokens[batch_slice].to(args.device) if args.use_digits else None,
+            y_tokens[batch_slice].to(args.device),
+            y_indices[batch_slice].to(args.device)
+        )
 
 
 def slice_logits_and_targets(
