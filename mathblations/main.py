@@ -207,7 +207,6 @@ def train(
 
     # Optimizer
     adamw_params = list(net.lm_head.parameters())
-    adamw_params.extend(list(net.transformer.wte.parameters()))
     if not isinstance(net.transformer.dte, torch.nn.Identity):
         adamw_params.extend(list(net.transformer.dte.parameters()))
         adamw_params.extend(list(net.transformer.digit_attn.parameters()))  # TODO: should the attns be AdamW optimized?
