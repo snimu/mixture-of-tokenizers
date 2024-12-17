@@ -207,7 +207,7 @@ def train(
         adamw_params.extend(list(net.transformer.dte.parameters()))
         adamw_params.extend(list(net.transformer.digit_attn.parameters()))  # TODO: should the attns be AdamW optimized?
         adamw_params.extend(list(net.transformer.cross_attn.parameters()))
-    muon_params = [p for p in net.parameters() if p not in adamw_params]
+    muon_params = list(net.transformer.h.parameters())
     optimizer = Muon(
         muon_params=muon_params,
         lr=args.learning_rate,
