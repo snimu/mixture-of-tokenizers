@@ -222,7 +222,7 @@ def train(
         if it < args.warmup_steps:
             return (it+1) / args.warmup_steps
         # 2) constant lr for a while
-        elif it < args.num_steps - args.cooldow_steps:
+        elif it < args.num_steps - args.cooldown_steps:
             return 1.0
         # 3) linear warmdown
         else:
