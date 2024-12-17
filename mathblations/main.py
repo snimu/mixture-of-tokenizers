@@ -371,7 +371,12 @@ def train_and_save(
 def main():
     args = get_args()
 
-    total = len(args.max_digits_per_token) * len(args.max_tokens_per_num) * len(args.op) * len(args.mod)
+    total = (
+        len(args.max_digits_per_token) 
+        * len(args.max_tokens_per_num) 
+        * len(args.op) 
+        * (len(args.mod) if args.mod else 1)
+)
     loop = tqdm(
         itertools.product(
             args.max_digits_per_token, args.max_tokens_per_num, args.op, args.mod
