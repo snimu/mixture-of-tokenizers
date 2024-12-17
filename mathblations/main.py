@@ -41,8 +41,8 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     # General parameters
-    parser.add_argument("--use-wandb", action="store_true")
-    parser.add_argument("--print-every", type=int, default=100)
+    parser.add_argument("--use-wandb", action="store_true", help="flag")
+    parser.add_argument("--print-every", type=int, default=100, help="type=int, default=100")
 
     # Data parameters
     parser.add_argument("--max-digits-per-token", type=int, default=3, nargs="+", help="type=int, default=3, nargs=+")
