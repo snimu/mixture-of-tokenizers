@@ -143,10 +143,13 @@ class CrossAttention(nn.Module):
         k = self.c_k(x_kv).view(B_kv, T_kv, self.n_head, self.head_dim)
         v = self.c_v(x_kv).view(B_kv, T_kv, self.n_head, self.head_dim)
 
-        # Apply rotary embeddings
-        cos, sin = self.rotary(q)
+        # Apply rotary embeddingscos_q, sin_q = self.rotary(q)  # length T_q
+        cos_q, sin_q = self.rotary(q)
+        cos_k, sin_k = self.rotary(k)
+        
         q, k = F.rms_norm(q, (q.size(-1),)), F.rms_norm(k, (k.size(-1),))
-        q, k = apply_rotary_emb(q, cos, sin), apply_rotary_emb(k, cos, sin)
+        q = apply_rotary_emb(q, cos_q, sin_q)
+        k = apply_rotary_emb(k, cos_k, sin_k)
 
         # Cross attention with sliding window mask
         y = flex_attention(
