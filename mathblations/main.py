@@ -113,13 +113,14 @@ def make_dataset(
 def iterate_dataset(
         dataset: dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list],
         args: argparse.Namespace,
+        config: model.GPTConfig,
 ) -> Generator[tuple[torch.Tensor, torch.Tensor | None, torch.Tensor, torch.Tensor], None, None]:
     num_samples = len(dataset["x_tokens"])
     for i in range(0, num_samples, args.batchsize):
         batch_slice = slice(i, i + args.batchsize)
         yield (
             torch.stack(dataset["x_tokens"][batch_slice]).to(args.device),
-            torch.stack(dataset["x_digit_tokens"][batch_slice]).to(args.device) if args.use_digits else None,
+            torch.stack(dataset["x_digit_tokens"][batch_slice]).to(args.device) if config.use_digits else None,
             torch.stack(dataset["y_tokens"][batch_slice]).to(args.device),
             torch.stack(dataset["y_indices"][batch_slice]).to(args.device)
         )
@@ -148,16 +149,16 @@ def evaluate(
         model: model.GPT, 
         valset: dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list],
         args: argparse.Namespace,
-        gen: data.GenerateEquations | None = None,
+        config: model.GPTConfig,
         print_sample: bool = False,
 ) -> EvalResult:
     model.eval()
     loss = 0.0
     accuracy = 0.0
     full_accuracy = 0.0
-    for batch_idx, (x_tokens, x_digit_tokens, y_tokens, y_indices) in enumerate(iterate_dataset(valset, args)):
+    for batch_idx, (x_tokens, x_digit_tokens, y_tokens, y_indices) in enumerate(iterate_dataset(valset, args, config)):
         x_tokens = x_tokens.to(args.device)
-        x_digit_tokens = x_digit_tokens.to(args.device) if args.use_digits else None
+        x_digit_tokens = x_digit_tokens.to(args.device) if config.use_digits else None
         y_tokens = y_tokens.to(args.device)
         y_indices = y_indices.to(args.device)
         logits = model(x_tokens, x_digit_tokens)
@@ -192,6 +193,7 @@ def train(
         trainset: pl.DataFrame, 
         valset: pl.DataFrame, 
         args: argparse.Namespace,
+        config: model.GPTConfig,
         gen: data.GenerateEquations | None = None,
 ):
     net = torch.compile(net)
@@ -233,9 +235,9 @@ def train(
     val_full_accuracies = []
     for step in range(args.num_steps):
         # Forward pass
-        x_tokens, x_digit_tokens, y_tokens, y_indices = next(iterate_dataset(trainset, args))
+        x_tokens, x_digit_tokens, y_tokens, y_indices = next(iterate_dataset(trainset, args, config))
         x_tokens = x_tokens.to(args.device)
-        x_digit_tokens = x_digit_tokens.to(args.device) if args.use_digits else None
+        x_digit_tokens = x_digit_tokens.to(args.device) if config.use_digits else None
         y_tokens = y_tokens.to(args.device)
         y_indices = y_indices.to(args.device)
         logits = net(x_tokens, x_digit_tokens)
@@ -254,7 +256,7 @@ def train(
         train_losses.append(loss.item())
 
         if step % args.eval_every == 0:
-            val_result = evaluate(net, valset, args, gen=gen, print_sample=step % args.print_every == 0)
+            val_result = evaluate(net, valset, args, config=config, print_sample=step % args.print_every == 0)
             val_losses.append(val_result.loss)
             val_accuracies.append(val_result.accuracy)
             val_full_accuracies.append(val_result.full_accuracy)
@@ -338,7 +340,7 @@ def train_and_save(
         wandb.finish()
         wandb.init(name=run_name, project="mathblations", config=vars(args))
     train_losses, val_losses, val_accuracies, val_full_accuracies = train(
-        net, trainset, valset, args, gen=gen
+        net, trainset, valset, args, gen=gen, config=config,
     )
 
     save(
