@@ -243,12 +243,10 @@ def train(
     for step in range(args.num_steps):
         # Forward pass
         x_tokens, x_digit_tokens, y_tokens, y_indices = next(train_iterator)
+        optimizer.zero_grad(set_to_none=True)
         logits = net(x_tokens, x_digit_tokens)
         logits, targets = slice_logits_and_targets(logits, y_indices, y_tokens)
         loss = F.cross_entropy(logits, targets)
-        
-        # Backward pass
-        optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
         scheduler.step()
