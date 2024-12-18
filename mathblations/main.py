@@ -145,6 +145,23 @@ def get_l1_grad_norm(net: model.GPT) -> float:
     return norm
 
 
+def print_sample(
+        x_tokens: torch.Tensor, 
+        y_tokens: torch.Tensor, 
+        target_tokens: torch.Tensor, 
+        gen: data.GenerateEquations,
+) -> None:
+    rand_idx = random.randint(0, len(x_tokens) - 1)
+    x = x_tokens[rand_idx].cpu().squeeze().tolist()
+    y = y_tokens[rand_idx].cpu().squeeze().tolist()
+    target = target_tokens[rand_idx].squeeze().cpu().tolist()
+    target_equation = gen.eq_to_str(torch.tensor(x + [target[-1]]))
+    generated_equation = gen.eq_to_str(torch.tensor(x + [y[-1]]))
+
+    print(f"\{target_equation=}")
+    print(f"\{generated_equation=}")
+
+
 @dataclass
 class EvalResult:
     loss: float
@@ -158,7 +175,6 @@ def evaluate(
         valset: dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list],
         args: argparse.Namespace,
         config: model.GPTConfig,
-        print_sample: bool = False,
 ) -> EvalResult:
     model.eval()
     loss = 0.0
@@ -178,11 +194,7 @@ def evaluate(
             pred_tokens = logits[i, start:end].argmax(dim=-1)
             target_tokens = y_tokens[i, start:end]
             # Only count as correct if ALL tokens match
-            is_correct = 1 if torch.all(pred_tokens == target_tokens) else 0
-            full_correct += is_correct
-            if print_sample and i == batch_idx == 0:
-                # to see if the full-accuracy calc is correct
-                print(f"{pred_tokens=} {target_tokens=}, {is_correct=}")
+            full_correct += int(torch.all(pred_tokens == target_tokens))
 
         full_accuracy += full_correct / len(y_indices)
 
@@ -270,12 +282,13 @@ def train(
 
 
         if step % args.eval_every == 0:
-            # TODO: move the print every here, just calculate acc & full val acc here?
-            val_result = evaluate(net, valset, args, config=config, print_sample=step % args.print_every == 0)
+            val_result = evaluate(net, valset, args, config=config)
             val_losses.append(val_result.loss)
             val_accuracies.append(val_result.accuracy)
             val_full_accuracies.append(val_result.full_accuracy)
             print(f"step={step} train_loss={loss.item():.4f} train_l1_grad_norm={grad_norm:.4f} val_loss={val_result.loss:.4f} val_accuracy={val_result.accuracy:.4f}")
+            if step % args.print_every == 0:
+                print_sample(x_tokens, y_tokens, targets, gen)
             if args.use_wandb:
                 wandb.log({
                     "val/loss": val_result.loss, 
