@@ -45,11 +45,12 @@ class GenerateEquations:
         self.mod = mod
 
         self.num_numeric_tokens = 10**self.max_digits_per_token
+        self.max_single_token_number = int("9"*self.max_digits_per_token)
         self.max_number = int("9"*self.max_digits_per_token*self.max_tokens_per_num)
         
-        self.op_token = self.max_number + 1
-        self.eq_token = self.max_number + 2
-        self.pad_token = self.max_number + 3
+        self.op_token = self.max_single_token_number + 1
+        self.eq_token = self.max_single_token_number + 2
+        self.pad_token = self.max_single_token_number + 3
         if op == "+":
             max_y = self.max_number * 2
         elif op in ("-", "/"):
@@ -96,9 +97,9 @@ class GenerateEquations:
         if self.mod is not None:
             y %= self.mod
         
-        n1 = self.num_to_tokens(n1, self.max_digits_per_token, self.max_number)
-        n2 = self.num_to_tokens(n2, self.max_digits_per_token, self.max_number)
-        y = self.num_to_tokens(y, self.max_digits_per_token, self.max_number)
+        n1 = self.num_to_tokens(n1, self.max_digits_per_token, self.max_single_token_number)
+        n2 = self.num_to_tokens(n2, self.max_digits_per_token, self.max_single_token_number)
+        y = self.num_to_tokens(y, self.max_digits_per_token, self.max_single_token_number)
 
         start = len(n1) + len(n2) + 2  # nums + op & eq sign
         end = start + len(y)
