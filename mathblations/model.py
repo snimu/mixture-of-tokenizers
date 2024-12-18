@@ -116,7 +116,7 @@ class CrossAttention(nn.Module):
         self.c_v = nn.Linear(self.n_embd, self.n_embd, bias=False)
         # output projection
         self.c_proj = nn.Linear(self.n_embd, self.n_embd, bias=False)
-        self.c_proj.weight.data.zero_()  # zero init
+        # self.c_proj.weight.data.zero_()  # zero init
         self.rotary = Rotary(self.head_dim)
 
         # Define the sliding window mask function
@@ -219,8 +219,8 @@ class GPT(nn.Module):
 
         if self.config.use_digits:
             de = self.transformer.dte(digits)
-            de = self.transformer.digit_attn(de)
-            x = self.transformer.cross_attn(x_q=we, x_kv=de)
+            de = de + self.transformer.digit_attn(de)
+            x = self.transformer.cross_attn(x_q=we, x_kv=de)  # TODO: residual here?
         else:
             x = we
         for block in self.transformer.h:
