@@ -55,6 +55,7 @@ def get_args():
     parser.add_argument("--batchsize", type=int, default=1024, help="type=int, default=1024")
     parser.add_argument("--num-steps", type=int, default=50_000, help="type=int, default=50_000")
     parser.add_argument("--num-steps-val", type=int, default=5, help="type=int, default=5")
+    parser.add_argument("--num-epochs", type=int, default=1, help="type=int, default=1")
     parser.add_argument("--device", type=str, default="cuda", help="type=str, default='cuda'")
     parser.add_argument("--learning-rate", type=float, default=0.001, help="type=float, default=0.001")
     parser.add_argument("--warmup-steps", type=int, default=0, help="type=int, default=0")
@@ -238,9 +239,11 @@ def train(
     val_losses = []
     val_accuracies = []
     val_full_accuracies = []
-    train_iterator = iterate_dataset(trainset, args, config)
-
-    for step in range(args.num_steps):
+    epoch = 0
+    for step in range(args.num_steps * args.num_epochs):
+        if step % args.num_steps == 0:
+            epoch += 1
+            train_iterator = iterate_dataset(trainset, args, config)
         # Forward pass
         x_tokens, x_digit_tokens, y_tokens, y_indices = next(train_iterator)
         optimizer.zero_grad(set_to_none=True)
@@ -251,16 +254,23 @@ def train(
         optimizer.step()
         scheduler.step()
 
-        grad_norm = get_l1_grad_norm(net)
-        train_l1_grad_norms.append(grad_norm)
+        with torch.no_grad():
+            grad_norm = get_l1_grad_norm(net)
+            train_l1_grad_norms.append(grad_norm)
 
         # Logging
         if args.use_wandb:
-            wandb.log({"train/loss": loss.item(), "train/step": step, "train/l1_grad_norm": grad_norm})
+            wandb.log({
+                "train/loss": loss.item(), 
+                "train/step": step, 
+                "train/epoch": epoch, 
+                "train/l1_grad_norm": grad_norm,
+            })
         train_losses.append(loss.item())
 
 
         if step % args.eval_every == 0:
+            # TODO: move the print every here, just calculate acc & full val acc here?
             val_result = evaluate(net, valset, args, config=config, print_sample=step % args.print_every == 0)
             val_losses.append(val_result.loss)
             val_accuracies.append(val_result.accuracy)
@@ -271,6 +281,8 @@ def train(
                     "val/loss": val_result.loss, 
                     "val/accuracy": val_result.accuracy,
                     "val/full_accuracy": val_result.full_accuracy,
+                    "val/epoch": epoch,
+                    "val/step": step,
                 })
 
     return train_losses, val_losses, val_accuracies, val_full_accuracies
@@ -292,10 +304,11 @@ def make_run_name(
         sliding_window_size: int | None,
         batchsize: int,
         num_steps: int,
+        num_epochs: int,
 ) -> str:
     name = f"{num_params=}_{vocab_size=}_{n_layer=}_{n_head=}_{n_embd=}"
     name += f"_{max_digits_per_token=}_{max_tokens_per_num=}_{op=}_{mod=}"
-    name += f"_{seed=}_{batchsize=}_{num_steps=}"
+    name += f"_{seed=}_{batchsize=}_{num_steps=}_{num_epochs=}"
     name += f"_{length_factor=}_{sliding_window_size=}"
     name += f"_{T=}"
     return name
@@ -340,6 +353,7 @@ def train_and_save(
         sliding_window_size=args.sliding_window_size,
         batchsize=args.batchsize,
         num_steps=args.num_steps,
+        num_epochs=args.num_epochs,
     )
     if args.use_wandb:
         wandb.finish()
