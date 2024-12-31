@@ -300,6 +300,29 @@ def train(
     return train_losses, val_losses, val_accuracies, val_full_accuracies
 
 
+def format_num_params(num_params: int, round_to_digits: int = 1) -> str:
+    if num_params < 1_000:
+        pnum = str(round(num_params, max(0, round_to_digits)))
+        scalar = ""
+    elif num_params < 1_000_000:
+        pnum = f"{round(num_params/1_000, max(0, round_to_digits))}"
+        scalar = "k"
+    elif num_params < 1_000_000_000:
+        pnum = f"{round(num_params/1_000_000, max(0, round_to_digits))}"
+        scalar = "M"
+    else:
+        pnum = f"{round(num_params/1_000_000_000, max(0, round_to_digits))}"
+        scalar = "B"
+
+    before_dot = pnum.split(".")[0]
+    after_dot = pnum.split(".")[1] if "." in pnum else ""
+    after_dot = "" if after_dot and (round_to_digits <= 0) else after_dot
+    after_dot = "" if after_dot and (int(after_dot) == 0) else after_dot
+    after_dot = "." + after_dot if after_dot else ""
+
+    return f"{before_dot}{after_dot}{scalar}"
+
+
 def make_run_name(
         max_digits_per_token: int,
         max_tokens_per_num: int,
@@ -317,11 +340,12 @@ def make_run_name(
         num_steps: int,
         num_epochs: int,
 ) -> str:
-    name = f"{num_params=}_{vocab_size=}_{n_layer=}_{n_head=}_{n_embd=}"
-    name += f"_{max_digits_per_token=}_{max_tokens_per_num=}_{op=}_{mod=}"
-    name += f"_{seed=}_{batchsize=}_{num_steps=}_{num_epochs=}"
-    name += f"_{length_factor=}"
-    name += f"_{T=}"
+    op_to_word = {"+": "addition", "-": "substraction", "*": "multiplication", "/": "division"}
+    name = f"{format_num_params(num_params, 0)}params"
+    name += f"_{vocab_size}vocab_{n_layer}layers_{n_head}heads_{n_embd}embdim"
+    name += f"_{max_digits_per_token}dpt_{max_tokens_per_num}tpn_{op_to_word[op]}_mod{mod}"
+    name += f"_{seed}seed_{batchsize}bs_{num_steps}steps_{num_epochs}epochs"
+    name += f"_{length_factor}lf_{T}T"
     return name
 
 
