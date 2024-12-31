@@ -18,7 +18,6 @@ class GPTConfig:
     n_embd : int = 768
     T: int = 1024
     length_factor: int = 3  # for cross attention between digits and embeddings; == max_digits_per_token
-    sliding_window_size: int | None = None  # only for digits
     use_digits: bool = False
 
 
@@ -53,7 +52,7 @@ def apply_rotary_emb(x, cos, sin):
 
 class CausalSelfAttention(nn.Module):
 
-    def __init__(self, config: GPTConfig):
+    def __init__(self, config):
         super().__init__()
         self.n_head = config.n_head
         self.n_embd = config.n_embd
@@ -67,20 +66,6 @@ class CausalSelfAttention(nn.Module):
         self.c_proj.weight.data.zero_() # zero init suggested by @Grad62304977
         self.rotary = Rotary(self.head_dim)
 
-        self.sliding_window_size = config.sliding_window_size
-        if self.sliding_window_size is not None:
-            def sliding_window_causal(b, h, q_idx, kv_idx):
-                causal_mask = q_idx >= kv_idx
-                window_mask = q_idx - kv_idx <= self.sliding_window_size 
-                return causal_mask & window_mask
-            self.block_mask = create_block_mask(sliding_window_causal, B=None, H=None, 
-                                                Q_LEN=config.T, KV_LEN=config.T)
-        else:
-            def causal(b, h, q_idx, kv_idx):
-                return q_idx >= kv_idx
-            self.block_mask = create_block_mask(causal, B=None, H=None, 
-                                                Q_LEN=config.T, KV_LEN=config.T)
-
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
         q = self.c_q(x).view(B, T, self.n_head, self.head_dim)
@@ -89,12 +74,7 @@ class CausalSelfAttention(nn.Module):
         cos, sin = self.rotary(q)
         q, k = F.rms_norm(q, (q.size(-1),)), F.rms_norm(k, (k.size(-1),)) # QK norm suggested by @Grad62304977
         q, k = apply_rotary_emb(q, cos, sin), apply_rotary_emb(k, cos, sin)
-        y = flex_attention(
-            q.transpose(1, 2), 
-            k.transpose(1, 2), 
-            v.transpose(1, 2), 
-            block_mask=self.block_mask,
-        )
+        y = F.scaled_dot_product_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), is_causal=True)
         y = y.transpose(1, 2).contiguous().view_as(x) # re-assemble all head outputs side by side
         y = self.c_proj(y)
         return y
@@ -116,17 +96,13 @@ class CrossAttention(nn.Module):
         self.c_v = nn.Linear(self.n_embd, self.n_embd, bias=False)
         # output projection
         self.c_proj = nn.Linear(self.n_embd, self.n_embd, bias=False)
-        # self.c_proj.weight.data.zero_()  # zero init
-        self.rotary = Rotary(self.head_dim)
 
         # Define the sliding window mask function
-        def sliding_window_mask(b, h, q_idx, kv_idx):
-            window_start = kv_idx * self.length_factor
-            window_end = (kv_idx + 1) * self.length_factor
-            return (q_idx >= window_start) & (q_idx < window_end)
+        def digit_to_token_mask(b, h, q_idx, kv_idx):
+            return q_idx == (kv_idx // self.length_factor)
 
         # Create and store the block mask at initialization using known sequence length
-        self.block_mask = create_block_mask(sliding_window_mask, B=None, H=None, 
+        self.block_mask = create_block_mask(digit_to_token_mask, B=None, H=None, 
                                           Q_LEN=config.T * self.length_factor, 
                                           KV_LEN=config.T)
 
@@ -143,13 +119,7 @@ class CrossAttention(nn.Module):
         k = self.c_k(x_kv).view(B_kv, T_kv, self.n_head, self.head_dim)
         v = self.c_v(x_kv).view(B_kv, T_kv, self.n_head, self.head_dim)
 
-        # Apply rotary embeddingscos_q, sin_q = self.rotary(q)  # length T_q
-        cos_q, sin_q = self.rotary(q)
-        cos_k, sin_k = self.rotary(k)
-        
         q, k = F.rms_norm(q, (q.size(-1),)), F.rms_norm(k, (k.size(-1),))
-        q = apply_rotary_emb(q, cos_q, sin_q)
-        k = apply_rotary_emb(k, cos_k, sin_k)
 
         # Cross attention with sliding window mask
         y = flex_attention(
@@ -183,7 +153,6 @@ class Block(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        config.sliding_window_size = None  # only for digits -> when using CausalSelfAttention isolated
         self.attn = CausalSelfAttention(config)
         self.mlp = MLP(config)
 
@@ -205,6 +174,7 @@ class GPT(nn.Module):
             dte = nn.Embedding(config.vocab_size, config.n_embd) if config.use_digits else nn.Identity(),
             digit_attn = CausalSelfAttention(config) if config.use_digits else nn.Identity(),
             cross_attn = CrossAttention(config) if config.use_digits else nn.Identity(),
+            alternative_attn = nn.Identity() if config.use_digits else CausalSelfAttention(config),
             wte = nn.Embedding(config.vocab_size, config.n_embd),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
         ))
@@ -217,17 +187,21 @@ class GPT(nn.Module):
         # forward the GPT model itself
         we = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
 
+        # Digit embeddings
         if self.config.use_digits:
             de = self.transformer.dte(digits)
             de = de + self.transformer.digit_attn(de)
             x = self.transformer.cross_attn(x_q=we, x_kv=de)  # TODO: residual here?
+        # Otherwise, make up for layers with attention layer
         else:
-            x = we
+            x = self.transformer.alternative_attn(we)
+
+        # Model backend
         for block in self.transformer.h:
             x = block(x)
-        x = F.rms_norm(x, (x.size(-1),))
 
-        logits = self.lm_head(x)
-        logits = logits.float() # use tf32/fp32 for logits
+        # Decode logits
+        x = F.rms_norm(x, (x.size(-1),))
+        logits = self.lm_head(x).float() # use tf32/fp32 for logits
 
         return logits
