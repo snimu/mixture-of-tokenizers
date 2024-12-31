@@ -153,8 +153,8 @@ def print_sample(
     rand_idx = random.randint(0, len(x_tokens) - 1)
     x = x_tokens[rand_idx].cpu().squeeze().tolist()
     y = y_tokens[rand_idx].cpu().squeeze().tolist()
-    target = target_tokens[rand_idx].squeeze().cpu().tolist()
-    target_equation = gen.eq_to_str(torch.tensor(x + [target[-1]]))
+    target = target_tokens[rand_idx].squeeze().tolist()
+    target_equation = gen.eq_to_str(torch.tensor(x + [target]))
     generated_equation = gen.eq_to_str(torch.tensor(x + [y[-1]]))
 
     print(f"{target_equation=}")
@@ -328,7 +328,7 @@ def make_run_name(
 def save(results: dict[str, list], run_name: str):
     df = pl.DataFrame(results)
     if not Path(f"results/{run_name}.csv").exists():
-        df.write_csv(f"results/{run_name}.csv", mode="a", index=False)
+        df.write_csv(f"results/{run_name}.csv")
     else:
         with open(f"results/{run_name}.csv", "ab") as f:
             df.write_csv(f, include_header=False)
