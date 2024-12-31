@@ -73,7 +73,6 @@ def get_args():
     parser.add_argument("--n-layer", type=int, default=12, help="type=int, default=12")
     parser.add_argument("--n-head", type=int, default=6, help="type=int, default=6")
     parser.add_argument("--n-embd", type=int, default=768, help="type=int, default=768")
-    parser.add_argument("--sliding-window-size", type=int, default=100, help="type=int, default=100")
 
     
     args = parser.parse_args()
@@ -158,8 +157,8 @@ def print_sample(
     target_equation = gen.eq_to_str(torch.tensor(x + [target[-1]]))
     generated_equation = gen.eq_to_str(torch.tensor(x + [y[-1]]))
 
-    print(f"\{target_equation=}")
-    print(f"\{generated_equation=}")
+    print(f"{target_equation=}")
+    print(f"{generated_equation=}")
 
 
 @dataclass
@@ -314,7 +313,6 @@ def make_run_name(
         n_embd: int,
         T: int,
         length_factor: int,
-        sliding_window_size: int | None,
         batchsize: int,
         num_steps: int,
         num_epochs: int,
@@ -322,7 +320,7 @@ def make_run_name(
     name = f"{num_params=}_{vocab_size=}_{n_layer=}_{n_head=}_{n_embd=}"
     name += f"_{max_digits_per_token=}_{max_tokens_per_num=}_{op=}_{mod=}"
     name += f"_{seed=}_{batchsize=}_{num_steps=}_{num_epochs=}"
-    name += f"_{length_factor=}_{sliding_window_size=}"
+    name += f"_{length_factor=}"
     name += f"_{T=}"
     return name
 
@@ -363,7 +361,6 @@ def train_and_save(
         n_embd=args.n_embd,
         T=gen.max_possible_num_tokens,
         length_factor=max_digits_per_token,
-        sliding_window_size=args.sliding_window_size,
         batchsize=args.batchsize,
         num_steps=args.num_steps,
         num_epochs=args.num_epochs,
@@ -427,7 +424,6 @@ def main():
             n_embd=args.n_embd,
             T=gen.max_possible_num_tokens,
             length_factor=max_digits_per_token,
-            sliding_window_size=args.sliding_window_size,
         )
         config_with_digits = model.GPTConfig(use_digits=True, **common_config)
         config_no_digits = model.GPTConfig(use_digits=False, **common_config)
