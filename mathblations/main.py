@@ -68,6 +68,7 @@ def get_args():
     # Ablation parameters
     parser.add_argument("--num-runs", type=int, default=1, help="type=int, default=1")
     parser.add_argument("--seed", type=int, default=385, help="type=int, default=385")
+    parser.add_argument("--regenerate-dataset-every-run", action="store_true", help="type=FLAG")
 
     # Model parameters
     parser.add_argument("--n-layer", type=int, default=12, help="type=int, default=12")
@@ -91,6 +92,7 @@ def get_args():
 def make_dataset(
         gen: data.GenerateEquations, args: argparse.Namespace
 ) -> tuple[dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list], ...]:
+    # TODO: continually save dataset to json files of batchsize, load them async during training
     print("Generating trainset")
     trainset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
     for _ in tqdm(range(args.num_steps * args.batchsize)):
@@ -460,14 +462,19 @@ def main():
         config_with_digits = model.GPTConfig(use_digits=True, **common_config)
         config_no_digits = model.GPTConfig(use_digits=False, **common_config)
 
+        if not args.regenerate_dataset_every_run:
+            print("\n\nCREATING DATASET\n\n")
+            trainset, valset = make_dataset(gen, args)
+
         seed = args.seed
         for _ in range(args.num_runs):
             torch.manual_seed(seed)
             random.seed(seed)
             seed += 1
 
-            print("\n\nCREATING DATASET\n\n")
-            trainset, valset = make_dataset(gen, args)
+            if args.regenerate_dataset_every_run:
+                print("\n\nCREATING DATASET\n\n")
+                trainset, valset = make_dataset(gen, args)
 
             print("\n\nWITH DIGITS\n\n")
             train_and_save(
