@@ -146,19 +146,18 @@ def get_l1_grad_norm(net: model.GPT) -> float:
 
 def print_sample(
         x_tokens: torch.Tensor, 
-        y_tokens: torch.Tensor, 
-        target_tokens: torch.Tensor, 
+        y_tokens: torch.Tensor,
+        generated_tokens: torch.Tensor, 
         gen: data.GenerateEquations,
 ) -> None:
     rand_idx = random.randint(0, len(x_tokens) - 1)
     x = x_tokens[rand_idx].cpu().squeeze().tolist()
     y = y_tokens[rand_idx].cpu().squeeze().tolist()
-    target = target_tokens[rand_idx].squeeze().tolist()
-    target_equation = gen.eq_to_str(torch.tensor(x + [target]))
-    generated_equation = gen.eq_to_str(torch.tensor(x + [y[-1]]))
+    target_equation = gen.eq_to_str(torch.tensor(x + [y[-1]]))
+    generated_token = generated_tokens[rand_idx].cpu().squeeze().tolist()
 
     print(f"{target_equation=}")
-    print(f"{generated_equation=}")
+    print(f"{generated_token=}")
 
 
 @dataclass
@@ -218,11 +217,12 @@ def train(
 
     # Optimizer
     adamw_params = list(net.lm_head.parameters())
+    muon_params = list(net.transformer .h.parameters())
     if not isinstance(net.transformer.dte, torch.nn.Identity):
         adamw_params.extend(list(net.transformer.dte.parameters()))
-        adamw_params.extend(list(net.transformer.digit_attn.parameters()))  # TODO: should the attns be AdamW optimized?
-        adamw_params.extend(list(net.transformer.cross_attn.parameters()))
-    muon_params = list(net.transformer.h.parameters())
+        muon_params.extend(list(net.transformer.digit_attn.parameters()))
+        muon_params.extend(list(net.transformer.cross_attn.parameters()))
+        muon_params.extend(list(net.transformer.alternative_attn.parameters()))
     optimizer = Muon(
         muon_params=muon_params,
         lr=args.learning_rate,
@@ -287,7 +287,12 @@ def train(
             val_full_accuracies.append(val_result.full_accuracy)
             print(f"step={step} train_loss={loss.item():.4f} train_l1_grad_norm={grad_norm:.4f} val_loss={val_result.loss:.4f} val_accuracy={val_result.accuracy:.4f}")
             if step % args.print_every == 0:
-                print_sample(x_tokens, y_tokens, targets, gen)
+                print_sample(
+                    x_tokens=x_tokens,
+                    y_tokens=y_tokens,
+                    generated_tokens=logits.argmax(-1),
+                    gen=gen,
+                )
             if args.use_wandb:
                 wandb.log({
                     "val/loss": val_result.loss, 
@@ -459,7 +464,7 @@ def main():
             seed += 1
 
             trainset, valset = make_dataset(gen, args)
-            
+            print("\n\nWITH DIGITS\n\n")
             train_and_save(
                 args=args,
                 config=config_with_digits,
@@ -472,6 +477,7 @@ def main():
                 mod=mod,
                 seed=seed,
             )
+            print("\n\nWITHOUT DIGITS\n\n")
             train_and_save(
                 args=args,
                 config=config_no_digits,
