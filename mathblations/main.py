@@ -398,7 +398,7 @@ def train_and_save(
         batchsize=args.batchsize,
         num_steps=args.num_steps,
         num_epochs=args.num_epochs,
-        use_digits=args.use_digits,
+        use_digits=config.use_digits,
     )
     if args.use_wandb:
         wandb.finish()
