@@ -91,16 +91,18 @@ def get_args():
 def make_dataset(
         gen: data.GenerateEquations, args: argparse.Namespace
 ) -> tuple[dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list], ...]:
+    print("Generating trainset")
     trainset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
-    for _ in range(args.num_steps * args.batchsize):
+    for _ in tqdm(range(args.num_steps * args.batchsize)):
         x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
         trainset["x_tokens"].append(x_tokens)
         trainset["x_digit_tokens"].append(x_digit_tokens)
         trainset["y_tokens"].append(y_tokens)
         trainset["y_indices"].append(y_indices)
 
+    print("Generating valset")
     valset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
-    for _ in range(args.num_steps_val * args.batchsize):
+    for _ in tqdm(range(args.num_steps_val * args.batchsize)):
         x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
         valset["x_tokens"].append(x_tokens)
         valset["x_digit_tokens"].append(x_digit_tokens)
@@ -464,7 +466,9 @@ def main():
             random.seed(seed)
             seed += 1
 
+            print("\n\nCREATING DATASET\n\n")
             trainset, valset = make_dataset(gen, args)
+
             print("\n\nWITH DIGITS\n\n")
             train_and_save(
                 args=args,
