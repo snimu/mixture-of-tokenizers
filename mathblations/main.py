@@ -141,7 +141,7 @@ def get_l1_grad_norm(net: model.GPT) -> float:
     for p in net.parameters():
         if p.grad is not None:
             norm += p.grad.abs().sum().item()
-    return norm
+    return norm / sum(p.numel() for p in net.parameters())
 
 
 def print_sample(
