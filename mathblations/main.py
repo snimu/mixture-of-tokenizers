@@ -156,8 +156,7 @@ def print_sample(
     target_equation = gen.eq_to_str(torch.tensor(x + [y[-1]]))
     generated_token = generated_tokens[rand_idx].cpu().squeeze().tolist()
 
-    print(f"{target_equation=}")
-    print(f"{generated_token=}")
+    print(f"{target_equation=}\n{generated_token=}\n")
 
 
 @dataclass
@@ -174,6 +173,7 @@ def evaluate(
         args: argparse.Namespace,
         config: model.GPTConfig,
 ) -> EvalResult:
+    # TODO: distance to target number (L1 and L2)
     model.eval()
     loss = 0.0
     accuracy = 0.0
@@ -344,9 +344,10 @@ def make_run_name(
         batchsize: int,
         num_steps: int,
         num_epochs: int,
+        use_digits: bool,
 ) -> str:
     op_to_word = {"+": "addition", "-": "substraction", "*": "multiplication", "/": "division"}
-    name = f"{format_num_params(num_params, 0)}params"
+    name = f"{format_num_params(num_params, 0)}params_{'digits' if use_digits else 'tokens'}"
     name += f"_{vocab_size}vocab_{n_layer}layers_{n_head}heads_{n_embd}embdim"
     name += f"_{max_digits_per_token}dpt_{max_tokens_per_num}tpn_{op_to_word[op]}_mod{mod}"
     name += f"_{seed}seed_{batchsize}bs_{num_steps}steps_{num_epochs}epochs"
@@ -393,6 +394,7 @@ def train_and_save(
         batchsize=args.batchsize,
         num_steps=args.num_steps,
         num_epochs=args.num_epochs,
+        use_digits=args.use_digits,
     )
     if args.use_wandb:
         wandb.finish()
@@ -415,7 +417,6 @@ def train_and_save(
             num_steps=[args.num_steps],
             batchsize=[args.batchsize],
             num_val_steps=[args.num_steps_val],
-            config=[config],
             train_losses=[str(train_losses)],
             val_losses=[str(val_losses)],
             val_accuracies=[str(val_accuracies)],
