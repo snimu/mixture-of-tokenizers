@@ -209,8 +209,8 @@ def evaluate(
             targets.append(target_num)
             predictions.append(pred_num)
 
-        l1 += F.l1_loss(torch.tensor(targets), torch.tensor(predictions)).item()
-        l2 += F.mse_loss(torch.tensor(targets), torch.tensor(predictions)).item()
+        l1 += F.l1_loss(torch.tensor(targets).float(), torch.tensor(predictions).float()).item()
+        l2 += F.mse_loss(torch.tensor(targets).float(), torch.tensor(predictions).float()).item()
         full_accuracy += full_correct / len(y_indices)
 
     loss /= args.num_steps_val
