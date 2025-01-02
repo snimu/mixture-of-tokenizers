@@ -61,7 +61,7 @@ class GenerateEquations:
         # nums + result + op & eq sign
         self.max_possible_num_tokens = 2 * self.max_tokens_per_num + max_y_tokens + 2
 
-        self.vocab_size = self.max_number + 3  # nums + op & eq sign & pad token
+        self.vocab_size = self.max_single_token_number + 4  # nums + 0 & op & eq sign & pad token
 
     def num_to_tokens(
             self, 
