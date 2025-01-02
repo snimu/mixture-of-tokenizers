@@ -190,11 +190,13 @@ class GPT(nn.Module):
         # Digit embeddings
         if self.config.use_digits:
             de = self.transformer.dte(digits)
-            de = de + self.transformer.digit_attn(de)
-            x = self.transformer.cross_attn(x_q=we, x_kv=de)  # TODO: residual here?
+            de = de + self.transformer.digit_attn(F.rms_norm(de, (de.size(-1),)))
+            x = self.transformer.cross_attn(
+                x_q=F.rms_norm(we, (we.size(-1),)), x_kv=F.rms_norm(de, (de.size(-1),)),
+            )  # TODO: residual here?
         # Otherwise, make up for layers with attention layer
         else:
-            x = self.transformer.alternative_attn(we)
+            x = x + self.transformer.alternative_attn(F.rms_norm(we, (we.size(-1),)))
 
         # Model backend
         for block in self.transformer.h:
