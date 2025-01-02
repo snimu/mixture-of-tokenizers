@@ -168,6 +168,8 @@ class EvalResult:
     loss: float
     accuracy: float
     full_accuracy: float
+    l1: float
+    l2: float
 
 
 @torch.inference_mode()
@@ -183,6 +185,7 @@ def evaluate(
     accuracy = 0.0
     full_accuracy = 0.0
     val_iterator = iterate_dataset(valset, args, config)
+    l1, l2 = 0.0, 0.0
     for batch_idx, (x_tokens, x_digit_tokens, y_tokens, y_indices) in enumerate(val_iterator):
         logits = model(x_tokens, x_digit_tokens)
 
@@ -192,19 +195,31 @@ def evaluate(
         del token_logits, token_targets
         # full accuracy: all target tokens are correct
         full_correct = 0
+        # l1 and l2 distance from target number: just get a target & predicted vector and then compare
+        targets = []
+        predictions = []
         for i, (start, end) in enumerate(y_indices):
             pred_tokens = logits[i, start:end].argmax(dim=-1)
             target_tokens = y_tokens[i, start:end]
             # Only count as correct if ALL tokens match
             full_correct += int(torch.all(pred_tokens == target_tokens))
 
+            target_num = int("".join(str(t.item()) for t in target_tokens))
+            pred_num = int("".join(str(t.item()) for t in pred_tokens))
+            targets.append(target_num)
+            predictions.append(pred_num)
+
+        l1 += F.l1_loss(torch.tensor(targets), torch.tensor(predictions)).item()
+        l2 += F.mse_loss(torch.tensor(targets), torch.tensor(predictions)).item()
         full_accuracy += full_correct / len(y_indices)
 
     loss /= args.num_steps_val
     accuracy /= args.num_steps_val
     full_accuracy /= args.num_steps_val
+    l1 /= args.num_steps_val
+    l2 /= args.num_steps_val
     model.train()
-    return EvalResult(loss=loss, accuracy=accuracy, full_accuracy=full_accuracy)
+    return EvalResult(loss=loss, accuracy=accuracy, full_accuracy=full_accuracy, l1=l1, l2=l2)
 
 
 def train(
@@ -289,7 +304,13 @@ def train(
             val_losses.append(val_result.loss)
             val_accuracies.append(val_result.accuracy)
             val_full_accuracies.append(val_result.full_accuracy)
-            print(f"step={step} train_loss={loss.item():.4f} train_l1_grad_norm={grad_norm:.4f} val_loss={val_result.loss:.4f} val_accuracy={val_result.accuracy:.4f}")
+            print(
+                f"step={step} train_loss={loss.item():.4f} "
+                f"l1_grad_norm={grad_norm:.4f} "
+                f"val_loss={val_result.loss:.4f} val_acc={val_result.accuracy:.4f} "
+                f"val_full_acc={val_result.full_accuracy:.4f} "
+                f"val_l1={val_result.l1:.4f} val_l2={val_result.l2:.4f}"
+            )
             if step % args.print_every == 0:
                 print_sample(
                     x_tokens=x_tokens,
@@ -302,6 +323,8 @@ def train(
                     "val/loss": val_result.loss, 
                     "val/accuracy": val_result.accuracy,
                     "val/full_accuracy": val_result.full_accuracy,
+                    "val/l1": val_result.l1,
+                    "val/l2": val_result.l2,
                     "val/epoch": epoch,
                     "val/step": step,
                 })
