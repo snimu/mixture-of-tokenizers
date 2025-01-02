@@ -196,7 +196,7 @@ class GPT(nn.Module):
             )  # TODO: residual here?
         # Otherwise, make up for layers with attention layer
         else:
-            x = x + self.transformer.alternative_attn(F.rms_norm(we, (we.size(-1),)))
+            x = we + self.transformer.alternative_attn(F.rms_norm(we, (we.size(-1),)))
 
         # Model backend
         for block in self.transformer.h:
