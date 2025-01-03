@@ -97,7 +97,6 @@ def make_dataset(
         gen: data.GenerateEquations, args: argparse.Namespace, loop: tqdm = None,
 ) -> tuple[dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list], ...]:
     # TODO: continually save dataset to json files of batchsize, load them async during training
-    print("Generating trainset")
     trainset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
     for i in range(args.num_steps * args.batchsize):
         if loop:
@@ -108,7 +107,6 @@ def make_dataset(
         trainset["y_tokens"].append(y_tokens)
         trainset["y_indices"].append(y_indices)
 
-    print("Generating valset")
     valset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
     for i in range(args.num_steps_val * args.batchsize):
         if loop:
