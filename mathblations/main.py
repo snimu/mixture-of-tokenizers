@@ -109,7 +109,7 @@ def make_dataset(
         trainset["y_tokens"].append(y_tokens)
         trainset["y_indices"].append(y_indices)
         if loop and i % 100 == 0:
-            loop.set_description(f"Trainset: {(i/(args.num_steps*args.batchsize))*100:.2f}%")
+            loop.set_description(f"Trainset: {((i+1)/(args.num_steps*args.batchsize))*100:.2f}%")
 
     valset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
     for i in range(args.num_steps_val * args.batchsize):
@@ -119,7 +119,7 @@ def make_dataset(
         valset["y_tokens"].append(y_tokens)
         valset["y_indices"].append(y_indices)
         if loop and i % 100 == 0:
-            loop.set_description(f"Valset: {(i/(args.num_steps_val*args.batchsize))*100:.2f}%")
+            loop.set_description(f"Valset: {((i+1)/(args.num_steps_val*args.batchsize))*100:.2f}%")
 
     return trainset, valset
 
@@ -324,7 +324,6 @@ def train(
                 f"l1_grad_norm={grad_norm:.4f} "
                 f"val_loss={val_result.loss:.4f} val_acc={val_result.accuracy:.4f} "
                 f"val_full_acc={val_result.full_accuracy:.4f} "
-                f"val_l1={val_result.l1:.4f} val_l2={val_result.l2:.4f}"
             )
             if step % args.print_every == 0:
                 print_sample(
