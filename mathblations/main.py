@@ -242,7 +242,7 @@ def train(
         adamw_params.extend(list(net.transformer.dte.parameters()))
         muon_params.extend(list(net.transformer.digit_attn.parameters()))
         muon_params.extend(list(net.transformer.cross_attn.parameters()))
-        muon_params.extend(list(net.transformer.alternative_attn.parameters()))
+        muon_params.extend(list(net.transformer.alternative_block.parameters()))
     optimizer = Muon(
         muon_params=muon_params,
         lr=args.learning_rate,

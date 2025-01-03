@@ -176,7 +176,7 @@ class GPT(nn.Module):
             dte = nn.Embedding(13, config.n_embd) if config.use_digits else nn.Identity(),  # 10 digits + pad & op & eq
             digit_attn = CausalSelfAttention(config) if config.use_digits else nn.Identity(),
             cross_attn = CrossAttention(config) if config.use_digits else nn.Identity(),
-            alternative_attn = nn.Identity() if config.use_digits else CausalSelfAttention(config),
+            alternative_block = nn.Identity() if config.use_digits else Block(config),
             wte = nn.Embedding(config.vocab_size, config.n_embd),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
         ))
@@ -198,7 +198,7 @@ class GPT(nn.Module):
             )  # TODO: residual here?
         # Otherwise, make up for layers with attention layer
         else:
-            x = we + self.transformer.alternative_attn(F.rms_norm(we, (we.size(-1),)))
+            x = self.transformer.alternative_block(we)
 
         # Model backend
         for block in self.transformer.h:
