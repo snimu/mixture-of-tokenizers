@@ -89,13 +89,13 @@ class CrossAttention(nn.Module):
         self.length_factor = config.length_factor  # e.g., 3 or 5
         assert self.n_embd % self.n_head == 0
         
-        # Query projection for x_q
         self.c_q = nn.Linear(self.n_embd, self.n_embd, bias=False)
-        # Key and Value projections for x_kv
         self.c_k = nn.Linear(self.n_embd, self.n_embd, bias=False)
         self.c_v = nn.Linear(self.n_embd, self.n_embd, bias=False)
         # output projection
         self.c_proj = nn.Linear(self.n_embd, self.n_embd, bias=False)
+
+        self.rotary = Rotary(self.head_dim)
 
         # Define the sliding window mask function
         def digit_to_token_mask(b, h, q_idx, kv_idx):
@@ -119,7 +119,9 @@ class CrossAttention(nn.Module):
         k = self.c_k(x_kv).view(B_kv, T_kv, self.n_head, self.head_dim)
         v = self.c_v(x_kv).view(B_kv, T_kv, self.n_head, self.head_dim)
 
+        (cos_q, sin_q), (cos_k, sin_k) = self.rotary(q), self.rotary(k)
         q, k = F.rms_norm(q, (q.size(-1),)), F.rms_norm(k, (k.size(-1),))
+        q, k = apply_rotary_emb(q, cos_q, sin_q), apply_rotary_emb(k, cos_k, sin_k)
 
         # Cross attention with sliding window mask
         y = flex_attention(
