@@ -10,6 +10,7 @@
 # ]
 # ///
 
+import os
 import argparse
 import itertools
 import random
@@ -182,7 +183,6 @@ def evaluate(
         args: argparse.Namespace,
         config: model.GPTConfig,
 ) -> EvalResult:
-    # TODO: distance to target number (L1 and L2)
     model.eval()
     loss = 0.0
     accuracy = 0.0
@@ -427,7 +427,7 @@ def train_and_save(
         use_digits=config.use_digits,
     )
     if args.use_wandb:
-        wandb.finish()
+        wandb.finish(quiet=True)
         wandb.init(name=run_name, project="mathblations", config=vars(args))
     train_losses, val_losses, val_accuracies, val_full_accuracies = train(
         net, trainset, valset, args, gen=gen, config=config,
@@ -462,9 +462,9 @@ def train_and_save(
 
 def main():
     args = get_args()
-
     assert not (args.mot_only and args.no_mot), "Cannot use both --mot-only and --no-mot"
 
+    os.environ["WANDB_SILENT"] = "true"
     total = len(args.max_digits_per_token) * len(args.max_tokens_per_num) * len(args.op) * len(args.mod)
     loop = tqdm(
         itertools.product(
