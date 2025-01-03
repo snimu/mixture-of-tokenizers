@@ -389,9 +389,9 @@ def make_run_name(
         use_digits: bool,
 ) -> str:
     op_to_word = {"+": "addition", "-": "substraction", "*": "multiplication", "/": "division"}
-    name = f"{format_num_params(num_params, 0)}params_{'digits' if use_digits else 'tokens'}"
-    name += f"_{vocab_size}vocab_{n_layer}layers_{n_head}heads_{n_embd}embdim"
+    name = f"{format_num_params(num_params, 0)}_{'digits' if use_digits else 'tokens'}"
     name += f"_{max_digits_per_token}dpt_{max_tokens_per_num}tpn_{op_to_word[op]}_mod{mod}"
+    name += f"_{vocab_size}vocab_{n_layer}layers_{n_head}heads_{n_embd}embdim"
     name += f"_{seed}seed_{batchsize}bs_{num_steps}steps_{num_epochs}epochs"
     name += f"_{length_factor}lf_{T}T"
     return name
