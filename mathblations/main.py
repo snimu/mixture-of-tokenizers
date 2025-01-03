@@ -448,6 +448,7 @@ def train_and_save(
 
     save(
         results=dict(
+            use_digits=[config.use_digits],
             max_digits_per_token=[max_digits_per_token],
             max_tokens_per_num=[max_tokens_per_num],
             op=[op],
