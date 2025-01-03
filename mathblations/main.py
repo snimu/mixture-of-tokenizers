@@ -99,7 +99,7 @@ def make_dataset(
     # TODO: continually save dataset to json files of batchsize, load them async during training
     trainset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
     for i in range(args.num_steps * args.batchsize):
-        if loop:
+        if loop and i % 100 == 0:
             loop.set_description(f"Trainset: {(i/(args.num_steps*args.batchsize))*100:.2f}%")
         x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
         trainset["x_tokens"].append(x_tokens)
@@ -109,7 +109,7 @@ def make_dataset(
 
     valset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
     for i in range(args.num_steps_val * args.batchsize):
-        if loop:
+        if loop and i % 100 == 0:
             loop.set_description(f"Valset: {(i/(args.num_steps_val*args.batchsize))*100:.2f}%")
         x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
         valset["x_tokens"].append(x_tokens)
