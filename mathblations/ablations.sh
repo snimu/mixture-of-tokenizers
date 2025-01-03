@@ -1,0 +1,20 @@
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 2 --max-tokens-per-num 1 --seed 12345
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 2 --max-tokens-per-num 2 --seed 23456
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 3 --max-tokens-per-num 1 --seed 34567
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 3 --max-tokens-per-num 2 --seed 45678
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 4 --max-tokens-per-num 1 --seed 56789
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 4 --max-tokens-per-num 2 --seed 67890
+
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 8 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 2 --max-tokens-per-num 1 --seed 78901
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 8 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 2 --max-tokens-per-num 2 --seed 89012
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 8 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 3 --max-tokens-per-num 1 --seed 90123
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 8 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 3 --max-tokens-per-num 2 --seed 54321
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 8 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 4 --max-tokens-per-num 1 --seed 65432
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 8 --n-head 2 --n-embd 256 --use-wandb --max-digits-per-token 4 --max-tokens-per-num 2 --seed 76543
+
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 3 --n-embd 384 --use-wandb --max-digits-per-token 2 --max-tokens-per-num 1 --seed 87654
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 3 --n-embd 384 --use-wandb --max-digits-per-token 2 --max-tokens-per-num 2 --seed 98765
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 3 --n-embd 384 --use-wandb --max-digits-per-token 3 --max-tokens-per-num 1 --seed 10987
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 3 --n-embd 384 --use-wandb --max-digits-per-token 3 --max-tokens-per-num 2 --seed 21987
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 3 --n-embd 384 --use-wandb --max-digits-per-token 4 --max-tokens-per-num 1 --seed 32987
+uv run main.py --num-steps 5_000 --cooldown-steps 500 --weight-decay 0.001 --num-runs 5 --regenerate-dataset-every-run --n-layer 6 --n-head 3 --n-embd 384 --use-wandb --max-digits-per-token 4 --max-tokens-per-num 2 --seed 43987
