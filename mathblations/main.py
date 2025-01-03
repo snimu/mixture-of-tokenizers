@@ -69,6 +69,7 @@ def get_args():
     parser.add_argument("--num-runs", type=int, default=1, help="type=int, default=1")
     parser.add_argument("--seed", type=int, default=385, help="type=int, default=385")
     parser.add_argument("--regenerate-dataset-every-run", action="store_true", help="type=FLAG")
+    parser.add_argument("--mot-only", action="store_true", help="For trying out different MoT settings. type=FLAG")
 
     # Model parameters
     parser.add_argument("--n-layer", type=int, default=12, help="type=int, default=12")
@@ -512,6 +513,8 @@ def main():
                 mod=mod,
                 seed=seed,
             )
+            if args.mot_only:
+                continue
             print("\n\nWITHOUT DIGITS\n\n")
             train_and_save(
                 args=args,
