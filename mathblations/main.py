@@ -517,6 +517,13 @@ def main():
             if args.regenerate_dataset_every_run:
                 loop.write("\n\nCREATING DATASET\n\n")
                 trainset, valset = make_dataset(gen, args, loop=loop)
+            else:
+                # Shuffle the trainset
+                shuffle_indices = torch.randperm(len(trainset["x_tokens"]))
+                trainset["x_tokens"] = [trainset["x_tokens"][i] for i in shuffle_indices]
+                trainset["x_digit_tokens"] = [trainset["x_digit_tokens"][i] for i in shuffle_indices]
+                trainset["y_tokens"] = [trainset["y_tokens"][i] for i in shuffle_indices]
+                trainset["y_indices"] = [trainset["y_indices"][i] for i in shuffle_indices]
             
             loop.set_description(f"{max_digits_per_token=}, {max_tokens_per_num=}, {op=}, {mod=}, {seed=}")
 
