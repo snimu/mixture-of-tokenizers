@@ -314,7 +314,7 @@ def train(
         train_losses.append(loss.item())
 
 
-        if step % args.eval_every == 0:
+        if step % args.eval_every == 0 or step == args.num_steps - 1:
             val_result = evaluate(net, valset, args, config=config)
             val_losses.append(val_result.loss)
             val_accuracies.append(val_result.accuracy)
