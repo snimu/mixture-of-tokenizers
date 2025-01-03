@@ -70,6 +70,7 @@ def get_args():
     parser.add_argument("--seed", type=int, default=385, help="type=int, default=385")
     parser.add_argument("--regenerate-dataset-every-run", action="store_true", help="type=FLAG")
     parser.add_argument("--mot-only", action="store_true", help="For trying out different MoT settings. type=FLAG")
+    parser.add_argument("--no-mot", action="store_true", help="For trying out different non-MoT settings. type=FLAG")
 
     # Model parameters
     parser.add_argument("--n-layer", type=int, default=12, help="type=int, default=12")
@@ -457,6 +458,8 @@ def train_and_save(
 def main():
     args = get_args()
 
+    assert not (args.mot_only and args.no_mot), "Cannot use both --mot-only and --no-mot"
+
     total = len(args.max_digits_per_token) * len(args.max_tokens_per_num) * len(args.op) * len(args.mod)
     loop = tqdm(
         itertools.product(
@@ -500,34 +503,34 @@ def main():
                 print("\n\nCREATING DATASET\n\n")
                 trainset, valset = make_dataset(gen, args)
 
-            print("\n\nWITH DIGITS\n\n")
-            train_and_save(
-                args=args,
-                config=config_with_digits,
-                gen=gen,
-                trainset=trainset,
-                valset=valset,
-                max_digits_per_token=max_digits_per_token,
-                max_tokens_per_num=max_tokens_per_num,
-                op=op,
-                mod=mod,
-                seed=seed,
-            )
-            if args.mot_only:
-                continue
-            print("\n\nWITHOUT DIGITS\n\n")
-            train_and_save(
-                args=args,
-                config=config_no_digits,
-                gen=gen,
-                trainset=trainset,
-                valset=valset,
-                max_digits_per_token=max_digits_per_token,
-                max_tokens_per_num=max_tokens_per_num,
-                op=op,
-                mod=mod,
-                seed=seed,
-            )
+            if not args.no_mot:
+                print("\n\nWITH DIGITS\n\n")
+                train_and_save(
+                    args=args,
+                    config=config_with_digits,
+                    gen=gen,
+                    trainset=trainset,
+                    valset=valset,
+                    max_digits_per_token=max_digits_per_token,
+                    max_tokens_per_num=max_tokens_per_num,
+                    op=op,
+                    mod=mod,
+                    seed=seed,
+                )
+            if not args.mot_only:
+                print("\n\nWITHOUT DIGITS\n\n")
+                train_and_save(
+                    args=args,
+                    config=config_no_digits,
+                    gen=gen,
+                    trainset=trainset,
+                    valset=valset,
+                    max_digits_per_token=max_digits_per_token,
+                    max_tokens_per_num=max_tokens_per_num,
+                    op=op,
+                    mod=mod,
+                    seed=seed,
+                )
 
 
 if __name__ == "__main__":
