@@ -94,12 +94,14 @@ def get_args():
 
 
 def make_dataset(
-        gen: data.GenerateEquations, args: argparse.Namespace
+        gen: data.GenerateEquations, args: argparse.Namespace, loop: tqdm = None,
 ) -> tuple[dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list], ...]:
     # TODO: continually save dataset to json files of batchsize, load them async during training
     print("Generating trainset")
     trainset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
-    for _ in tqdm(range(args.num_steps * args.batchsize)):
+    for i in range(args.num_steps * args.batchsize):
+        if loop:
+            loop.set_description(f"Trainset: {(i/(args.num_steps*args.batchsize))*100:.2f}%")
         x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
         trainset["x_tokens"].append(x_tokens)
         trainset["x_digit_tokens"].append(x_digit_tokens)
@@ -108,7 +110,9 @@ def make_dataset(
 
     print("Generating valset")
     valset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
-    for _ in tqdm(range(args.num_steps_val * args.batchsize)):
+    for i in range(args.num_steps_val * args.batchsize):
+        if loop:
+            loop.set_description(f"Valset: {(i/(args.num_steps_val*args.batchsize))*100:.2f}%")
         x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
         valset["x_tokens"].append(x_tokens)
         valset["x_digit_tokens"].append(x_digit_tokens)
@@ -496,7 +500,7 @@ def main():
 
         if not args.regenerate_dataset_every_run:
             print("\n\nCREATING DATASET\n\n")
-            trainset, valset = make_dataset(gen, args)
+            trainset, valset = make_dataset(gen, args, loop=loop)
 
         seed = args.seed
         for _ in range(args.num_runs):
@@ -506,7 +510,9 @@ def main():
 
             if args.regenerate_dataset_every_run:
                 print("\n\nCREATING DATASET\n\n")
-                trainset, valset = make_dataset(gen, args)
+                trainset, valset = make_dataset(gen, args, loop=loop)
+            
+            loop.set_description(f"{max_digits_per_token=}, {max_tokens_per_num=}, {op=}, {mod=}, {seed=}")
 
             if not args.no_mot:
                 print("\n\nWITH DIGITS\n\n")
