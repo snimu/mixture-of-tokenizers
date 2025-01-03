@@ -159,6 +159,7 @@ def print_sample(
         y_tokens: torch.Tensor,
         generated_tokens: torch.Tensor, 
         gen: data.GenerateEquations,
+        loop: tqdm = None,
 ) -> None:
     rand_idx = random.randint(0, len(x_tokens) - 1)
     x = x_tokens[rand_idx].cpu().squeeze().tolist()
@@ -166,7 +167,10 @@ def print_sample(
     target_equation = gen.eq_to_str(torch.tensor(x + [y[-1]]))
     generated_token = generated_tokens[rand_idx].cpu().squeeze().tolist()
 
-    print(f"{target_equation=}\n{generated_token=}\n")
+    if loop:
+        loop.write(f"{target_equation=}\n{generated_token=}\n")
+    else:
+        print(f"{target_equation=}\n{generated_token=}\n")
 
 
 @dataclass
@@ -234,7 +238,9 @@ def train(
         args: argparse.Namespace,
         config: model.GPTConfig,
         gen: data.GenerateEquations | None = None,
+        loop: tqdm = None,
 ):
+    print_ = loop.write if loop else print
     net = torch.compile(net)
     net = net.to(args.device)
     net.train()
@@ -309,7 +315,7 @@ def train(
             val_losses.append(val_result.loss)
             val_accuracies.append(val_result.accuracy)
             val_full_accuracies.append(val_result.full_accuracy)
-            print(
+            print_(
                 f"step={step} train_loss={loss.item():.4f} "
                 f"l1_grad_norm={grad_norm:.4f} "
                 f"val_loss={val_result.loss:.4f} val_acc={val_result.accuracy:.4f} "
@@ -322,6 +328,7 @@ def train(
                     y_tokens=y_tokens,
                     generated_tokens=logits.argmax(-1),
                     gen=gen,
+                    loop=loop,
                 )
             if args.use_wandb:
                 wandb.log({
@@ -407,6 +414,7 @@ def train_and_save(
         op: Literal["+", "-", "*", "/"],
         mod: int | None,
         seed: int,
+        loop: tqdm = None,
 ):
     net = model.GPT(config)
     num_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
@@ -432,7 +440,7 @@ def train_and_save(
         wandb.finish(quiet=True)
         wandb.init(name=run_name, project="mathblations", config=vars(args))
     train_losses, val_losses, val_accuracies, val_full_accuracies = train(
-        net, trainset, valset, args, gen=gen, config=config,
+        net, trainset, valset, args, gen=gen, config=config, loop=loop,
     )
 
     save(
@@ -497,7 +505,7 @@ def main():
         config_no_digits = model.GPTConfig(use_digits=False, **common_config)
 
         if not args.regenerate_dataset_every_run:
-            print("\n\nCREATING DATASET\n\n")
+            loop.write("\n\nCREATING DATASET\n\n")
             trainset, valset = make_dataset(gen, args, loop=loop)
 
         seed = args.seed
@@ -507,13 +515,13 @@ def main():
             seed += 1
 
             if args.regenerate_dataset_every_run:
-                print("\n\nCREATING DATASET\n\n")
+                loop.write("\n\nCREATING DATASET\n\n")
                 trainset, valset = make_dataset(gen, args, loop=loop)
             
             loop.set_description(f"{max_digits_per_token=}, {max_tokens_per_num=}, {op=}, {mod=}, {seed=}")
 
             if not args.no_mot:
-                print("\n\nWITH DIGITS\n\n")
+                loop.write("\n\nWITH DIGITS\n\n")
                 train_and_save(
                     args=args,
                     config=config_with_digits,
@@ -525,9 +533,10 @@ def main():
                     op=op,
                     mod=mod,
                     seed=seed,
+                    loop=loop,
                 )
             if not args.mot_only:
-                print("\n\nWITHOUT DIGITS\n\n")
+                loop.write("\n\nWITHOUT DIGITS\n\n")
                 train_and_save(
                     args=args,
                     config=config_no_digits,
@@ -539,6 +548,7 @@ def main():
                     op=op,
                     mod=mod,
                     seed=seed,
+                    loop=loop,
                 )
 
 
