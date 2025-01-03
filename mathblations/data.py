@@ -111,9 +111,9 @@ class GenerateEquations:
         equation = equation.replace(str(self.op_token), self.op_name)
         equation = equation.replace(str(self.eq_token), "=")
         # Nicer formatting for large numbers
-        n1, rest = equation.split(str(self.op_name))
-        n2, y = rest.split("=")
         try:
+            n1, rest = equation.split(str(self.op_name))
+            n2, y = rest.split("=")
             n1, n2, y = int(n1), int(n2), int(y)
             return f"{n1:,} {self.op_name} {n2:,} = {y:,}"
         except ValueError:  # sometimes, n2 is just ''; always n2...
