@@ -97,6 +97,10 @@ def make_dataset(
         gen: data.GenerateEquations, args: argparse.Namespace, loop: tqdm = None,
 ) -> tuple[dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list], ...]:
     # TODO: continually save dataset to json files of batchsize, load them async during training
+    loop.write(
+        f"\n\nCREATING DATASET: max_digits_per_token={gen.max_digits_per_token}, "
+        f"max_tokens_per_num={gen.max_tokens_per_num}, op={gen.op_name}, mod={gen.mod}\n\n"
+    )
     trainset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
     for i in range(args.num_steps * args.batchsize):
         if loop and i % 100 == 0:
@@ -505,7 +509,6 @@ def main():
         config_no_digits = model.GPTConfig(use_digits=False, **common_config)
 
         if not args.regenerate_dataset_every_run:
-            loop.write("\n\nCREATING DATASET\n\n")
             trainset, valset = make_dataset(gen, args, loop=loop)
 
         seed = args.seed
@@ -515,7 +518,6 @@ def main():
             seed += 1
 
             if args.regenerate_dataset_every_run:
-                loop.write("\n\nCREATING DATASET\n\n")
                 trainset, valset = make_dataset(gen, args, loop=loop)
             else:
                 # Shuffle the trainset
