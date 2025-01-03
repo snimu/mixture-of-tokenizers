@@ -44,6 +44,7 @@ def get_args():
     # General parameters
     parser.add_argument("--use-wandb", action="store_true", help="flag")
     parser.add_argument("--print-every", type=int, default=100, help="type=int, default=100")
+    parser.add_argument("--savefile", type=str, default="results.csv", help="type=str, default=results.csv")
 
     # Data parameters
     parser.add_argument("--max-digits-per-token", type=int, default=3, nargs="+", help="type=int, default=3, nargs=+")
@@ -384,12 +385,12 @@ def make_run_name(
     return name
 
 
-def save(results: dict[str, list], run_name: str):
+def save(results: dict[str, list], savefile: str):
     df = pl.DataFrame(results)
-    if not Path(f"results/{run_name}.csv").exists():
-        df.write_csv(f"results/{run_name}.csv")
+    if not Path(f"results/{savefile}.csv").exists():
+        df.write_csv(f"results/{savefile}.csv")
     else:
-        with open(f"results/{run_name}.csv", "ab") as f:
+        with open(f"results/{savefile}.csv", "ab") as f:
             df.write_csv(f, include_header=False)
 
 
@@ -443,6 +444,10 @@ def train_and_save(
             final_val_accuracy=[val_accuracies[-1]],
             seed=[seed],
             num_params=[num_params],
+            depth=[config.n_layer],
+            width=[config.n_embd],
+            heads=[config.n_head],
+            vocab_size=[config.vocab_size],
             num_steps=[args.num_steps],
             batchsize=[args.batchsize],
             num_val_steps=[args.num_steps_val],
@@ -451,7 +456,7 @@ def train_and_save(
             val_accuracies=[str(val_accuracies)],
             val_full_accuracies=[str(val_full_accuracies)],
         ),
-        run_name=run_name,
+        savefile=args.savefile,
     )
 
 
