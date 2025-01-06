@@ -284,6 +284,8 @@ def train(
     val_losses = []
     val_accuracies = []
     val_full_accuracies = []
+    val_l1s = []
+    val_l2s = []
     epoch = 0
     for step in range(args.num_steps * args.num_epochs):
         if step % args.num_steps == 0:
@@ -319,6 +321,8 @@ def train(
             val_losses.append(val_result.loss)
             val_accuracies.append(val_result.accuracy)
             val_full_accuracies.append(val_result.full_accuracy)
+            val_l1s.append(val_result.l1)
+            val_l2s.append(val_result.l2)
             print_(
                 f"step={step} train_loss={loss.item():.4f} "
                 f"l1_grad_norm={grad_norm:.4f} "
@@ -344,7 +348,7 @@ def train(
                     "val/step": step,
                 })
 
-    return train_losses, val_losses, val_accuracies, val_full_accuracies
+    return train_losses, val_losses, val_accuracies, val_full_accuracies, val_l1s, val_l2s
 
 
 def format_num_params(num_params: int, round_to_digits: int = 1) -> str:
@@ -442,7 +446,7 @@ def train_and_save(
     if args.use_wandb:
         wandb.finish(quiet=True)
         wandb.init(name=run_name, project="mathblations", config=vars(args))
-    train_losses, val_losses, val_accuracies, val_full_accuracies = train(
+    train_losses, val_losses, val_accuracies, val_full_accuracies, val_l1s, val_l2s = train(
         net, trainset, valset, args, gen=gen, config=config, loop=loop,
     )
 
@@ -469,6 +473,8 @@ def train_and_save(
             val_losses=[str(val_losses)],
             val_accuracies=[str(val_accuracies)],
             val_full_accuracies=[str(val_full_accuracies)],
+            val_l1s=[str(val_l1s)],
+            val_l2s=[str(val_l2s)],
         ),
         savefile=args.savefile,
     )
