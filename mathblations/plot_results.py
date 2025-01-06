@@ -3,9 +3,9 @@ import ast
 import itertools
 from typing import Literal
 
+import seaborn as sns
 import polars as pl
 import numpy as np
-from rich import print
 import matplotlib.pyplot as plt
 
 def close_plt() -> None:
@@ -151,11 +151,64 @@ def plot_digits_vs_tokens(
     close_plt()  # in case you call this function multiple times with different settings
 
 
+def heatmap_final_measure(
+      file: str,
+      avg_last_n: int = 5,
+      to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses"] = "val_accuracies",
+      show: bool = True,
+):
+    settings = pl.scan_csv(file).select(
+        "max_digits_per_token", "max_tokens_per_num"
+    ).collect().unique()
+    settings = [(dpt, tpn) for dpt, tpn in zip(settings["max_digits_per_token"], settings["max_tokens_per_num"])]
+
+    dpts = sorted(set(dpt for dpt, _ in settings))
+    tpns = sorted(set(tpn for _, tpn in settings))
+    heatmap = np.zeros((len(dpts), len(tpns)))
+
+    for dpt, tpn in settings:
+        _, _, avg_ys = load_xs_ys_avg_y(
+            file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
+            to_plot=to_plot, use_digits=True,
+        )
+        y_digits = np.mean(avg_ys[-avg_last_n:])
+
+        _, _, avg_ys = load_xs_ys_avg_y(
+            file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
+            to_plot=to_plot, use_digits=False,
+        )
+        y_tokens = np.mean(avg_ys[-avg_last_n:])
+
+        i = dpts.index(dpt)
+        j = tpns.index(tpn)
+        ratio = y_digits / (y_tokens + 1e-6)
+        heatmap[i, j] = ratio
+
+    if show:
+        plt.figure(figsize=(6,5))
+        sns.heatmap(
+            heatmap, annot=True, fmt='.3f', cmap='viridis', 
+            vmin=0.95, vmax=1.01, center=1.0,
+            xticklabels=tpns, yticklabels=dpts,
+            annot_kws={'size': 8}, cbar_kws={'label': to_plot},
+        )
+        plt.xlabel('Tokens per number')
+        plt.ylabel('Digits per token')
+        plt.tight_layout()
+        plt.show()
+    close_plt()
+
+    return heatmap, dpts, tpns
+
+
 if __name__ == "__main__":
     file = "results_deep.csv"
-    plot_digits_vs_tokens(
+    # plot_digits_vs_tokens(
+    #     file=file,
+    #     max_digits_per_token=2,
+    #     max_tokens_per_num=3,
+    #     to_plot="val_full_accuracies",
+    # )
+    heatmap_final_measure(
         file=file,
-        max_digits_per_token=2,
-        max_tokens_per_num=3,
-        to_plot="val_full_accuracies",
     )
