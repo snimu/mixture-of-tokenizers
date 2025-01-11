@@ -91,7 +91,7 @@ class GenerateEquations:
         tokens = tokens.tolist()
         digits = []
         for token in tokens:
-            new_toks = [self.pad_token] * self.max_digits_per_token
+            new_toks = [13] * self.max_digits_per_token
             if token == self.op_token:
                 new_toks[-1] = 10
             elif token == self.eq_token:
