@@ -51,7 +51,7 @@ def get_args():
     parser.add_argument("--max-digits-per-token", type=int, default=3, nargs="+", help="type=int, default=3, nargs=+")
     parser.add_argument("--max-tokens-per-num", type=int, default=1, nargs="+", help="type=int, default=1, nargs=+")
     parser.add_argument("--op", type=str, choices=("+", "-", "*", "/"), default="+", nargs="+", help="type=str, choices=('+', '-', '*', '/'), default='+', nargs=+")
-    parser.add_argument("--mod", type=int, default=None, nargs="+", help="type=int, default=None, nargs=+")
+    parser.add_argument("--mod", type=int, default=None, help="type=int, default=None")
 
     # Training parameters
     parser.add_argument("--batchsize", type=int, default=1024, help="type=int, default=1024")
@@ -85,7 +85,6 @@ def get_args():
     args.max_digits_per_token = _to_list(args.max_digits_per_token, int)
     args.max_tokens_per_num = _to_list(args.max_tokens_per_num, int)
     args.op = _to_list(args.op, str)
-    args.mod = _to_list(args.mod, None)
 
     assert args.print_every % args.eval_every == 0, \
         f"print_every ({args.print_every}) must be a multiple of eval_every ({args.eval_every})"
