@@ -1,7 +1,14 @@
+# /// script
+# requires-python = "==3.12"
+# dependencies = [
+#   "numpy",
+#   "torch",
+# ]
+# ///
 
 """Generating & loading the dataset."""
 
-
+import itertools
 import random
 import math
 from typing import Literal
@@ -62,7 +69,7 @@ class GenerateEquations:
         self.max_possible_num_tokens = 2 * self.max_tokens_per_num + max_y_tokens + 2
 
         self.vocab_size = self.max_single_token_number + 4  # nums + 0 & op & eq sign & pad token
-
+        
     def num_to_tokens(
             self, 
             num: int,
@@ -71,19 +78,32 @@ class GenerateEquations:
     ) -> list[float]:
         if num <= max_number:
             return [num]
-        else:
-            tokens = []
-            divisor = 10 ** max_digits_per_token
-            
-            while num > 0:
-                remainder = num % divisor
-                tokens.insert(0, remainder)
-                num //= divisor
+        
+        tokens = []
+        num_str = str(num)
+        for i in range(0, len(num_str), max_digits_per_token):
+            part = num_str[i:i+max_digits_per_token]
+            tokens.append(int("".join(part)))
+        return tokens
+    
+    def tokens_to_digits(self, tokens: torch.Tensor) -> torch.Tensor:
+        tokens = tokens.tolist()
+        digits = []
+        for token in tokens:
+            new_toks = [self.pad_token] * self.max_digits_per_token
+            if token == self.op_token:
+                new_toks[-1] = 10
+            elif token == self.eq_token:
+                new_toks[-1] = 11
+            elif token == self.pad_token:
+                new_toks[-1] = 12
+            else:
+                token_str = str(token)
+                for i, char in enumerate(reversed(token_str)):
+                    new_toks[-i-1] = int(char)
 
-                if 0 < num <= max_number:
-                    tokens.insert(0, num)
-                    break
-            return tokens
+            digits.extend(new_toks)
+        return torch.tensor(digits)
 
     def generate_equation(self) -> torch.Tensor:
         """
@@ -118,26 +138,6 @@ class GenerateEquations:
             return f"{n1:,} {self.op_name} {n2:,} = {y:,}"
         except ValueError:  # sometimes, n2 is just ''; always n2...
             return f"{equation}"
-
-    def eq_to_digits(self, equation: torch.Tensor) -> torch.Tensor:
-        equation = equation.squeeze().tolist()
-
-        digit_tokens = []
-        for token in equation:
-            if token == self.op_token:
-                new_toks = [10]
-            elif token == self.eq_token:
-                new_toks = [11]
-            elif token == self.pad_token:
-                new_toks = [12]
-            else:
-                new_toks = self.num_to_tokens(token, max_digits_per_token=1, max_number=9)
-
-            # Pad to max_digits_per_token
-            new_toks.extend([12] * (self.max_digits_per_token - len(new_toks)))
-            # Add to digit_tokens
-            digit_tokens.extend(new_toks)
-        return torch.tensor(digit_tokens)
     
     def __call__(self, *args, **kwds):
         """Returns: (x_tokens, x_digit_tokens, y_tokens, y_indices)"""
@@ -152,7 +152,7 @@ class GenerateEquations:
         y_tokens = all_tokens[1:]
 
         # Convert to digits
-        x_digit_tokens = self.eq_to_digits(x_tokens)
+        x_digit_tokens = self.tokens_to_digits(x_tokens)
 
         # Shift indices to fit y
         y_indices = torch.tensor([indices[0] - 1, indices[1] - 1])
