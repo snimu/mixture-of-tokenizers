@@ -167,8 +167,8 @@ def make_dataset(
 ) -> tuple[dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list], ...]:
     # TODO: continually save dataset to json files of batchsize, load them async during training
     loop.write(
-        f"\n\nCREATING DATASET: max_digits_per_token={args.max_digits_per_token}, "
-        f"max_tokens_per_num={args.max_tokens_per_num}, op={args.op}, mod={args.mod}\n\n"
+        f"\n\nCREATING DATASET: max_digits_per_token={gen.max_digits_per_token}, "
+        f"max_tokens_per_num={gen.max_tokens_per_num}, op={gen.op_name}, mod={gen.mod}\n\n"
     )
     trainset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
     for i in range(args.num_steps):
