@@ -14,7 +14,7 @@ import os
 import argparse
 import itertools
 import random
-from typing import Any, Literal, Generator
+from typing import Any, Literal
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,7 +24,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import polars as pl
 
-import data
+from data import GenerateEquations, make_dataset, iterate_dataset, slice_logits_and_targets
 import model
 from muon import Muon
 
@@ -93,63 +93,6 @@ def get_args():
     return args
 
 
-def make_dataset(
-        gen: data.GenerateEquations, args: argparse.Namespace, loop: tqdm = None,
-) -> tuple[dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list], ...]:
-    # TODO: continually save dataset to json files of batchsize, load them async during training
-    loop.write(
-        f"\n\nCREATING DATASET: max_digits_per_token={gen.max_digits_per_token}, "
-        f"max_tokens_per_num={gen.max_tokens_per_num}, op={gen.op_name}, mod={gen.mod}\n\n"
-    )
-    trainset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
-    for i in range(args.num_steps * args.batchsize):
-        x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
-        trainset["x_tokens"].append(x_tokens)
-        trainset["x_digit_tokens"].append(x_digit_tokens)
-        trainset["y_tokens"].append(y_tokens)
-        trainset["y_indices"].append(y_indices)
-        if loop and i % 100 == 0:
-            loop.set_description(f"Trainset: {((i+1)/(args.num_steps*args.batchsize))*100:.2f}%")
-
-    valset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
-    for i in range(args.num_steps_val * args.batchsize):
-        x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
-        valset["x_tokens"].append(x_tokens)
-        valset["x_digit_tokens"].append(x_digit_tokens)
-        valset["y_tokens"].append(y_tokens)
-        valset["y_indices"].append(y_indices)
-        if loop and i % 100 == 0:
-            loop.set_description(f"Valset: {((i+1)/(args.num_steps_val*args.batchsize))*100:.2f}%")
-
-    return trainset, valset
-
-
-def iterate_dataset(
-        dataset: dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list],
-        args: argparse.Namespace,
-        config: model.GPTConfig,
-) -> Generator[tuple[torch.Tensor, torch.Tensor | None, torch.Tensor, torch.Tensor], None, None]:
-    num_samples = len(dataset["x_tokens"])
-    for i in range(0, num_samples, args.batchsize):
-        batch_slice = slice(i, i + args.batchsize)
-        yield (
-            torch.stack(dataset["x_tokens"][batch_slice]).to(args.device),
-            torch.stack(dataset["x_digit_tokens"][batch_slice]).to(args.device) if config.use_digits else None,
-            torch.stack(dataset["y_tokens"][batch_slice]).to(args.device),
-            torch.stack(dataset["y_indices"][batch_slice]).to(args.device)
-        )
-
-
-def slice_logits_and_targets(
-        logits: torch.Tensor, y_indices: torch.Tensor, y_tokens: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
-    # Handle each batch element separately
-    batch_logits = [logits[i, start:end] for i, (start, end) in enumerate(y_indices)]
-    batch_targets = [y_tokens[i, start:end] for i, (start, end) in enumerate(y_indices)]
-    
-    # Stack them all together
-    return torch.cat(batch_logits), torch.cat(batch_targets)
-
 def get_l1_grad_norm(net: model.GPT) -> float:
     norm = 0.0
     for p in net.parameters():
@@ -162,7 +105,7 @@ def print_sample(
         x_tokens: torch.Tensor, 
         y_tokens: torch.Tensor,
         generated_tokens: torch.Tensor, 
-        gen: data.GenerateEquations,
+        gen: GenerateEquations,
         loop: tqdm = None,
 ) -> None:
     rand_idx = random.randint(0, len(x_tokens) - 1)
@@ -241,7 +184,7 @@ def train(
         valset: pl.DataFrame, 
         args: argparse.Namespace,
         config: model.GPTConfig,
-        gen: data.GenerateEquations | None = None,
+        gen: GenerateEquations | None = None,
         loop: tqdm = None,
 ):
     print_ = loop.write if loop else print
@@ -413,7 +356,7 @@ def save(results: dict[str, list], savefile: str):
 def train_and_save(
         args: argparse.Namespace,
         config: model.GPTConfig,
-        gen: data.GenerateEquations,
+        gen: GenerateEquations,
         trainset: pl.DataFrame,
         valset: pl.DataFrame,
         max_digits_per_token: int,
@@ -496,7 +439,7 @@ def main():
 
     for max_digits_per_token, max_tokens_per_num, op, mod in loop:
         loop.set_description(f"{max_digits_per_token=}, {max_tokens_per_num=}, {op=}, {mod=}")
-        gen = data.GenerateEquations(
+        gen = GenerateEquations(
             max_digits_per_token=max_digits_per_token,
             max_tokens_per_num=max_tokens_per_num,
             op=op,
