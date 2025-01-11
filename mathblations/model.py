@@ -173,7 +173,7 @@ class GPT(nn.Module):
         self.config = config
 
         self.transformer = nn.ModuleDict(dict(
-            dte = nn.Embedding(13, config.n_embd) if config.use_digits else nn.Identity(),  # 10 digits + pad & op & eq
+            dte = nn.Embedding(14, config.n_embd) if config.use_digits else nn.Identity(),  # 10 digits + pad & op & eq
             digit_attn = CausalSelfAttention(config) if config.use_digits else nn.Identity(),
             cross_attn = CrossAttention(config) if config.use_digits else nn.Identity(),
             alternative_block = nn.Identity() if config.use_digits else Block(config),
