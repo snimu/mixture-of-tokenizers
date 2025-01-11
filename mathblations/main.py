@@ -458,7 +458,7 @@ def main():
         config_no_digits = model.GPTConfig(use_digits=False, **common_config)
 
         if not args.regenerate_dataset_every_run:
-            trainset, valset = make_dataset(gen, args, loop=loop)
+            trainset, valset = make_dataset(args, loop=loop)
 
         seed = args.seed
         for _ in range(args.num_runs):
@@ -467,7 +467,7 @@ def main():
             seed += 1
 
             if args.regenerate_dataset_every_run:
-                trainset, valset = make_dataset(gen, args, loop=loop)
+                trainset, valset = make_dataset(args, loop=loop)
             else:
                 # Shuffle the trainset
                 shuffle_indices = torch.randperm(len(trainset["x_tokens"]))
