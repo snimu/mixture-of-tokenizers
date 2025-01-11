@@ -193,13 +193,16 @@ def _make_dataset(
         with mp.Pool(num_procs) as pool:
             batches = pool.starmap(
                 _make_batch,
-                [(
-                    num_samples_per_proc,
-                    args.max_digits_per_token,
-                    args.max_tokens_per_num,
-                    args.op,
-                    args.mod,
-                )] * num_procs,
+                [
+                    (
+                        num_samples_per_proc,
+                        args.max_digits_per_token,
+                        args.max_tokens_per_num,
+                        args.op,
+                        args.mod,
+                    )
+                    for _ in range(num_procs)
+                ],
             )
         for batch in batches:
             dataset["x_tokens"].extend(batch["x_tokens"])
