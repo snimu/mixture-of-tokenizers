@@ -182,7 +182,7 @@ def make_dataset(
             loop.set_description(f"Trainset: {(i+1)/(args.num_steps)*100:.2f}%")
 
     valset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
-    for i in range(args.num_steps):
+    for i in range(args.num_steps_val):
         for _ in range(args.batchsize):
             x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
             valset["x_tokens"].append(x_tokens)
