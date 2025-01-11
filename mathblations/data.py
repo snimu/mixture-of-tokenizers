@@ -11,7 +11,6 @@
 import argparse
 import random
 import math
-import multiprocessing as mp
 from typing import Literal, Generator
 
 import torch
@@ -159,70 +158,11 @@ class GenerateEquations:
         # Shift indices to fit y
         y_indices = torch.tensor([indices[0] - 1, indices[1] - 1])
         return x_tokens, x_digit_tokens, y_tokens, y_indices
-
-
-def _make_batch(
-        num_samples: int,
-        max_digits_per_token: int,
-        max_tokens_per_num: int,op: Literal["+", "-", "*", "/"],
-        mod: int | None,
-) -> dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list]:
-    gen = GenerateEquations(
-        max_digits_per_token=max_digits_per_token,
-        max_tokens_per_num=max_tokens_per_num,
-        op=op,
-        mod=mod,
-    )
-    batch = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
-    for _ in range(num_samples):
-        x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
-        batch["x_tokens"].append(x_tokens)
-        batch["x_digit_tokens"].append(x_digit_tokens)
-        batch["y_tokens"].append(y_tokens)
-        batch["y_indices"].append(y_indices)
-    return batch
-    
-
-def _make_dataset(
-        args: argparse.Namespace,
-        max_digits_per_token: int,
-        max_tokens_per_num: int,op: Literal["+", "-", "*", "/"],
-        mod: int | None,
-        loop: tqdm = None,
-) -> dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list]:
-    dataset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
-    for i in range(args.num_steps):
-        num_procs = mp.cpu_count()
-        num_samples_per_proc = args.batchsize // num_procs
-        with mp.Pool(num_procs) as pool:
-            batches = pool.starmap(
-                _make_batch,
-                [
-                    (
-                        num_samples_per_proc,
-                        max_digits_per_token,
-                        max_tokens_per_num,
-                        op,
-                        mod,
-                    )
-                    for _ in range(num_procs)
-                ],
-            )
-        for batch in batches:
-            dataset["x_tokens"].extend(batch["x_tokens"])
-            dataset["x_digit_tokens"].extend(batch["x_digit_tokens"])
-            dataset["y_tokens"].extend(batch["y_tokens"])
-            dataset["y_indices"].extend(batch["y_indices"])
-        if loop:
-            loop.set_description(f"Trainset: {(i+1)/(args.num_steps)*100:.2f}%")
-    return dataset
             
 
 def make_dataset(
+        gen: GenerateEquations,
         args: argparse.Namespace,
-        max_digits_per_token: int,
-        max_tokens_per_num: int,op: Literal["+", "-", "*", "/"],
-        mod: int | None,
         loop: tqdm = None,
 ) -> tuple[dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list], ...]:
     # TODO: continually save dataset to json files of batchsize, load them async during training
@@ -230,8 +170,27 @@ def make_dataset(
         f"\n\nCREATING DATASET: max_digits_per_token={args.max_digits_per_token}, "
         f"max_tokens_per_num={args.max_tokens_per_num}, op={args.op}, mod={args.mod}\n\n"
     )
-    trainset = _make_dataset(args, max_digits_per_token, max_tokens_per_num, op, mod, loop)
-    valset = _make_dataset(args, max_digits_per_token, max_tokens_per_num, op, mod, loop)
+    trainset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
+    for i in range(args.num_steps):
+        for _ in range(args.batchsize):
+            x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
+            trainset["x_tokens"].append(x_tokens)
+            trainset["x_digit_tokens"].append(x_digit_tokens)
+            trainset["y_tokens"].append(y_tokens)
+            trainset["y_indices"].append(y_indices)
+        if loop:
+            loop.set_description(f"Trainset: {(i+1)/(args.num_steps)*100:.2f}%")
+
+    valset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
+    for i in range(args.num_steps):
+        for _ in range(args.batchsize):
+            x_tokens, x_digit_tokens, y_tokens, y_indices = gen()
+            valset["x_tokens"].append(x_tokens)
+            valset["x_digit_tokens"].append(x_digit_tokens)
+            valset["y_tokens"].append(y_tokens)
+            valset["y_indices"].append(y_indices)
+        if loop:
+            loop.set_description(f"Valset: {(i+1)/(args.num_steps)*100:.2f}%")
 
     return trainset, valset
 
@@ -287,21 +246,5 @@ def _check_equation_gen():
         print(f"equation={gen.eq_to_str(all_tokens)}")
 
 
-def _check_dataset_gen():
-    from time import perf_counter
-    args = argparse.Namespace(
-        num_steps=10,
-        batchsize=100,
-        op="+",
-        mod=None,
-        max_digits_per_token=3,
-        max_tokens_per_num=2,
-    )
-    t0 = perf_counter()
-    _make_dataset(args=args)
-    print(f"Time for {args.num_steps=}, {args.batchsize=}: {perf_counter() - t0:.2f} s")
-
-
 if __name__ == "__main__":
     _check_equation_gen()
-    _check_dataset_gen()
