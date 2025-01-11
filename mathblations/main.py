@@ -347,6 +347,7 @@ def make_run_name(
 def save(results: dict[str, list], savefile: str):
     df = pl.DataFrame(results)
     if not Path(f"results/{savefile}.csv").exists():
+        os.makedirs("results", exist_ok=True)
         df.write_csv(f"results/{savefile}.csv")
     else:
         with open(f"results/{savefile}.csv", "ab") as f:
