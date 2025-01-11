@@ -59,7 +59,7 @@ def get_args():
     parser.add_argument("--num-steps-val", type=int, default=5, help="type=int, default=5")
     parser.add_argument("--num-epochs", type=int, default=1, help="type=int, default=1")
     parser.add_argument("--device", type=str, default="cuda", help="type=str, default='cuda'")
-    parser.add_argument("--learning-rate", type=float, default=0.001, help="type=float, default=0.001")
+    parser.add_argument("--learning-rate", type=float, default=0.0005, help="type=float, default=0.001")
     parser.add_argument("--warmup-steps", type=int, default=0, help="type=int, default=0")
     parser.add_argument("--cooldown-steps", type=int, default=5_000, help="type=int, default=5_000")
     parser.add_argument("--weight-decay", type=float, default=0, help="type=float, default=0")
