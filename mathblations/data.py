@@ -184,7 +184,11 @@ def _make_batch(
     
 
 def _make_dataset(
-        args: argparse.Namespace, loop: tqdm = None,
+        args: argparse.Namespace,
+        max_digits_per_token: int,
+        max_tokens_per_num: int,op: Literal["+", "-", "*", "/"],
+        mod: int | None,
+        loop: tqdm = None,
 ) -> dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list]:
     dataset = dict(x_tokens=[], x_digit_tokens=[], y_tokens=[], y_indices=[])
     for i in range(args.num_steps):
@@ -196,10 +200,10 @@ def _make_dataset(
                 [
                     (
                         num_samples_per_proc,
-                        args.max_digits_per_token,
-                        args.max_tokens_per_num,
-                        args.op,
-                        args.mod,
+                        max_digits_per_token,
+                        max_tokens_per_num,
+                        op,
+                        mod,
                     )
                     for _ in range(num_procs)
                 ],
@@ -215,15 +219,19 @@ def _make_dataset(
             
 
 def make_dataset(
-        args: argparse.Namespace, loop: tqdm = None,
+        args: argparse.Namespace,
+        max_digits_per_token: int,
+        max_tokens_per_num: int,op: Literal["+", "-", "*", "/"],
+        mod: int | None,
+        loop: tqdm = None,
 ) -> tuple[dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list], ...]:
     # TODO: continually save dataset to json files of batchsize, load them async during training
     loop.write(
         f"\n\nCREATING DATASET: max_digits_per_token={args.max_digits_per_token}, "
         f"max_tokens_per_num={args.max_tokens_per_num}, op={args.op}, mod={args.mod}\n\n"
     )
-    trainset = _make_dataset(args, loop)
-    valset = _make_dataset(args, loop)
+    trainset = _make_dataset(args, max_digits_per_token, max_tokens_per_num, op, mod, loop)
+    valset = _make_dataset(args, max_digits_per_token, max_tokens_per_num, op, mod, loop)
 
     return trainset, valset
 
