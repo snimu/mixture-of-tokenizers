@@ -1,12 +1,13 @@
 
 import ast
-import itertools
 from typing import Literal
 
 import seaborn as sns
 import polars as pl
 import numpy as np
 import matplotlib.pyplot as plt
+import colorsys
+
 
 def close_plt() -> None:
     plt.cla()
@@ -99,45 +100,100 @@ def load_xs_ys_avg_y(
     return xs, ys, avg_ys
 
 
+def generate_distinct_colors(n):
+    """
+    Generates n visually distinct colors.
+
+    Parameters:
+        n (int): The number of distinct colors to generate.
+
+    Returns:
+        list: A list of n visually distinct colors in hex format.
+    """
+    colors = []
+    for i in range(n):
+        hue = i / n
+        # Fixing saturation and lightness/value to 0.9 for bright colors
+        # You can adjust these values for different color variations
+        lightness = 0.5
+        saturation = 0.9
+        rgb = colorsys.hls_to_rgb(hue, lightness, saturation)
+        hex_color = '#%02x%02x%02x' % (int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255))
+        colors.append(hex_color)
+    
+    return colors
+
+
 def plot_digits_vs_tokens(
         file: str,
         max_digits_per_token: int | list[int] | None = None,
         max_tokens_per_num: int | list[int] | None = None,
         to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses"] = "val_accuracies",
         show: bool = True,
+        plot_all: bool = False,
 ):
-    assert (max_digits_per_token is None and max_tokens_per_num is None) or (max_digits_per_token is not None and max_tokens_per_num is not None)
-    if max_digits_per_token is None and max_tokens_per_num is None:
-        settings = pl.scan_csv(file).select(
-            "max_digits_per_token", "max_tokens_per_num"
-        ).collect().unique()
-        settings = [(dpt, tpn) for dpt, tpn in zip(settings["max_digits_per_token"], settings["max_tokens_per_num"])]
-    else:
-        max_digits_per_token = [max_digits_per_token] if isinstance(max_digits_per_token, int) else max_digits_per_token
-        max_tokens_per_num = [max_tokens_per_num] if isinstance(max_tokens_per_num, int) else max_tokens_per_num
-        settings = list(itertools.product(max_digits_per_token, max_tokens_per_num))
+    settings = pl.scan_csv(file).select(
+        "max_digits_per_token", "max_tokens_per_num"
+    ).collect().unique()
+    settings = [
+        (dpt, tpn)
+        for dpt, tpn in zip(
+            settings["max_digits_per_token"],
+            settings["max_tokens_per_num"],
+        )
+    ]
+    if max_digits_per_token is not None:
+        max_digits_per_token = [max_digits_per_token] if isinstance(
+            max_digits_per_token, int
+        ) else max_digits_per_token
+        settings = [
+            (dpt, tpn)
+            for dpt, tpn in settings
+            if dpt in max_digits_per_token
+        ]
+    if max_tokens_per_num is not None:
+        max_tokens_per_num = [max_tokens_per_num] if isinstance(
+            max_tokens_per_num, int
+        ) else max_tokens_per_num
+        settings = [
+            (dpt, tpn)
+            for dpt, tpn in settings
+            if tpn in max_tokens_per_num
+        ]
+    settings = list(set(settings))
+    settings = sorted(settings, key=lambda x: x[0])
+    settings = sorted(settings, key=lambda x: x[1])
 
+    colors = generate_distinct_colors(len(settings) * 2)
     for dpt, tpn in settings:
-        xs, ys, avg_ys = load_xs_ys_avg_y(
+        color_digits = colors.pop(0)
+        xs_d, ys_d, avg_ys_d = load_xs_ys_avg_y(
             file=file,
             use_digits=True,
             max_digits_per_token=dpt,
             max_tokens_per_num=tpn,
         )
-        plt.plot(xs, avg_ys, label=f"dpt={dpt}, tpn={tpn}; digits")
-        xs, ys, avg_ys = load_xs_ys_avg_y(
+
+        color_tokens = colors.pop(0)
+        xs_t, ys_t, avg_ys_t = load_xs_ys_avg_y(
             file=file,
             use_digits=False,
             max_digits_per_token=dpt,
             max_tokens_per_num=tpn,
         )
-        plt.plot(xs, avg_ys, label=f"dpt={dpt}, tpn={tpn}; tokens")
+        if plot_all:
+            for y in ys_d:
+                plt.plot(xs_d, y, color=color_digits, alpha=0.2)
+            for y in ys_t:
+                plt.plot(xs_t, y, color=color_tokens, alpha=0.2)
+        plt.plot(xs_d, avg_ys_d, label=f"dpt={dpt}, tpn={tpn}; MoT ({len(ys_d)} samples)", color=color_digits, linestyle="--")
+        plt.plot(xs_t, avg_ys_t, label=f"dpt={dpt}, tpn={tpn}; Baseline ({len(ys_t)} samples)")
 
     to_plot_to_label = {
-        "val_losses": "validation loss",
-        "val_accuracies": "validation accuracy",
-        "val_full_accuracies": "validation full accuracy",
-        "train_losses": "training loss",
+        "val_losses": "loss (validation)",
+        "val_accuracies": "token accuracy (validation)",
+        "val_full_accuracies": "full-number accuracy (validation)",
+        "train_losses": "loss (training)",
     }
     plt.legend()
     plt.xlabel("step")
@@ -202,13 +258,16 @@ def heatmap_final_measure(
 
 
 if __name__ == "__main__":
-    file = "results_deep.csv"
-    # plot_digits_vs_tokens(
-    #     file=file,
-    #     max_digits_per_token=2,
-    #     max_tokens_per_num=3,
-    #     to_plot="val_full_accuracies",
-    # )
-    heatmap_final_measure(
+    file = "results_small.csv"
+    plot_digits_vs_tokens(
         file=file,
+        max_digits_per_token=None,
+        max_tokens_per_num=3,
+        to_plot="val_full_accuracies",
+        plot_all=False,
     )
+    # heatmap_final_measure(
+    #     file=file,
+    #     to_plot="val_full_accuracies",
+    #     avg_last_n=1,
+    # )
