@@ -7,6 +7,7 @@ import polars as pl
 import numpy as np
 import matplotlib.pyplot as plt
 import colorsys
+from tabulate import tabulate
 
 
 def close_plt() -> None:
@@ -66,6 +67,7 @@ def load_xs_ys_avg_y(
         num_params: int | None = None,
         num_heads: int | None = None,
         seed: int | None = None,
+        mod: int | None = None,
         to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses"] = "val_accuracies",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Load x, y, and average y from a CSV file."""
@@ -87,6 +89,7 @@ def load_xs_ys_avg_y(
         filters &= (pl.col("num_heads") == num_heads)
     if seed is not None:
         filters &= (pl.col("seed") == seed)
+    filters &= (pl.col("mod") == mod) if mod is not None else (pl.col("mod").is_null())
 
     df = pl.scan_csv(file).filter(filters).collect()
     arrays = [series_to_array(df[to_plot][i]) for i in range(len(df[to_plot]))]
@@ -128,13 +131,22 @@ def plot_digits_vs_tokens(
         file: str,
         max_digits_per_token: int | list[int] | None = None,
         max_tokens_per_num: int | list[int] | None = None,
+        mod: int | None = None,
         to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses"] = "val_accuracies",
         show: bool = True,
         plot_all: bool = False,
 ):
-    settings = pl.scan_csv(file).select(
-        "max_digits_per_token", "max_tokens_per_num"
-    ).collect().unique()
+    if mod is None:
+        filter_ = pl.col("mod").is_null()
+    else:
+        filter_ = pl.col("mod") == mod
+    settings =(
+        pl.scan_csv(file)
+        .filter(filter_)
+        .select("max_digits_per_token", "max_tokens_per_num")
+        .collect()
+        .unique()
+    )
     settings = [
         (dpt, tpn)
         for dpt, tpn in zip(
@@ -172,6 +184,7 @@ def plot_digits_vs_tokens(
             use_digits=True,
             max_digits_per_token=dpt,
             max_tokens_per_num=tpn,
+            mod=mod,
         )
 
         color_tokens = colors.pop(0)
@@ -180,6 +193,7 @@ def plot_digits_vs_tokens(
             use_digits=False,
             max_digits_per_token=dpt,
             max_tokens_per_num=tpn,
+            mod=mod,
         )
         if plot_all:
             for y in ys_d:
@@ -187,7 +201,7 @@ def plot_digits_vs_tokens(
             for y in ys_t:
                 plt.plot(xs_t, y, color=color_tokens, alpha=0.2)
         plt.plot(xs_d, avg_ys_d, label=f"dpt={dpt}, tpn={tpn}; MoT ({len(ys_d)} samples)", color=color_digits, linestyle="--")
-        plt.plot(xs_t, avg_ys_t, label=f"dpt={dpt}, tpn={tpn}; Baseline ({len(ys_t)} samples)")
+        plt.plot(xs_t, avg_ys_t, label=f"dpt={dpt}, tpn={tpn}; Baseline ({len(ys_t)} samples)", color=color_tokens)
 
     to_plot_to_label = {
         "val_losses": "loss (validation)",
@@ -257,17 +271,169 @@ def heatmap_final_measure(
     return heatmap, dpts, tpns
 
 
-if __name__ == "__main__":
-    file = "results_small.csv"
-    plot_digits_vs_tokens(
-        file=file,
-        max_digits_per_token=None,
-        max_tokens_per_num=3,
-        to_plot="val_full_accuracies",
-        plot_all=False,
+def get_other_metrics(file: str, mod: int | None = None):
+    if mod is None:
+        filter_ = pl.col("mod").is_null()
+    else:
+        filter_ = pl.col("mod") == mod
+    df =(
+        pl.scan_csv(file)
+        .filter(filter_)
+        .sort(pl.col("max_digits_per_token"), pl.col("max_tokens_per_num"))
+        .collect()
     )
+    settings = df.select("max_digits_per_token", "max_tokens_per_num").unique()
+    settings = [
+        (dpt, tpn)
+        for dpt, tpn in zip(
+            settings["max_digits_per_token"],
+            settings["max_tokens_per_num"],
+        )
+    ]
+
+    results = {
+        "dpt": [],
+        "tpn": [],
+        "num_equations_seen": [],
+        "num_tokens_seen": [],
+        "num_unique_tokens": [],
+        "times_token_is_seen": [],
+        "num_possible_equations": [],
+        "times_eq_seen_in_training": [],
+        "final_val_accuracy_digits": [],
+        "final_val_accuracy_tokens": [],
+        "final_val_accuracy_full_digits": [],
+        "final_val_accuracy_full_tokens": [],
+    }
+    for dpt, tpn in settings:
+        df_loc = (
+            df
+            .filter(pl.col("max_digits_per_token") == dpt)
+            .filter(pl.col("max_tokens_per_num") == tpn)
+        )
+        num_equations_seen = df_loc["batchsize"].unique()[0] * df_loc["num_steps"].unique()[0]
+        num_unique_tokens = int("9" * dpt) + 1
+        num_tokens_seen = num_equations_seen * tpn * 2  # underestimate because the model also sees some result tokens
+        times_token_is_seen = num_tokens_seen / num_unique_tokens
+        num_possible_equations = (num_unique_tokens * tpn) ** 2
+        times_eq_seen_in_training = num_equations_seen / num_possible_equations
+        _, _, avg_ys = load_xs_ys_avg_y(
+            file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
+            to_plot="val_accuracies", use_digits=True,
+        )
+        final_val_accuracy_digits = avg_ys[-1]
+        _, _, avg_ys = load_xs_ys_avg_y(
+            file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
+            to_plot="val_accuracies", use_digits=False,
+        )
+        final_val_accuracy_tokens = avg_ys[-1]
+        _, _, avg_ys = load_xs_ys_avg_y(
+            file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
+            to_plot="val_full_accuracies", use_digits=True,
+        )
+        final_val_accuracy_full_digits = avg_ys[-1]
+        _, _, avg_ys = load_xs_ys_avg_y(
+            file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
+            to_plot="val_full_accuracies", use_digits=False,
+        )
+        final_val_accuracy_full_tokens = avg_ys[-1]
+        results["dpt"].append(dpt)
+        results["tpn"].append(tpn)
+        results["num_equations_seen"].append(num_equations_seen)
+        results["num_tokens_seen"].append(num_tokens_seen)
+        results["num_unique_tokens"].append(num_unique_tokens)
+        results["times_token_is_seen"].append(round(times_token_is_seen))
+        results["num_possible_equations"].append(num_possible_equations)
+        results["times_eq_seen_in_training"].append(times_eq_seen_in_training)
+        results["final_val_accuracy_digits"].append(final_val_accuracy_digits)
+        results["final_val_accuracy_tokens"].append(final_val_accuracy_tokens)
+        results["final_val_accuracy_full_digits"].append(final_val_accuracy_full_digits)
+        results["final_val_accuracy_full_tokens"].append(final_val_accuracy_full_tokens)
+    return results
+
+
+def print_other_metrics(file: str, mod: int | None = None):
+    results = get_other_metrics(file=file, mod=mod)
+    name_map = {
+        "dpt": "dpt",
+        "tpn": "tpn",
+        "times_token_is_seen": "times tok seen",
+        "times_eq_seen_in_training": "times eq. seen",
+        "final_val_accuracy_digits": "val acc (digits)",
+        "final_val_accuracy_tokens": "val acc (tokens)",
+        "final_val_accuracy_full_digits": "val acc full (digits)",
+        "final_val_accuracy_full_tokens": "val acc full (tokens)",
+    }
+    results = {name_map[k]: v for k, v in results.items() if k in name_map}
+    print(tabulate(results, headers="keys", intfmt="_", floatfmt="_.3f"))
+
+
+def scatter_acc_over_times_tok_seen(file: str, mod: int | None = None):
+    results = get_other_metrics(file=file, mod=mod)
+    plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_digits"], label="MoT")
+    plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_tokens"], label="Baseline")
+    plt.xlabel("average time a token is seen")
+    plt.ylabel("final val accuracy")
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    plt.show()
+    close_plt()
+
+
+def scatter_acc_over_times_eq_seen(file: str, mod: int | None = None):
+    results = get_other_metrics(file=file, mod=mod)
+    plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_digits"], label="MoT")
+    plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_tokens"], label="Baseline")
+    plt.xlabel("average time an equation is seen")
+    plt.ylabel("final val accuracy")
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    plt.show()
+    close_plt()
+
+
+def scatter_full_acc_over_times_tok_seen(file: str, mod: int | None = None):
+    results = get_other_metrics(file=file, mod=mod)
+    plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_full_digits"], label="MoT")
+    plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_full_tokens"], label="Baseline")
+    plt.xlabel("average time a token is seen")
+    plt.ylabel("final val accuracy")
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    plt.show()
+    close_plt()
+
+
+def scatter_full_acc_over_times_eq_seen(file: str, mod: int | None = None):
+    results = get_other_metrics(file=file, mod=mod)
+    plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_full_digits"], label="MoT")
+    plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_full_tokens"], label="Baseline")
+    plt.xlabel("average time an equation is seen")
+    plt.ylabel("final val accuracy")
+    plt.legend()
+    plt.grid()
+    plt.tight_layout()
+    plt.show()
+    close_plt()
+
+
+if __name__ == "__main__":
+    file = "results1.csv"
+    # plot_digits_vs_tokens(
+    #     file=file,
+    #     max_digits_per_token=None,
+    #     max_tokens_per_num=None,
+    #     to_plot="val_full_accuracies",
+    #     plot_all=False,
+    #     mod=None,
+    # )
     # heatmap_final_measure(
     #     file=file,
     #     to_plot="val_full_accuracies",
     #     avg_last_n=1,
     # )
+    # print_other_metrics(file=file, mod=None)
+    scatter_acc_over_times_tok_seen(file=file, mod=None)
