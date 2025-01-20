@@ -130,6 +130,14 @@ def generate_distinct_colors(n):
     return colors
 
 
+TO_PLOT_TO_LABEL = {
+    "val_losses": "loss (validation)",
+    "val_accuracies": "token accuracy (validation)",
+    "val_full_accuracies": "full-number accuracy (validation)",
+    "train_losses": "loss (training)",
+}
+
+
 def plot_digits_vs_tokens(
         file: str,
         max_digits_per_token: int | list[int] | None = None,
@@ -225,7 +233,19 @@ def plot_digits_vs_tokens(
     if show:
         plt.show()
     else:
-        plt.savefig(f"{to_plot}_vs_max_digits_per_token_max_tokens_per_num.png", dpi=300)
+        def name(x):
+            if x is None:
+                return "all"
+            if isinstance(x, list):
+                return "-".join(str(y) for y in x)
+            return str(x)
+        dpts = name(max_digits_per_token)
+        tpts = name(max_tokens_per_num)
+        plt.savefig(
+            f"plot_digits_vs_tokens__{to_plot}__{aggregate_method}__mod-{mod}"
+            f"{'__all' if plot_all else ''}__dpt-{dpts}__tpt-{tpts}.png",
+            dpi=300,
+        )
     close_plt()  # in case you call this function multiple times with different settings
 
 
@@ -265,18 +285,24 @@ def heatmap_final_measure(
         ratio = y_digits / (y_tokens + 1e-6)
         heatmap[i, j] = ratio
 
+    plt.figure(figsize=(6,5))
+    sns.heatmap(
+        heatmap, annot=True, fmt='.3f', cmap='viridis', 
+        vmin=0.95, vmax=1.01, center=1.0,
+        xticklabels=tpns, yticklabels=dpts,
+        annot_kws={'size': 8}, cbar_kws={'label': f"{TO_PLOT_TO_LABEL[to_plot]}: MoT / Baseline"},
+    )
+    plt.xlabel('Tokens per number')
+    plt.ylabel('Digits per token')
+    plt.title(f"{aggregate_method.capitalize()} {TO_PLOT_TO_LABEL[to_plot]}: MoT / Baseline")
+    plt.tight_layout()
     if show:
-        plt.figure(figsize=(6,5))
-        sns.heatmap(
-            heatmap, annot=True, fmt='.3f', cmap='viridis', 
-            vmin=0.95, vmax=1.01, center=1.0,
-            xticklabels=tpns, yticklabels=dpts,
-            annot_kws={'size': 8}, cbar_kws={'label': to_plot},
-        )
-        plt.xlabel('Tokens per number')
-        plt.ylabel('Digits per token')
-        plt.tight_layout()
         plt.show()
+    else:
+        plt.savefig(
+            f"heatmap__{to_plot}__{aggregate_method}__last_n_samples-{avg_last_n}.png",
+            dpi=300,
+        )
     close_plt()
 
     return heatmap, dpts, tpns
@@ -317,10 +343,10 @@ def get_other_metrics(
         "times_token_is_seen": [],
         "num_possible_equations": [],
         "times_eq_seen_in_training": [],
-        "final_val_accuracy_digits": [],
-        "final_val_accuracy_tokens": [],
-        "final_val_full_accuracy_digits": [],
-        "final_val_full_accuracy_tokens": [],
+        "final_val_accuracies_digits": [],
+        "final_val_accuracies_tokens": [],
+        "final_val_full_accuracies_digits": [],
+        "final_val_full_accuracies_tokens": [],
     }
     for dpt, tpn in settings:
         df_loc = (
@@ -339,25 +365,25 @@ def get_other_metrics(
             to_plot="val_accuracies", use_digits=True, mod=mod,
             aggregate_method=aggregate_method,
         )
-        final_val_accuracy_digits = avg_ys[-last_n_samples:].mean()
+        final_val_accuracies_digits = avg_ys[-last_n_samples:].mean()
         _, _, avg_ys = load_xs_ys_avg_y(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
             to_plot="val_accuracies", use_digits=False, mod=mod,
             aggregate_method=aggregate_method,
         )
-        final_val_accuracy_tokens = avg_ys[-last_n_samples:].mean()
+        final_val_accuracies_tokens = avg_ys[-last_n_samples:].mean()
         _, _, avg_ys = load_xs_ys_avg_y(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
             to_plot="val_full_accuracies", use_digits=True, mod=mod,
             aggregate_method=aggregate_method,
         )
-        final_val_full_accuracy_digits = avg_ys[-last_n_samples:].mean()
+        final_val_full_accuracies_digits = avg_ys[-last_n_samples:].mean()
         _, _, avg_ys = load_xs_ys_avg_y(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
             to_plot="val_full_accuracies", use_digits=False, mod=mod,
             aggregate_method=aggregate_method,
         )
-        final_val_full_accuracy_tokens = avg_ys[-last_n_samples:].mean()
+        final_val_full_accuracies_tokens = avg_ys[-last_n_samples:].mean()
         results["dpt"].append(dpt)
         results["tpn"].append(tpn)
         results["num_equations_seen"].append(num_equations_seen)
@@ -366,10 +392,10 @@ def get_other_metrics(
         results["times_token_is_seen"].append(round(times_token_is_seen))
         results["num_possible_equations"].append(num_possible_equations)
         results["times_eq_seen_in_training"].append(times_eq_seen_in_training)
-        results["final_val_accuracy_digits"].append(final_val_accuracy_digits)
-        results["final_val_accuracy_tokens"].append(final_val_accuracy_tokens)
-        results["final_val_full_accuracy_digits"].append(final_val_full_accuracy_digits)
-        results["final_val_full_accuracy_tokens"].append(final_val_full_accuracy_tokens)
+        results["final_val_accuracies_digits"].append(final_val_accuracies_digits)
+        results["final_val_accuracies_tokens"].append(final_val_accuracies_tokens)
+        results["final_val_full_accuracies_digits"].append(final_val_full_accuracies_digits)
+        results["final_val_full_accuracies_tokens"].append(final_val_full_accuracies_tokens)
     return results
 
 
@@ -385,84 +411,63 @@ def print_other_metrics(
         "tpn": "tpn",
         "times_token_is_seen": "times tok seen",
         "times_eq_seen_in_training": "times eq. seen",
-        "final_val_accuracy_digits": "val acc (digits)",
-        "final_val_accuracy_tokens": "val acc (tokens)",
-        "final_val_full_accuracy_digits": "val acc full (digits)",
-        "final_val_full_accuracy_tokens": "val acc full (tokens)",
+        "final_val_accuracies_digits": "val acc (digits)",
+        "final_val_accuracies_tokens": "val acc (tokens)",
+        "final_val_full_accuracies_digits": "val acc full (digits)",
+        "final_val_full_accuracies_tokens": "val acc full (tokens)",
     }
     results = {name_map[k]: v for k, v in results.items() if k in name_map}
     print(tabulate(results, headers="keys", intfmt="_", floatfmt="_.3f"))
 
 
-def scatter_acc_over_times_tok_seen(
+def scatter_metric_over_times_tok_or_eq_seen(
         file: str, mod: int | None = None, last_n_samples: int = 1,
+        to_plot: Literal["val_accuracies", "val_full_accuracies"] = "val_accuracies",
+        plot_over: Literal["times_token_is_seen", "times_eq_seen_in_training"] = "times_token_is_seen",
         aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
+        fit_order: int = 1,
+        confidence_interval: int | None = 95,
+        show: bool = True,
 ):
     results = get_other_metrics(
         file=file, mod=mod, last_n_samples=last_n_samples, aggregate_method=aggregate_method,
     )
-    plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_digits"], label="MoT")
-    plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_tokens"], label="Baseline")
-    plt.xlabel("average time a token is seen")
-    plt.ylabel("final val accuracy")
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    plt.show()
-    close_plt()
-
-
-def scatter_acc_over_times_eq_seen(
-        file: str, mod: int | None = None, last_n_samples: int = 1,
-        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
-):
-    results = get_other_metrics(
-        file=file, mod=mod, last_n_samples=last_n_samples, aggregate_method=aggregate_method,
+    
+    sns.regplot(
+        x=results[plot_over],
+        y=results[f"final_{to_plot}_digits"],
+        label="MoT",
+        scatter_kws={'alpha':0.5},
+        order=fit_order,
+        ci=confidence_interval,
     )
-    plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_digits"], label="MoT")
-    plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_tokens"], label="Baseline")
-    plt.xlabel("average time an equation is seen")
-    plt.ylabel("final val accuracy")
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    plt.show()
-    close_plt()
-
-
-def scatter_full_acc_over_times_tok_seen(
-        file: str, mod: int | None = None, last_n_samples: int = 1,
-        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
-):
-    results = get_other_metrics(
-        file=file, mod=mod, last_n_samples=last_n_samples, aggregate_method=aggregate_method,
+    sns.regplot(
+        x=results[plot_over],
+        y=results[f"final_{to_plot}_tokens"],
+        label="Baseline",
+        scatter_kws={'alpha':0.5},
+        order=fit_order,
+        ci=confidence_interval,
     )
-    plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_full_digits"], label="MoT")
-    plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_full_tokens"], label="Baseline")
-    plt.xlabel("average time a token is seen")
-    plt.ylabel("final val accuracy")
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    plt.show()
-    close_plt()
+    
 
-
-def scatter_full_acc_over_times_eq_seen(
-        file: str, mod: int | None = None, last_n_samples: int = 1,
-        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
-):
-    results = get_other_metrics(
-        file=file, mod=mod, last_n_samples=last_n_samples, aggregate_method=aggregate_method,
+    plt.xlabel(
+        "average time a token is seen"
+        if plot_over == "times_token_is_seen"
+        else "average time an equation is seen"
     )
-    plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_full_digits"], label="MoT")
-    plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_full_tokens"], label="Baseline")
-    plt.xlabel("average time an equation is seen")
-    plt.ylabel("final val accuracy")
+    plt.ylabel(f"final {TO_PLOT_TO_LABEL[to_plot]}")
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.show()
+    if show:
+        plt.show()
+    else:
+        plt.savefig(
+            f"scatter__{to_plot}__{plot_over}__{aggregate_method}__fit-order-{fit_order}"
+            f"__ci-{confidence_interval}.png",
+            dpi=300,
+        )
     close_plt()
 
 
@@ -478,19 +483,36 @@ if __name__ == "__main__":
     # merge_results()
     file = "results.csv"
     # print_other_metrics(file=file, mod=None, last_n_samples=1)
-    plot_digits_vs_tokens(
-        file=file,
-        max_digits_per_token=4,
-        max_tokens_per_num=2,
-        to_plot="val_full_accuracies",
-        plot_all=True,
-        mod=None,
-        aggregate_method="median",
-    )
-    # heatmap_final_measure(
+    # plot_digits_vs_tokens(
     #     file=file,
+    #     max_digits_per_token=2,
+    #     max_tokens_per_num=None,
     #     to_plot="val_full_accuracies",
-    #     avg_last_n=1,
+    #     plot_all=True,
+    #     mod=None,
+    #     aggregate_method="median",
+    #     show=False,
     # )
-    # scatter_acc_over_times_tok_seen(file=file, mod=None)
-    # scatter_acc_over_times_eq_seen(file=file, mod=None)
+    heatmap_final_measure(
+        file=file,
+        to_plot="val_full_accuracies",
+        avg_last_n=1,
+        aggregate_method="mean",
+        show=False,
+    )
+    # scatter_metric_over_times_tok_or_eq_seen(
+    #     file=file, mod=None,
+    #     to_plot="val_full_accuracies",
+    #     plot_over="times_token_is_seen",
+    #     fit_order=1,
+    #     confidence_interval=None,
+    #     show=False,
+    # )
+    # scatter_metric_over_times_tok_or_eq_seen(
+    #     file=file, mod=None,
+    #     to_plot="val_full_accuracies",
+    #     plot_over="times_eq_seen_in_training",
+    #     fit_order=1,
+    #     confidence_interval=None,
+    #     show=False,
+    # )
