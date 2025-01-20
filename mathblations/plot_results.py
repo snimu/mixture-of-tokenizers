@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import colorsys
 from tabulate import tabulate
+from tqdm import tqdm
 
 
 def close_plt() -> None:
@@ -69,6 +70,7 @@ def load_xs_ys_avg_y(
         seed: int | None = None,
         mod: int | None = None,
         to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses"] = "val_accuracies",
+        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Load x, y, and average y from a CSV file."""
     filters = (pl.col("final_val_loss").ge(0))  # initial condition -> always true
@@ -96,7 +98,8 @@ def load_xs_ys_avg_y(
     
     min_len = min([len(a) for a in arrays])
     ys = np.array([list(a[:min_len]) for a in arrays])
-    avg_ys = np.mean(ys, axis=0)
+    aggregate_map = {"mean": np.mean, "median": np.median, "max": np.max, "min": np.min}
+    avg_ys = aggregate_map[aggregate_method](ys, axis=0)
     xs = np.arange(len(ys[0]))
     if "val" in to_plot:
         xs = xs * 100  # TODO: save the actual steps in future runs and use those
@@ -133,6 +136,7 @@ def plot_digits_vs_tokens(
         max_tokens_per_num: int | list[int] | None = None,
         mod: int | None = None,
         to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses"] = "val_accuracies",
+        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
         show: bool = True,
         plot_all: bool = False,
 ):
@@ -185,6 +189,8 @@ def plot_digits_vs_tokens(
             max_digits_per_token=dpt,
             max_tokens_per_num=tpn,
             mod=mod,
+            to_plot=to_plot,
+            aggregate_method=aggregate_method,
         )
 
         color_tokens = colors.pop(0)
@@ -194,6 +200,8 @@ def plot_digits_vs_tokens(
             max_digits_per_token=dpt,
             max_tokens_per_num=tpn,
             mod=mod,
+            to_plot=to_plot,
+            aggregate_method=aggregate_method,
         )
         if plot_all:
             for y in ys_d:
@@ -225,6 +233,7 @@ def heatmap_final_measure(
       file: str,
       avg_last_n: int = 5,
       to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses"] = "val_accuracies",
+      aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
       show: bool = True,
 ):
     settings = pl.scan_csv(file).select(
@@ -240,12 +249,14 @@ def heatmap_final_measure(
         _, _, avg_ys = load_xs_ys_avg_y(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
             to_plot=to_plot, use_digits=True,
+            aggregate_method=aggregate_method,
         )
         y_digits = np.mean(avg_ys[-avg_last_n:])
 
         _, _, avg_ys = load_xs_ys_avg_y(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
             to_plot=to_plot, use_digits=False,
+            aggregate_method=aggregate_method,
         )
         y_tokens = np.mean(avg_ys[-avg_last_n:])
 
@@ -271,7 +282,12 @@ def heatmap_final_measure(
     return heatmap, dpts, tpns
 
 
-def get_other_metrics(file: str, mod: int | None = None):
+def get_other_metrics(
+        file: str,
+        mod: int | None = None,
+        last_n_samples: int = 1,
+        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
+):
     if mod is None:
         filter_ = pl.col("mod").is_null()
     else:
@@ -279,7 +295,6 @@ def get_other_metrics(file: str, mod: int | None = None):
     df =(
         pl.scan_csv(file)
         .filter(filter_)
-        .sort(pl.col("max_digits_per_token"), pl.col("max_tokens_per_num"))
         .collect()
     )
     settings = df.select("max_digits_per_token", "max_tokens_per_num").unique()
@@ -290,6 +305,8 @@ def get_other_metrics(file: str, mod: int | None = None):
             settings["max_tokens_per_num"],
         )
     ]
+    settings = sorted(settings, key=lambda x: x[1])
+    settings = sorted(settings, key=lambda x: x[0])
 
     results = {
         "dpt": [],
@@ -302,8 +319,8 @@ def get_other_metrics(file: str, mod: int | None = None):
         "times_eq_seen_in_training": [],
         "final_val_accuracy_digits": [],
         "final_val_accuracy_tokens": [],
-        "final_val_accuracy_full_digits": [],
-        "final_val_accuracy_full_tokens": [],
+        "final_val_full_accuracy_digits": [],
+        "final_val_full_accuracy_tokens": [],
     }
     for dpt, tpn in settings:
         df_loc = (
@@ -319,24 +336,28 @@ def get_other_metrics(file: str, mod: int | None = None):
         times_eq_seen_in_training = num_equations_seen / num_possible_equations
         _, _, avg_ys = load_xs_ys_avg_y(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
-            to_plot="val_accuracies", use_digits=True,
+            to_plot="val_accuracies", use_digits=True, mod=mod,
+            aggregate_method=aggregate_method,
         )
-        final_val_accuracy_digits = avg_ys[-1]
+        final_val_accuracy_digits = avg_ys[-last_n_samples:].mean()
         _, _, avg_ys = load_xs_ys_avg_y(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
-            to_plot="val_accuracies", use_digits=False,
+            to_plot="val_accuracies", use_digits=False, mod=mod,
+            aggregate_method=aggregate_method,
         )
-        final_val_accuracy_tokens = avg_ys[-1]
+        final_val_accuracy_tokens = avg_ys[-last_n_samples:].mean()
         _, _, avg_ys = load_xs_ys_avg_y(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
-            to_plot="val_full_accuracies", use_digits=True,
+            to_plot="val_full_accuracies", use_digits=True, mod=mod,
+            aggregate_method=aggregate_method,
         )
-        final_val_accuracy_full_digits = avg_ys[-1]
+        final_val_full_accuracy_digits = avg_ys[-last_n_samples:].mean()
         _, _, avg_ys = load_xs_ys_avg_y(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
-            to_plot="val_full_accuracies", use_digits=False,
+            to_plot="val_full_accuracies", use_digits=False, mod=mod,
+            aggregate_method=aggregate_method,
         )
-        final_val_accuracy_full_tokens = avg_ys[-1]
+        final_val_full_accuracy_tokens = avg_ys[-last_n_samples:].mean()
         results["dpt"].append(dpt)
         results["tpn"].append(tpn)
         results["num_equations_seen"].append(num_equations_seen)
@@ -347,13 +368,18 @@ def get_other_metrics(file: str, mod: int | None = None):
         results["times_eq_seen_in_training"].append(times_eq_seen_in_training)
         results["final_val_accuracy_digits"].append(final_val_accuracy_digits)
         results["final_val_accuracy_tokens"].append(final_val_accuracy_tokens)
-        results["final_val_accuracy_full_digits"].append(final_val_accuracy_full_digits)
-        results["final_val_accuracy_full_tokens"].append(final_val_accuracy_full_tokens)
+        results["final_val_full_accuracy_digits"].append(final_val_full_accuracy_digits)
+        results["final_val_full_accuracy_tokens"].append(final_val_full_accuracy_tokens)
     return results
 
 
-def print_other_metrics(file: str, mod: int | None = None):
-    results = get_other_metrics(file=file, mod=mod)
+def print_other_metrics(
+        file: str, mod: int | None = None, last_n_samples: int = 1,
+        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
+):
+    results = get_other_metrics(
+        file=file, mod=mod, last_n_samples=last_n_samples, aggregate_method=aggregate_method,
+    )
     name_map = {
         "dpt": "dpt",
         "tpn": "tpn",
@@ -361,15 +387,20 @@ def print_other_metrics(file: str, mod: int | None = None):
         "times_eq_seen_in_training": "times eq. seen",
         "final_val_accuracy_digits": "val acc (digits)",
         "final_val_accuracy_tokens": "val acc (tokens)",
-        "final_val_accuracy_full_digits": "val acc full (digits)",
-        "final_val_accuracy_full_tokens": "val acc full (tokens)",
+        "final_val_full_accuracy_digits": "val acc full (digits)",
+        "final_val_full_accuracy_tokens": "val acc full (tokens)",
     }
     results = {name_map[k]: v for k, v in results.items() if k in name_map}
     print(tabulate(results, headers="keys", intfmt="_", floatfmt="_.3f"))
 
 
-def scatter_acc_over_times_tok_seen(file: str, mod: int | None = None):
-    results = get_other_metrics(file=file, mod=mod)
+def scatter_acc_over_times_tok_seen(
+        file: str, mod: int | None = None, last_n_samples: int = 1,
+        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
+):
+    results = get_other_metrics(
+        file=file, mod=mod, last_n_samples=last_n_samples, aggregate_method=aggregate_method,
+    )
     plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_digits"], label="MoT")
     plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_tokens"], label="Baseline")
     plt.xlabel("average time a token is seen")
@@ -381,8 +412,13 @@ def scatter_acc_over_times_tok_seen(file: str, mod: int | None = None):
     close_plt()
 
 
-def scatter_acc_over_times_eq_seen(file: str, mod: int | None = None):
-    results = get_other_metrics(file=file, mod=mod)
+def scatter_acc_over_times_eq_seen(
+        file: str, mod: int | None = None, last_n_samples: int = 1,
+        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
+):
+    results = get_other_metrics(
+        file=file, mod=mod, last_n_samples=last_n_samples, aggregate_method=aggregate_method,
+    )
     plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_digits"], label="MoT")
     plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_tokens"], label="Baseline")
     plt.xlabel("average time an equation is seen")
@@ -394,8 +430,13 @@ def scatter_acc_over_times_eq_seen(file: str, mod: int | None = None):
     close_plt()
 
 
-def scatter_full_acc_over_times_tok_seen(file: str, mod: int | None = None):
-    results = get_other_metrics(file=file, mod=mod)
+def scatter_full_acc_over_times_tok_seen(
+        file: str, mod: int | None = None, last_n_samples: int = 1,
+        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
+):
+    results = get_other_metrics(
+        file=file, mod=mod, last_n_samples=last_n_samples, aggregate_method=aggregate_method,
+    )
     plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_full_digits"], label="MoT")
     plt.scatter(results["times_token_is_seen"], results["final_val_accuracy_full_tokens"], label="Baseline")
     plt.xlabel("average time a token is seen")
@@ -407,8 +448,13 @@ def scatter_full_acc_over_times_tok_seen(file: str, mod: int | None = None):
     close_plt()
 
 
-def scatter_full_acc_over_times_eq_seen(file: str, mod: int | None = None):
-    results = get_other_metrics(file=file, mod=mod)
+def scatter_full_acc_over_times_eq_seen(
+        file: str, mod: int | None = None, last_n_samples: int = 1,
+        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
+):
+    results = get_other_metrics(
+        file=file, mod=mod, last_n_samples=last_n_samples, aggregate_method=aggregate_method,
+    )
     plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_full_digits"], label="MoT")
     plt.scatter(results["times_eq_seen_in_training"], results["final_val_accuracy_full_tokens"], label="Baseline")
     plt.xlabel("average time an equation is seen")
@@ -420,20 +466,31 @@ def scatter_full_acc_over_times_eq_seen(file: str, mod: int | None = None):
     close_plt()
 
 
+def merge_results():
+    df = pl.read_csv("results1.csv")
+    for i in tqdm(range(2, 8)):
+        df2 = pl.read_csv(f"results{i}.csv")
+        df = pl.concat([df, df2], how="vertical_relaxed")
+    df.write_csv("results.csv")
+
+
 if __name__ == "__main__":
-    file = "results1.csv"
-    # plot_digits_vs_tokens(
-    #     file=file,
-    #     max_digits_per_token=None,
-    #     max_tokens_per_num=None,
-    #     to_plot="val_full_accuracies",
-    #     plot_all=False,
-    #     mod=None,
-    # )
+    # merge_results()
+    file = "results.csv"
+    # print_other_metrics(file=file, mod=None, last_n_samples=1)
+    plot_digits_vs_tokens(
+        file=file,
+        max_digits_per_token=4,
+        max_tokens_per_num=2,
+        to_plot="val_full_accuracies",
+        plot_all=True,
+        mod=None,
+        aggregate_method="median",
+    )
     # heatmap_final_measure(
     #     file=file,
     #     to_plot="val_full_accuracies",
     #     avg_last_n=1,
     # )
-    # print_other_metrics(file=file, mod=None)
-    scatter_acc_over_times_tok_seen(file=file, mod=None)
+    # scatter_acc_over_times_tok_seen(file=file, mod=None)
+    # scatter_acc_over_times_eq_seen(file=file, mod=None)
