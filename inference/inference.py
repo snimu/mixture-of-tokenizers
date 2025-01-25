@@ -24,7 +24,7 @@ import numpy as np
 
 
 SEQ_LEN = 512
-HF_ACCESS_TOKEN = "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"
+HF_ACCESS_TOKEN = "Your token here"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 import os
