@@ -241,12 +241,12 @@ class GPT(nn.Module):
         ))
 
         # Any output layer -- tokens-to-digits, or Blocks to make up for parameters
-        if config.use_digits:
+        if config.use_digits and config.n_layer_output > 0:
             self.out_layer = (
                 TokensToDigitsSequential(config)
                 if config.output_type == "sequential"
                 else TokensToDigitsCrossAttention(config)
-            ) if config.n_layer_output > 0 else nn.Identity()
+            )
         else:
             self.out_layer = Block(config) if config.n_layer_output > 0 else nn.Identity()
         
@@ -281,7 +281,8 @@ class GPT(nn.Module):
             x = block(x)
         
         # Output layer
-        x = self.out_layer(x)
+        if not isinstance(self.out_layer, nn.Identity):
+            x = self.out_layer(x)
 
         # Decode logits
         x = F.rms_norm(x, (x.size(-1),))

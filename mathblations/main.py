@@ -162,7 +162,10 @@ def evaluate(
         logits = model(x_tokens, x_digit_tokens)
 
         token_logits, token_targets = slice_logits_and_targets(
-            logits, y_indices, y_tokens, y_digit_indices, y_digit_tokens
+            logits,
+            y_indices, y_tokens,
+            y_digit_indices if config.n_layer_output > 0 else None,
+            y_digit_tokens if config.n_layer_output > 0 else None,
         )
         loss += F.cross_entropy(token_logits, token_targets).item()
         accuracy += (token_logits.argmax(dim=-1) == token_targets).float().mean().item()
@@ -172,9 +175,11 @@ def evaluate(
         # l1 and l2 distance from target number: just get a target & predicted vector and then compare
         targets = []
         predictions = []
-        for i, (start, end) in enumerate(y_digit_indices if y_digit_indices is not None else y_indices):
+        indices = y_digit_indices if y_digit_indices is not None and config.n_layer_output > 0 else y_indices
+        digit_tokens = y_digit_tokens if y_digit_tokens is not None and config.n_layer_output > 0 else y_tokens
+        for i, (start, end) in enumerate(indices):
             pred_tokens = logits[i, start:end].argmax(dim=-1)
-            target_tokens = (y_digit_tokens if y_digit_tokens is not None else y_tokens)[i, start:end]
+            target_tokens = digit_tokens[i, start:end]
             # Only count as correct if ALL tokens match
             full_correct += int(torch.all(pred_tokens == target_tokens))
 
