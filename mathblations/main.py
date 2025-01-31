@@ -39,7 +39,7 @@ def _to_list(item: Any, dtype: type | None) -> list:
     raise ValueError(f"Expected {dtype} or list of {dtype}, got {item}")
 
 
-def get_args():
+def get_args():  # TODO
     parser = argparse.ArgumentParser()
 
     # General parameters
@@ -78,6 +78,8 @@ def get_args():
     parser.add_argument("--n-layer", type=int, default=12, help="type=int, default=12")
     parser.add_argument("--n-head", type=int, default=6, help="type=int, default=6")
     parser.add_argument("--n-embd", type=int, default=768, help="type=int, default=768")
+    parser.add_argument("--n-layer-output", type=int, default=0, help="type=int, default=0")
+    parser.add_argument("--output-type", choices=("sequential", "cross_attention"), default="sequential", help="type=str, choices=('sequential', 'cross_attention'), default='sequential'")
 
     
     args = parser.parse_args()
@@ -104,14 +106,21 @@ def get_l1_grad_norm(net: model.GPT) -> float:
 def print_sample(
         x_tokens: torch.Tensor, 
         y_tokens: torch.Tensor,
+        x_digit_tokens: torch.Tensor | None,
+        y_digit_tokens: torch.Tensor | None,
         generated_tokens: torch.Tensor, 
         gen: GenerateEquations,
         loop: tqdm = None,
 ) -> None:
-    rand_idx = random.randint(0, len(x_tokens) - 1)
-    x = x_tokens[rand_idx].cpu().squeeze().tolist()
-    y = y_tokens[rand_idx].cpu().squeeze().tolist()
-    target_equation = gen.eq_to_str(torch.tensor(x + [y[-1]]))
+    xt = x_digit_tokens or x_tokens
+    yt = y_digit_tokens or y_tokens
+    rand_idx = random.randint(0, len(xt) - 1)
+    x = xt[rand_idx].cpu().squeeze().tolist()
+    y = yt[rand_idx].cpu().squeeze().tolist()
+    if x_digit_tokens is not None:
+        target_equation = gen.eq_digits_to_str(torch.tensor(x + y[-gen.max_digits_per_token:]))
+    else:
+        target_equation = gen.eq_to_str(torch.tensor(x + [y[-1]]))
     generated_token = generated_tokens[rand_idx].cpu().squeeze().tolist()
 
     if loop:
@@ -132,7 +141,14 @@ class EvalResult:
 @torch.inference_mode()
 def evaluate(
         model: model.GPT, 
-        valset: dict[Literal["x_tokens", "x_digit_tokens", "y_tokens", "y_indices"], list],
+        valset: dict[
+            Literal[
+                "x_tokens", "x_digit_tokens",
+                "y_tokens", "y_digit_tokens",
+                "y_indices", "y_digit_indices"
+            ],
+            list
+        ],
         args: argparse.Namespace,
         config: model.GPTConfig,
 ) -> EvalResult:
@@ -142,10 +158,12 @@ def evaluate(
     full_accuracy = 0.0
     val_iterator = iterate_dataset(valset, args, config)
     l1, l2 = 0.0, 0.0
-    for batch_idx, (x_tokens, x_digit_tokens, y_tokens, y_indices) in enumerate(val_iterator):
+    for batch_idx, (x_tokens, x_digit_tokens, y_tokens, y_digit_tokens, y_indices, y_digit_indices) in enumerate(val_iterator):
         logits = model(x_tokens, x_digit_tokens)
 
-        token_logits, token_targets = slice_logits_and_targets(logits, y_indices, y_tokens)
+        token_logits, token_targets = slice_logits_and_targets(
+            logits, y_indices, y_tokens, y_digit_indices, y_digit_tokens
+        )
         loss += F.cross_entropy(token_logits, token_targets).item()
         accuracy += (token_logits.argmax(dim=-1) == token_targets).float().mean().item()
         del token_logits, token_targets
@@ -154,9 +172,9 @@ def evaluate(
         # l1 and l2 distance from target number: just get a target & predicted vector and then compare
         targets = []
         predictions = []
-        for i, (start, end) in enumerate(y_indices):
+        for i, (start, end) in enumerate(y_digit_indices or y_indices):
             pred_tokens = logits[i, start:end].argmax(dim=-1)
-            target_tokens = y_tokens[i, start:end]
+            target_tokens = (y_digit_indices or y_tokens)[i, start:end]
             # Only count as correct if ALL tokens match
             full_correct += int(torch.all(pred_tokens == target_tokens))
 
@@ -181,7 +199,7 @@ def evaluate(
 def train(
         net: model.GPT, 
         trainset: pl.DataFrame, 
-        valset: pl.DataFrame, 
+        valset: pl.DataFrame,
         args: argparse.Namespace,
         config: model.GPTConfig,
         gen: GenerateEquations | None = None,
@@ -194,12 +212,14 @@ def train(
 
     # Optimizer
     adamw_params = list(net.lm_head.parameters())
-    muon_params = list(net.transformer .h.parameters())
+    muon_params = list(net.transformer.h.parameters())
     if not isinstance(net.transformer.dte, torch.nn.Identity):
         adamw_params.extend(list(net.transformer.dte.parameters()))
         muon_params.extend(list(net.transformer.digit_attn.parameters()))
         muon_params.extend(list(net.transformer.cross_attn.parameters()))
         muon_params.extend(list(net.transformer.alternative_block.parameters()))
+    if not isinstance(net.out_layer, torch.nn.Identity):
+        muon_params.extend(list(net.out_layer.parameters()))
     optimizer = Muon(
         muon_params=muon_params,
         lr=args.learning_rate,
@@ -235,10 +255,17 @@ def train(
             epoch += 1
             train_iterator = iterate_dataset(trainset, args, config)
         # Forward pass
-        x_tokens, x_digit_tokens, y_tokens, y_indices = next(train_iterator)
+        x_tokens, x_digit_tokens, y_tokens, y_digit_tokens, y_indices, y_digit_indices = next(train_iterator)
         optimizer.zero_grad(set_to_none=True)
         logits = net(x_tokens, x_digit_tokens)
-        predictions, targets = slice_logits_and_targets(logits, y_indices, y_tokens)
+        if config.n_layer_output > 0:
+            predictions, targets = slice_logits_and_targets(
+                logits, y_indices, y_tokens, y_digit_indices, y_digit_tokens
+            )
+        else:
+            predictions, targets = slice_logits_and_targets(
+                logits, y_indices, y_tokens, None, None
+            )
         loss = F.cross_entropy(predictions, targets)
         loss.backward()
         optimizer.step()
@@ -276,6 +303,8 @@ def train(
                 print_sample(
                     x_tokens=x_tokens,
                     y_tokens=y_tokens,
+                    x_digit_tokens=x_digit_tokens if config.n_layer_output > 0 else None,
+                    y_digit_tokens=y_digit_tokens if config.n_layer_output > 0 else None,
                     generated_tokens=logits.argmax(-1),
                     gen=gen,
                     loop=loop,
@@ -386,6 +415,8 @@ def train_and_save(
         num_steps=args.num_steps,
         num_epochs=args.num_epochs,
         use_digits=config.use_digits,
+        n_layer_output=config.n_layer_output,
+        output_type=config.output_type,
     )
     if args.use_wandb:
         wandb.finish(quiet=True)
@@ -454,6 +485,8 @@ def main():
             n_embd=args.n_embd,
             T=gen.max_possible_num_tokens,
             length_factor=max_digits_per_token,
+            n_layer_output=args.n_layer_output,
+            output_type=args.output_type,
         )
         config_with_digits = model.GPTConfig(use_digits=True, **common_config)
         config_no_digits = model.GPTConfig(use_digits=False, **common_config)
@@ -475,7 +508,9 @@ def main():
                 trainset["x_tokens"] = [trainset["x_tokens"][i] for i in shuffle_indices]
                 trainset["x_digit_tokens"] = [trainset["x_digit_tokens"][i] for i in shuffle_indices]
                 trainset["y_tokens"] = [trainset["y_tokens"][i] for i in shuffle_indices]
+                trainset["y_digit_tokens"] = [trainset["y_digit_tokens"][i] for i in shuffle_indices]
                 trainset["y_indices"] = [trainset["y_indices"][i] for i in shuffle_indices]
+                trainset["y_digit_indices"] = [trainset["y_digit_indices"][i] for i in shuffle_indices]
             
             loop.set_description(f"{max_digits_per_token=}, {max_tokens_per_num=}, {op=}, {mod=}, {seed=}")
 

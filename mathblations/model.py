@@ -2,8 +2,11 @@
 Copied (and then modified) from https://github.com/KellerJordan/modded-nanogpt/blob/master/records/102024_ScaleUp1B/c0078066-c8c9-49c8-868a-ff4d4f32e615.txt
 """
 
+import copy
 from dataclasses import dataclass
+from typing import Literal
 
+import einops
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -19,6 +22,9 @@ class GPTConfig:
     T: int = 1024
     length_factor: int = 3  # for cross attention between digits and embeddings; == max_digits_per_token
     use_digits: bool = False
+    k_gt_q: bool = True  # at input: digits to tokens -> k>q; at output: tokens to digits -> q>k
+    n_layer_output: int = 0  # extra layers for moving from tokens to digits at output
+    output_type: Literal["sequential", "cross_attention"] = "sequential"
 
 
 class Rotary(torch.nn.Module):
@@ -98,13 +104,19 @@ class CrossAttention(nn.Module):
         self.rotary = Rotary(self.head_dim)
 
         # Define the sliding window mask function
-        def digit_to_token_mask(b, h, q_idx, kv_idx):
-            return q_idx == (kv_idx // self.length_factor)
+        if self.config.k_gt_q:
+            def digit_to_token_mask(b, h, q_idx, kv_idx):
+                return q_idx == (kv_idx // self.length_factor)
+        else:
+            def digit_to_token_mask(b, h, q_idx, kv_idx):
+                return kv_idx == (q_idx // self.length_factor)
 
         # Create and store the block mask at initialization using known sequence length
-        self.block_mask = create_block_mask(digit_to_token_mask, B=None, H=None, 
-                                          Q_LEN=config.T * self.length_factor, 
-                                          KV_LEN=config.T)
+        q_len = config.T * (1 if config.k_gt_q else self.length_factor)
+        kv_len = config.T * (self.length_factor if config.k_gt_q else 1)
+        self.block_mask = create_block_mask(
+            digit_to_token_mask, B=None, H=None, Q_LEN=q_len, KV_LEN=kv_len
+        )
 
     def forward(self, x_q, x_kv):
         B_q, T_q, C = x_q.size()
@@ -163,6 +175,52 @@ class Block(nn.Module):
         x = x + self.mlp(F.rms_norm(x, (x.size(-1),)))
         return x
 
+
+class TokensToDigitsSequential(nn.Module):
+    def __init__(self, config: GPTConfig):
+        super().__init__()
+        self.config = config
+        self.attention_layers = nn.ModuleList([
+            CausalSelfAttention(config) for _ in range(config.n_layer_output)
+        ])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = einops.repeat(x, f"... dim -> ... (dim {self.config.length_factor})")
+        for layer in self.attention_layers:
+            x = x + layer(F.rms_norm(x, (x.size(-1),)))
+        return x
+
+
+class TokensToDigitsCrossAttention(nn.Module):
+    def __init__(self, config: GPTConfig):
+        super().__init__()
+        self.config = copy.deepcopy(config)
+        self.config.k_gt_q = False
+        self.attention_layers = nn.ModuleList([
+            CausalSelfAttention(self.config) for _ in range(config.n_layer_output - 1)
+        ])
+        self.cross_attention_layers = nn.ModuleList([
+            CrossAttention(self.config) for _ in range(config.n_layer_output)
+        ])
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        xd = einops.repeat(
+            torch.empty_like(x).fill_(13).float(),  # 13 is the digit padding (not the token padding, which is 12)
+            f"... dim -> ... (dim {self.config.length_factor})",
+        )
+        for i in range(self.config.n_layer_output - 1):
+            xd = xd + self.cross_attention_layers[i](
+                x_q=F.rms_norm(xd, (xd.size(-1),)),
+                x_kv=F.rms_norm(x, (x.size(-1),)),
+            )
+            x = x + self.attention_layers[i](F.rms_norm(x, (x.size(-1),)))
+        xd = xd + self.cross_attention_layers[-1](
+            x_q=F.rms_norm(xd, (xd.size(-1),)),
+            x_kv=F.rms_norm(x, (x.size(-1),)),
+        )
+        return xd
+
+
 # -----------------------------------------------------------------------------
 # The main GPT-2 model
 
@@ -180,8 +238,24 @@ class GPT(nn.Module):
             wte = nn.Embedding(config.vocab_size, config.n_embd),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
         ))
-        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
-        self.transformer.wte.weight = self.lm_head.weight # https://paperswithcode.com/method/weight-tying
+
+        # Any output layer -- tokens-to-digits, or Blocks to make up for parameters
+        if config.use_digits:
+            self.out_layer = (
+                TokensToDigitsSequential(config)
+                if config.output_type == "sequential"
+                else TokensToDigitsCrossAttention(config)
+            ) if config.n_layer_output > 0 else [nn.Identity()]
+        else:
+            self.out_layer = Block(config) if config.n_layer_output > 0 else nn.Identity()
+        
+        # LM head with tied weights
+        if config.use_digits and config.n_layer_output > 0:
+            self.lm_head = nn.Linear(config.n_embd, 14, bias=False)
+            self.transformer.dte.weight = self.lm_head.weight
+        else:
+            self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+            self.transformer.wte.weight = self.lm_head.weight # https://paperswithcode.com/method/weight-tying
 
     def forward(self, idx, digits=None):
         if self.config.use_digits:
@@ -194,7 +268,8 @@ class GPT(nn.Module):
             de = self.transformer.dte(digits)
             de = de + self.transformer.digit_attn(F.rms_norm(de, (de.size(-1),)))
             x = self.transformer.cross_attn(
-                x_q=F.rms_norm(we, (we.size(-1),)), x_kv=F.rms_norm(de, (de.size(-1),)),
+                x_q=F.rms_norm(we, (we.size(-1),)),
+                x_kv=F.rms_norm(de, (de.size(-1),)),
             )  # TODO: residual here?
         # Otherwise, make up for layers with attention layer
         else:
@@ -203,6 +278,9 @@ class GPT(nn.Module):
         # Model backend
         for block in self.transformer.h:
             x = block(x)
+        
+        # Output layer
+        x = self.out_layer(x)
 
         # Decode logits
         x = F.rms_norm(x, (x.size(-1),))
