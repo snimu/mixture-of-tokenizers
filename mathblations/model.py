@@ -89,6 +89,7 @@ class CausalSelfAttention(nn.Module):
 class CrossAttention(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
+        self.config = config
         self.n_head = config.n_head
         self.n_embd = config.n_embd
         self.head_dim = self.n_embd // self.n_head
@@ -112,8 +113,8 @@ class CrossAttention(nn.Module):
                 return kv_idx == (q_idx // self.length_factor)
 
         # Create and store the block mask at initialization using known sequence length
-        q_len = config.T * (1 if config.k_gt_q else self.length_factor)
-        kv_len = config.T * (self.length_factor if config.k_gt_q else 1)
+        q_len = (config.T-1) * (1 if config.k_gt_q else self.length_factor)
+        kv_len = (config.T-1) * (self.length_factor if config.k_gt_q else 1)
         self.block_mask = create_block_mask(
             digit_to_token_mask, B=None, H=None, Q_LEN=q_len, KV_LEN=kv_len
         )
@@ -185,7 +186,7 @@ class TokensToDigitsSequential(nn.Module):
         ])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = einops.repeat(x, f"... dim -> ... (dim {self.config.length_factor})")
+        x = einops.repeat(x, f"... dim seq-> ... (dim {self.config.length_factor}) seq")
         for layer in self.attention_layers:
             x = x + layer(F.rms_norm(x, (x.size(-1),)))
         return x

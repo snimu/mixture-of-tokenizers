@@ -263,12 +263,13 @@ def slice_logits_and_targets(
         y_digit_indices: torch.Tensor | None, y_digit_tokens: torch.Tensor | None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     # Handle each batch element separately
-    batch_logits = [logits[i, start:end] for i, (start, end) in enumerate(y_indices)]
 
     assert (y_digit_indices is None) is (y_digit_tokens is None), f"{y_digit_indices is None=}, {y_digit_tokens is None=}"
     if y_digit_indices is None:
+        batch_logits = [logits[i, start:end] for i, (start, end) in enumerate(y_indices)]
         batch_targets = [y_tokens[i, start:end] for i, (start, end) in enumerate(y_indices)]
     else:
+        batch_logits = [logits[i, start:end] for i, (start, end) in enumerate(y_digit_indices)]
         batch_targets = [y_digit_tokens[i, start:end] for i, (start, end) in enumerate(y_digit_indices)]
     
     # Stack them all together
@@ -276,14 +277,7 @@ def slice_logits_and_targets(
 
 
 def _check_equation_gen():
-    from time import perf_counter
     gen = GenerateEquations(max_digits_per_token=3, max_tokens_per_num=2, op="+", mod=None)
-    batch_size = 10000
-    # Measure time linear
-    t0 = perf_counter()
-    for _ in range(batch_size):
-        _ = gen()
-    print(f"Time for {batch_size} equations: {perf_counter() - t0:.2f} s")
 
     # Create a few equations
     for _ in range(3):
@@ -300,6 +294,8 @@ def _check_equation_gen():
         print(f"{y_tokens=}")
         print(f"{x_digit_tokens=}")
         print(f"{y_digit_tokens=}")
+        print(f"{y_indices=}")
+        print(f"{y_digit_indices=}")
         print(f"{y_tokens[y_indices[0]:y_indices[1]]=}")
         print(f"{y_digit_tokens[y_digit_indices[0]:y_digit_indices[1]]=}")
         print(f"equation={gen.eq_to_str(all_tokens)}")

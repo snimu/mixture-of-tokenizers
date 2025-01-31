@@ -6,7 +6,7 @@
 #   "wandb",
 #   "polars",
 #   "tqdm",
-#   "wandb",
+#   "einops",
 # ]
 # ///
 
@@ -112,8 +112,8 @@ def print_sample(
         gen: GenerateEquations,
         loop: tqdm = None,
 ) -> None:
-    xt = x_digit_tokens or x_tokens
-    yt = y_digit_tokens or y_tokens
+    xt = x_digit_tokens if x_digit_tokens is not None else x_tokens
+    yt = y_digit_tokens if y_digit_tokens is not None else y_tokens
     rand_idx = random.randint(0, len(xt) - 1)
     x = xt[rand_idx].cpu().squeeze().tolist()
     y = yt[rand_idx].cpu().squeeze().tolist()
@@ -172,9 +172,9 @@ def evaluate(
         # l1 and l2 distance from target number: just get a target & predicted vector and then compare
         targets = []
         predictions = []
-        for i, (start, end) in enumerate(y_digit_indices or y_indices):
+        for i, (start, end) in enumerate(y_digit_indices if y_digit_indices is not None else y_indices):
             pred_tokens = logits[i, start:end].argmax(dim=-1)
-            target_tokens = (y_digit_indices or y_tokens)[i, start:end]
+            target_tokens = (y_digit_tokens if y_digit_tokens is not None else y_tokens)[i, start:end]
             # Only count as correct if ALL tokens match
             full_correct += int(torch.all(pred_tokens == target_tokens))
 
@@ -211,7 +211,7 @@ def train(
     net.train()
 
     # Optimizer
-    adamw_params = list(net.lm_head.parameters())
+    adamw_params = []
     muon_params = list(net.transformer.h.parameters())
     if not isinstance(net.transformer.dte, torch.nn.Identity):
         adamw_params.extend(list(net.transformer.dte.parameters()))
@@ -363,9 +363,12 @@ def make_run_name(
         num_steps: int,
         num_epochs: int,
         use_digits: bool,
+        n_layer_output: int,
+        output_type: Literal["sequential", "cross_attention"],
 ) -> str:
     op_to_word = {"+": "addition", "-": "substraction", "*": "multiplication", "/": "division"}
     name = f"{format_num_params(num_params, 0)}_{'digits' if use_digits else 'tokens'}"
+    name += f"_nlo{n_layer_output}_{output_type}"
     name += f"_{max_digits_per_token}dpt_{max_tokens_per_num}tpn_{op_to_word[op]}_mod{mod}"
     name += f"_{vocab_size}vocab_{n_layer}layers_{n_head}heads_{n_embd}embdim"
     name += f"_{seed}seed_{batchsize}bs_{num_steps}steps_{num_epochs}epochs"
