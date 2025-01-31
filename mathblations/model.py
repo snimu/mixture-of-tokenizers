@@ -246,7 +246,7 @@ class GPT(nn.Module):
                 TokensToDigitsSequential(config)
                 if config.output_type == "sequential"
                 else TokensToDigitsCrossAttention(config)
-            ) if config.n_layer_output > 0 else [nn.Identity()]
+            ) if config.n_layer_output > 0 else nn.Identity()
         else:
             self.out_layer = Block(config) if config.n_layer_output > 0 else nn.Identity()
         
