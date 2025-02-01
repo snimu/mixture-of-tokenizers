@@ -189,7 +189,7 @@ class TokensToDigitsSequential(nn.Module):
         ])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = einops.repeat(x, f"... dim seq-> ... (dim {self.config.length_factor}) seq")
+        x = einops.repeat(x, f"... seq dim-> ... (seq {self.config.length_factor}) dim")
         for layer in self.attention_layers:
             x = x + layer(F.rms_norm(x, (x.size(-1),)))
         return x
@@ -200,7 +200,10 @@ class TokensToDigitsCrossAttention(nn.Module):
         super().__init__()
         self.config = copy.deepcopy(config)
         self.config.k_gt_q = False
-        self.attention_layers = nn.ModuleList([
+        self.digit_attention_layers = nn.ModuleList([
+            CausalSelfAttention(self.config) for _ in range(config.n_layer_output - 1)
+        ])
+        self.token_attention_layers = nn.ModuleList([
             CausalSelfAttention(self.config) for _ in range(config.n_layer_output - 1)
         ])
         self.cross_attention_layers = nn.ModuleList([
@@ -210,14 +213,15 @@ class TokensToDigitsCrossAttention(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         xd = einops.repeat(
             torch.empty_like(x).fill_(13).float(),  # 13 is the digit padding (not the token padding, which is 12)
-            f"... dim -> ... (dim {self.config.length_factor})",
+            f"... seq dim-> ... (seq {self.config.length_factor}) dim",
         )
         for i in range(self.config.n_layer_output - 1):
             xd = xd + self.cross_attention_layers[i](
                 x_q=F.rms_norm(xd, (xd.size(-1),)),
                 x_kv=F.rms_norm(x, (x.size(-1),)),
             )
-            x = x + self.attention_layers[i](F.rms_norm(x, (x.size(-1),)))
+            x = x + self.token_attention_layers[i](F.rms_norm(x, (x.size(-1),)))
+            xd = xd + self.digit_attention_layers[i](F.rms_norm(xd, (xd.size(-1),)))
         xd = xd + self.cross_attention_layers[-1](
             x_q=F.rms_norm(xd, (xd.size(-1),)),
             x_kv=F.rms_norm(x, (x.size(-1),)),
