@@ -189,15 +189,23 @@ def evaluate(
             targets.append(target_num)
             predictions.append(pred_num)
 
-        l1 += F.l1_loss(
-            torch.tensor(targets, dtype=torch.long).float(),
-            torch.tensor(predictions, dtype=torch.long).float()
-        ).item()
-        l2 += F.mse_loss(
-            torch.tensor(targets, dtype=torch.long).float(),
-            torch.tensor(predictions, dtype=torch.long).float()
-        ).item()
-        full_accuracy += full_correct / len(y_indices)
+        try:
+            l1 += F.l1_loss(
+                torch.tensor(targets, dtype=torch.long).float(),
+                torch.tensor(predictions, dtype=torch.long).float()
+            ).item()
+            l2 += F.mse_loss(
+                torch.tensor(targets, dtype=torch.long).float(),
+                torch.tensor(predictions, dtype=torch.long).float()
+            ).item()
+            full_accuracy += full_correct / len(y_indices)
+        except RuntimeError as e:
+            print(
+                f"\n\n{max(predictions)=:_}\n"
+                f"{min(predictions)=:_}\n\n"
+                f"{predictions=}\n\n"
+            )
+            raise e
 
     loss /= args.num_steps_val
     accuracy /= args.num_steps_val
