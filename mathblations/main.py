@@ -177,14 +177,15 @@ def evaluate(
         predictions = []
         indices = y_digit_indices if y_digit_indices is not None and config.n_layer_output > 0 else y_indices
         digit_tokens = y_digit_tokens if y_digit_tokens is not None and config.n_layer_output > 0 else y_tokens
+        remove_padding = y_digit_tokens is not None and config.n_layer_output > 0
         for i, (start, end) in enumerate(indices):
             pred_tokens = logits[i, start:end].argmax(dim=-1)
             target_tokens = digit_tokens[i, start:end]
             # Only count as correct if ALL tokens match
             full_correct += int(torch.all(pred_tokens == target_tokens))
 
-            target_num = int("".join(str(t.item()) for t in target_tokens))
-            pred_num = int("".join(str(t.item()) for t in pred_tokens))
+            target_num = int("".join([str(t.item()) for t in target_tokens if (not remove_padding) or (t.item() < 11)]))
+            pred_num = int("".join([str(t.item()) for t in pred_tokens if (not remove_padding) or (t.item() < 11)]))
             targets.append(target_num)
             predictions.append(pred_num)
 
