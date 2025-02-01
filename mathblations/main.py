@@ -315,7 +315,7 @@ def train(
             val_l2s.append(val_result.l2)
             print_(
                 f"step={step} train_loss={loss.item():.4f} "
-                f"l1_grad_norm={grad_norm:.4f} "
+                f"val_l1={val_result.l1:.4f} "
                 f"val_loss={val_result.loss:.4f} val_acc={val_result.accuracy:.4f} "
                 f"val_full_acc={val_result.full_accuracy:.4f} "
             )
