@@ -184,8 +184,22 @@ def evaluate(
             # Only count as correct if ALL tokens match
             full_correct += int(torch.all(pred_tokens == target_tokens))
 
-            target_num = int("".join([str(t.item()) for t in target_tokens if (not remove_padding) or (t.item() < 11)]))
-            pred_num = int("".join([str(t.item()) for t in pred_tokens if (not remove_padding) or (t.item() < 11)]))
+            try:
+                target_num = int("".join([
+                    str(t.item())
+                    for t in target_tokens
+                    if (not remove_padding) or (t.item() < 11)
+                ]))
+            except ValueError:
+                target_num = 0
+            try:
+                pred_num = int("".join([
+                    str(t.item())
+                    for t in pred_tokens
+                    if (not remove_padding) or (t.item() < 11)
+                ]))
+            except ValueError:
+                pred_num = 0
             targets.append(target_num)
             predictions.append(pred_num)
 
