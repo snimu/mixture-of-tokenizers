@@ -131,12 +131,12 @@ def generate_distinct_colors(n):
 
 
 TO_PLOT_TO_LABEL = {
-    "val_losses": "loss (validation)",
-    "val_accuracies": "token accuracy (validation)",
-    "val_full_accuracies": "full-number accuracy (validation)",
-    "train_losses": "loss (training)",
-    "val_l1s": "L1 distance to ground truth (validation)",
-    "val_l2s": "L2 distance to ground truth (validation)",
+    "val_losses": "loss (val)",
+    "val_accuracies": "token accuracy (val)",
+    "val_full_accuracies": "full-number accuracy (val)",
+    "train_losses": "loss (train)",
+    "val_l1s": "L1 error (val)",
+    "val_l2s": "L2 error (val)",
 }
 
 
@@ -289,12 +289,18 @@ def heatmap_final_measure(
         ratio = y_digits / (y_tokens + 1e-6)
         heatmap[i, j] = ratio
 
+    plt.rcParams['text.usetex'] = True
     plt.figure(figsize=(6,5))
     sns.heatmap(
         heatmap, annot=True, fmt='.3f', cmap='viridis', 
         vmin=0.95 if "accuracy" in to_plot else None, vmax=1.01 if "accuracy" in to_plot else None,
         center=1.0, xticklabels=tpns, yticklabels=dpts,
-        annot_kws={'size': 8}, cbar_kws={'label': f"{TO_PLOT_TO_LABEL[to_plot]}: MoT / Baseline"},
+        annot_kws={'size': 8}, cbar_kws={
+            'label': (
+                f"{aggregate_method.capitalize()} {TO_PLOT_TO_LABEL[to_plot]}: "
+                + r"$\frac{\mathrm{MoT}}{\mathrm{Baseline}}$"
+            ),
+        },
     )
     plt.xlabel('Tokens per number')
     plt.ylabel('Digits per token')
@@ -308,6 +314,7 @@ def heatmap_final_measure(
             dpi=300,
         )
     close_plt()
+    plt.rcParams['text.usetex'] = False
 
     return heatmap, dpts, tpns
 
