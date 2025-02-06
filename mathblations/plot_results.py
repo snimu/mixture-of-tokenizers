@@ -68,6 +68,7 @@ def load_xs_ys_avg_y(
         num_params: int | None = None,
         num_heads: int | None = None,
         seed: int | None = None,
+        op: Literal["+", "*"] | None = None,
         mod: int | None = None,
         to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses", "val_l1s", "val_l2s"] = "val_accuracies",
         aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
@@ -91,6 +92,8 @@ def load_xs_ys_avg_y(
         filters &= (pl.col("num_heads") == num_heads)
     if seed is not None:
         filters &= (pl.col("seed") == seed)
+    if op is not None:
+        filters &= (pl.col("op") == op)
     filters &= (pl.col("mod") == mod) if mod is not None else (pl.col("mod").is_null())
 
     df = pl.scan_csv(file).filter(filters).collect()
@@ -144,6 +147,7 @@ def plot_digits_vs_tokens(
         file: str,
         max_digits_per_token: int | list[int] | None = None,
         max_tokens_per_num: int | list[int] | None = None,
+        op: Literal["+", "*"] = "+",
         mod: int | None = None,
         to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses", "val_l1s", "val_l2s"] = "val_accuracies",
         aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
@@ -156,7 +160,7 @@ def plot_digits_vs_tokens(
         filter_ = pl.col("mod") == mod
     settings =(
         pl.scan_csv(file)
-        .filter(filter_)
+        .filter(filter_ & (pl.col("op") == op))
         .select("max_digits_per_token", "max_tokens_per_num")
         .collect()
         .unique()
@@ -198,6 +202,7 @@ def plot_digits_vs_tokens(
             use_digits=True,
             max_digits_per_token=dpt,
             max_tokens_per_num=tpn,
+            op=op,
             mod=mod,
             to_plot=to_plot,
             aggregate_method=aggregate_method,
@@ -209,6 +214,7 @@ def plot_digits_vs_tokens(
             use_digits=False,
             max_digits_per_token=dpt,
             max_tokens_per_num=tpn,
+            op=op,
             mod=mod,
             to_plot=to_plot,
             aggregate_method=aggregate_method,
@@ -259,8 +265,9 @@ def heatmap_final_measure(
       to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses", "val_l1s", "val_l2s"] = "val_accuracies",
       aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
       show: bool = True,
+      op: Literal["+", "*"] = "+",
 ):
-    settings = pl.scan_csv(file).select(
+    settings = pl.scan_csv(file).filter(pl.col("op") == op).select(
         "max_digits_per_token", "max_tokens_per_num"
     ).collect().unique()
     settings = [(dpt, tpn) for dpt, tpn in zip(settings["max_digits_per_token"], settings["max_tokens_per_num"])]
@@ -274,6 +281,7 @@ def heatmap_final_measure(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
             to_plot=to_plot, use_digits=True,
             aggregate_method=aggregate_method,
+            op=op,
         )
         y_digits = np.mean(avg_ys[-avg_last_n:])
 
@@ -281,6 +289,7 @@ def heatmap_final_measure(
             file=file, max_digits_per_token=dpt, max_tokens_per_num=tpn,
             to_plot=to_plot, use_digits=False,
             aggregate_method=aggregate_method,
+            op=op,
         )
         y_tokens = np.mean(avg_ys[-avg_last_n:])
 
@@ -501,28 +510,31 @@ def merge_results():
 
 if __name__ == "__main__":
     # merge_results()
-    file = "results.csv"
+    file = "results_out_large2.csv"
+    # file = "results.csv"
     # print_other_metrics(
     #     file=file, mod=None, last_n_samples=1, aggregate_method="median",
     #     exclude=["final_val_accuracies_digits", "final_val_accuracies_tokens"],
     # )
-    # plot_digits_vs_tokens(
+    plot_digits_vs_tokens(
+        file=file,
+        max_digits_per_token=4,
+        max_tokens_per_num=3,
+        to_plot="val_full_accuracies",
+        plot_all=False,
+        op="+",
+        mod=None,
+        aggregate_method="mean",
+        show=True,
+    )
+    # heatmap_final_measure(
     #     file=file,
-    #     max_digits_per_token=4,
-    #     max_tokens_per_num=2,
     #     to_plot="val_l1s",
-    #     plot_all=True,
-    #     mod=None,
-    #     aggregate_method="mean",
+    #     avg_last_n=1,
+    #     aggregate_method="median",
+    #     op="+",
     #     show=True,
     # )
-    heatmap_final_measure(
-        file=file,
-        to_plot="val_l1s",
-        avg_last_n=1,
-        aggregate_method="median",
-        show=False,
-    )
     # scatter_metric_over_times_tok_or_eq_seen(
     #     file=file, mod=None,
     #     to_plot="val_full_accuracies",
