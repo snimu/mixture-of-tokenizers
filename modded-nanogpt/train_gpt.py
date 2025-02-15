@@ -10,10 +10,12 @@ with open(sys.argv[0]) as f:
     code = f.read() # read the code of this file ASAP, for logging
 import uuid
 import time
+import json
 import copy
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
@@ -21,8 +23,9 @@ torch.empty(1, device="cuda", requires_grad=True).backward() # prevents a bug on
 from torch import Tensor, nn
 import torch.nn.functional as F
 import torch.distributed as dist
+import einops
 # use of FlexAttention contributed by @KoszarskyB
-from torch.nn.attention.flex_attention import BlockMask, flex_attention
+from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_blockmask
 #torch._inductor.config.coordinate_descent_tuning = True # we have banned this flag for new records because it causes compilation to take 30min
 
 # -----------------------------------------------------------------------------
@@ -288,6 +291,50 @@ class CausalSelfAttention(nn.Module):
         y = self.c_proj(y)
         return y
 
+
+class CrossAttention(nn.Module):
+    """
+    Only project bytes_per_token bytes into their one corresponding token
+    --> causality or blocks are irrelevant
+
+    But do add rotary embeddings
+    """
+    def __init__(self, dim: int, num_heads: int, max_seq_len_q: int, max_seq_len_kv: int, head_dim=128):
+        super().__init__()
+        self.num_heads = num_heads
+        self.head_dim = head_dim
+        hdim = num_heads * head_dim
+        std = 0.5 * (dim ** -0.5)
+        bound = (3 ** 0.5) * std # improved init scale by @YouJiacheng
+        # merged QKV weights: suggested by many, implemented by @fernbear.bsky.social, and further improved by @YouJiacheng
+        # https://x.com/hi_tysam/status/1879699187107033311
+        self.q_w = nn.Parameter(torch.empty(hdim, dim).uniform_(-bound, bound))
+        self.kv_w = nn.Parameter(torch.empty(2, hdim, dim).uniform_(-bound, bound))
+        self.lambdas = nn.Parameter(torch.tensor([0.5, 0.5]))
+        self.rotary_q = Rotary(head_dim, max_seq_len_q)
+        self.rotary_k = Rotary(head_dim, max_seq_len_kv)
+        self.c_proj = CastedLinear(hdim, dim)
+        self.c_proj.weight.detach().zero_() # zero init suggested by @Grad62304977
+        # scale the attention logits by given constant, instead of the default head_dim**-0.5, by @leloykun
+        # inspired by learnable scalars used by @brendanh0gan https://x.com/hi_tysam/status/1879693583898591283
+        self.attn_scale = 0.12
+
+    def forward(self, xq: Tensor, xkv: Tensor, ve: Tensor | None, block_mask: BlockMask):
+        B, T = xq.size(0), xq.size(1) # batch size, sequence length
+        assert B == 1, "Must use batch size = 1 for FlexAttention"
+        k, v = F.linear(xkv, self.kv_w.flatten(end_dim=1).type_as(xkv)).view(B, T, 2 * self.num_heads, self.head_dim).chunk(2, dim=-2)
+        q = F.linear(xq, self.q_w.type_as(xq))
+        q, k = norm(q), norm(k) # QK norm @Grad62304977
+        q, k = self.rotary_q(q), self.rotary_k(k)
+        if ve is not None:
+            v = self.lambdas[0] * v + self.lambdas[1] * ve.view_as(v) # @KoszarskyB & @Grad62304977
+        else: # skip mid-layers token value embeddings by @YouJiacheng
+            v = self.lambdas[0] * v
+        y = flex_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), block_mask=block_mask, scale=self.attn_scale).transpose(1, 2)
+        y = y.contiguous().view(B, T, self.num_heads * self.head_dim) # re-assemble all head outputs side by side
+        y = self.c_proj(y)
+        return y
+
 class MLP(nn.Module):
     def __init__(self, dim: int):
         super().__init__()
@@ -316,6 +363,34 @@ class Block(nn.Module):
             x = x + self.attn(norm(x), ve, block_mask)
         x = x + self.mlp(norm(x))
         return x
+    
+# -----------------------------------------------------------------------------
+# Token to char helpers
+def load_ttb(filename: str) -> dict[int, list[int]]:
+    with open(f"embeddings/{filename}", "r") as f:
+        text = f.read()
+    ttb = json.loads(text)
+    ttb = {int(k): [int(x) for x in v] for k, v in ttb.items()}
+    return ttb
+
+
+def make_embedding(filename: str, vocab_size: int) -> nn.Embedding:
+    dim = int(filename.split("_")[1])
+    emb = nn.Embedding(vocab_size, dim)
+    ttb = load_ttb(filename)
+    for idx in ttb:
+        emb.weight.data[idx] = torch.tensor(ttb[idx])
+    emb.weight.requires_grad = False
+    return emb
+
+
+def tokens_to_chars(tokens: torch.Tensor, emb: nn.Embedding) -> torch.Tensor:
+    with torch.no_grad():
+        chars = emb(tokens)
+    if tokens.ndim == 2:
+        return einops.rearrange(chars, "b n c -> b (n c)")
+    else:
+        return einops.rearrange(chars, "n c -> (n c)")
 
 # -----------------------------------------------------------------------------
 # The main model
@@ -324,9 +399,14 @@ def next_multiple_of_n(v: float | int, *, n: int):
     return next(x for x in range(n, int(v) + 1 + n, n) if x >= v)
 
 class GPT(nn.Module):
-    def __init__(self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int, max_seq_len: int):
+    def __init__(self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int, max_seq_len: int, chars_per_token: int, alignment: Literal["left", "right"]):
         super().__init__()
+        # Handle byte / character inputs ("Mixture of Tokenizers" @omouamoua)
+        self.chars_to_tokens = make_embedding(f"ttb_{chars_per_token}_{alignment}", vocab_size)
+        self.char_emb = nn.Embedding(458, model_dim)  # including pad & eos, there are 458 unique chars
         self.embed = nn.Embedding(vocab_size, model_dim)
+        self.mot_cross_attn = CrossAttention(model_dim, num_heads, max_seq_len_q=max_seq_len, max_seq_len_kv=max_seq_len*chars_per_token, head_dim=128)
+        self.char_self_attn = CausalSelfAttention(model_dim, num_heads, max_seq_len*chars_per_token, head_dim=128)
         # token value embeddings by @KoszarskyB - inspired by @Grad62304977's value residual implementation following https://arxiv.org/abs/2410.17897
         # value embedding code simplification inspired by @ragulpr https://github.com/KellerJordan/modded-nanogpt/pull/78
         self.value_embeds = nn.ModuleList([nn.Embedding(vocab_size, model_dim) for _ in range(3)])
@@ -379,6 +459,30 @@ class GPT(nn.Module):
         # Long-short SWA block masks by @leloykun & @YouJiacheng, adapated from suggestion by @Grad62304977, following Gemma 2 paper
         return build_bm(sliding_window_num_blocks), build_bm(sliding_window_num_blocks // 2)
 
+    def create_mot_masks(self, input_seq: Tensor, chars_per_token: int):
+        T = input_seq.size(-1)
+        def create_cross_attn_mask(b, h, q_idx, kv_idx):
+            return q_idx == (kv_idx // chars_per_token)
+        ca_bm = create_blockmask(
+            create_cross_attn_mask, B=None, H=None, Q_LEN=T//chars_per_token, KV_LEN=T
+        )
+
+        # Block every index 457 (eot), and every index sliding_window chars before it
+        sliding_window_tokens = 16  # enough for a mixing of the tokens, less than any possible attention block size 
+        sliding_window_size = sliding_window_tokens * chars_per_token
+        doc_indices = torch.where(input_seq == 457)[0]
+        def create_self_attn_mask(b, h, q_idx, kv_idx):
+            causal_mask = q_idx >= kv_idx
+            sw_mask = q_idx <= kv_idx + sliding_window_size
+            # Find if there's an EOT token between kv_idx and q_idx
+            doc_border_mask = not torch.any((doc_indices > kv_idx) & (doc_indices < q_idx))
+            return causal_mask & sw_mask & doc_border_mask
+        sa_bm = create_blockmask(
+            create_self_attn_mask, B=None, H=None, Q_LEN=T, KV_LEN=T
+        )
+        return sa_bm, ca_bm
+
+
     def forward(self, input_seq: Tensor, target_seq: Tensor, sliding_window_num_blocks: Tensor):
         assert input_seq.ndim == 1
 
@@ -392,6 +496,11 @@ class GPT(nn.Module):
         assert len(block_masks) == len(self.blocks)
 
         x = x0 = norm(self.embed(input_seq)[None]) # use of norm here by @Grad62304977
+
+        input_char_seq = tokens_to_chars(input_seq, self.chars_to_tokens)
+        char_bm, ca_bm = self.create_mot_masks(input_char_seq, chars_per_token=self.chars_per_token)
+        xc = self.char_self_attn(self.char_emb(input_char_seq), None, char_bm)
+        x = self.mot_cross_attn(xq=x, xkv=xc, ve=None, block_mask=ca_bm)
 
         # U-net design by @brendanh0gan
         skip_connections = []
