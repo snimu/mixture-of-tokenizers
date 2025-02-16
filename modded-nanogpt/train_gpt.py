@@ -552,6 +552,12 @@ def distributed_data_generator(filename_pattern: str, batch_size: int, rank : in
 # -----------------------------------------------------------------------------
 # int main
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--chars_per_token", "-c", type=int, choices=[16, 18, 20], default=16)
+parser.add_argument("--alignment", "-a", type=str, choices=["left", "right"], default="right")
+cli_args = parser.parse_args()
+
 @dataclass
 class Hyperparameters:
     # data
@@ -569,7 +575,11 @@ class Hyperparameters:
     train_seq_len = 48*1024 # FlexAttention sequence length
     val_seq_len = 4*64*1024 # FlexAttention sequence length for validation
     save_checkpoint = False
+    chars_per_token = 16 # number of tokens per character
+    alignment = "right" # left or right
 args = Hyperparameters()
+args.chars_per_token = cli_args.chars_per_token
+args.alignment = cli_args.alignment
 
 # torchrun sets these env variables
 rank = int(os.environ["RANK"])
@@ -613,7 +623,8 @@ print0("="*100)
 ########################################
 
 model: nn.Module = GPT(vocab_size=args.vocab_size, num_layers=12, num_heads=6, model_dim=768,
-                       max_seq_len=max(args.train_seq_len, args.val_seq_len)).cuda()
+                       max_seq_len=max(args.train_seq_len, args.val_seq_len),
+                       chars_per_token=args.chars_per_token, alignment=args.alignment).cuda()
 for m in model.modules():
     if isinstance(m, nn.Embedding):
         m.bfloat16()
