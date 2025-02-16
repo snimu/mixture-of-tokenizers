@@ -320,10 +320,11 @@ class CrossAttention(nn.Module):
         self.attn_scale = 0.12
 
     def forward(self, xq: Tensor, xkv: Tensor, ve: Tensor | None, block_mask: BlockMask):
-        B, T = xq.size(0), xq.size(1) # batch size, sequence length
+        B, Tq = xq.size(0), xq.size(1)
+        _, Tkv = xkv.size(0), xkv.size(1)
         assert B == 1, "Must use batch size = 1 for FlexAttention"
-        k, v = F.linear(xkv, self.kv_w.flatten(end_dim=1).type_as(xkv)).view(B, T, 2 * self.num_heads, self.head_dim).chunk(2, dim=-2)
-        q = F.linear(xq, self.q_w.type_as(xq))
+        k, v = F.linear(xkv, self.kv_w.flatten(end_dim=1).type_as(xkv)).view(B, Tkv, 2 * self.num_heads, self.head_dim).chunk(2, dim=-2)
+        q = F.linear(xq, self.q_w.type_as(xq)).view(B, Tq, self.num_heads, self.head_dim)
         q, k = norm(q), norm(k) # QK norm @Grad62304977
         q, k = self.rotary_q(q), self.rotary_k(k)
         if ve is not None:
@@ -331,7 +332,7 @@ class CrossAttention(nn.Module):
         else: # skip mid-layers token value embeddings by @YouJiacheng
             v = self.lambdas[0] * v
         y = flex_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), block_mask=block_mask, scale=self.attn_scale).transpose(1, 2)
-        y = y.contiguous().view(B, T, self.num_heads * self.head_dim) # re-assemble all head outputs side by side
+        y = y.contiguous().view(B, Tq, self.num_heads * self.head_dim) # re-assemble all head outputs side by side
         y = self.c_proj(y)
         return y
 
