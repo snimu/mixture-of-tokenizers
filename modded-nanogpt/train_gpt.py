@@ -386,7 +386,7 @@ def make_embedding(filename: str, vocab_size: int) -> nn.Embedding:
 
 def tokens_to_chars(tokens: torch.Tensor, emb: nn.Embedding) -> torch.Tensor:
     with torch.no_grad():
-        chars = emb(tokens)
+        chars = emb(tokens.to(torch.int32)).to(torch.int32)
     if tokens.ndim == 2:
         return einops.rearrange(chars, "b n c -> b (n c)")
     else:
