@@ -600,7 +600,7 @@ class Hyperparameters:
     val_loss_every = 125 # every how many steps to evaluate val loss? 0 for only at the end
     # implementation
     train_seq_len = 48*1024 # FlexAttention sequence length
-    val_seq_len = 4*64*1024 # FlexAttention sequence length for validation
+    val_seq_len = (4*64*1024)//8 # FlexAttention sequence length for validation - lowered to avoid triton errors
     save_checkpoint = False
     chars_per_token = 16 # number of tokens per character
     alignment = "right" # left or right
