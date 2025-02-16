@@ -509,7 +509,7 @@ class GPT(nn.Module):
             mask_mod=mask_mod,
             B=None,
             H=None,
-            Q_LEN=T//chars_per_token,
+            Q_LEN=T,
             KV_LEN=T,
         )
         return sa_bm
