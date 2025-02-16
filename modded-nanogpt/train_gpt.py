@@ -404,7 +404,7 @@ class GPT(nn.Module):
         super().__init__()
         # Handle byte / character inputs ("Mixture of Tokenizers" @omouamoua)
         self.chars_per_token = chars_per_token
-        self.char_emb = nn.Embedding(458, model_dim)  # including pad & eos, there are 458 unique chars
+        self.char_embed = nn.Embedding(458, model_dim)  # including pad & eos, there are 458 unique chars
         self.embed = nn.Embedding(vocab_size, model_dim)
         self.mot_cross_attn = CrossAttention(model_dim, num_heads, max_seq_len_q=max_seq_len, max_seq_len_kv=max_seq_len*chars_per_token, head_dim=128)
         self.char_self_attn = CausalSelfAttention(model_dim, num_heads, max_seq_len*chars_per_token, head_dim=128)
@@ -526,7 +526,7 @@ class GPT(nn.Module):
         x = x0 = norm(self.embed(input_seq)[None]) # use of norm here by @Grad62304977
 
         char_bm, ca_bm = self.create_mot_masks(input_char_seq, chars_per_token=self.chars_per_token)
-        xc = self.char_self_attn(self.char_emb(input_char_seq), None, char_bm)
+        xc = self.char_self_attn(self.char_embed(input_char_seq), None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc, ve=None, block_mask=ca_bm)
 
         # U-net design by @brendanh0gan
@@ -663,6 +663,8 @@ chars_to_tokens = make_embedding(f"ttb_{args.chars_per_token}_{args.alignment}.j
 
 # collect the parameters to optimize
 hidden_matrix_params = [p for n, p in model.blocks.named_parameters() if p.ndim >= 2 and "embed" not in n]
+hidden_matrix_params.extend([p for p in model.char_self_attn.parameters()])
+hidden_matrix_params.extend([p for p in model.mot_cross_attn.parameters()])
 embed_params = [p for n, p in model.named_parameters() if "embed" in n]
 scalar_params = [p for p in model.parameters() if p.ndim < 2]
 head_params = [model.lm_head.weight]
