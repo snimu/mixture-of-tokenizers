@@ -463,7 +463,7 @@ class GPT(nn.Module):
         # Long-short SWA block masks by @leloykun & @YouJiacheng, adapated from suggestion by @Grad62304977, following Gemma 2 paper
         return build_bm(sliding_window_num_blocks), build_bm(sliding_window_num_blocks // 2)
 
-    def create_byte_self_attn_mask(self, input_seq: Tensor, chars_per_token: int, sliding_window_tokens: int = 16):
+    def create_mot_self_attn_mask(self, input_seq: Tensor, chars_per_token: int, sliding_window_tokens: int = 16):
         sliding_window_size = sliding_window_tokens * chars_per_token
         BLOCK_SIZE = max(128, 8 * chars_per_token)  # Ensure it's at least 128 and aligns with token boundaries
         
