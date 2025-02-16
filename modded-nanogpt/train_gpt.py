@@ -504,7 +504,7 @@ class GPT(nn.Module):
         #     BLOCK_SIZE=BLOCK_SIZE,
         #     mask_mod=mask_mod
         # )
-        T = input_seq.size(0)
+        T = input_seq.size(-1)
         sa_bm = create_block_mask(
             mask_mod=mask_mod,
             B=None,
