@@ -659,7 +659,7 @@ for param in model.parameters():
     dist.broadcast(param.detach(), 0)
 
 
-chars_to_tokens = make_embedding(f"ttb_{args.chars_per_token}_{args.alignment}.json", args.vocab_size)
+chars_to_tokens = make_embedding(f"ttb_{args.chars_per_token}_{args.alignment}.json", args.vocab_size).cuda()
 
 # collect the parameters to optimize
 hidden_matrix_params = [p for n, p in model.blocks.named_parameters() if p.ndim >= 2 and "embed" not in n]
