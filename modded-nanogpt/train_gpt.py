@@ -663,10 +663,10 @@ chars_to_tokens = make_embedding(f"ttb_{args.chars_per_token}_{args.alignment}.j
 
 # collect the parameters to optimize
 hidden_matrix_params = [p for n, p in model.blocks.named_parameters() if p.ndim >= 2 and "embed" not in n]
-hidden_matrix_params.extend([p for p in model.char_self_attn.parameters()])
-hidden_matrix_params.extend([p for p in model.mot_cross_attn.parameters()])
-embed_params = [p for n, p in model.named_parameters() if "embed" in n]
+hidden_matrix_params.extend([p for p in model.char_self_attn.parameters() if p.ndim >= 2])
+hidden_matrix_params.extend([p for p in model.mot_cross_attn.parameters() if p.ndim >= 2])
 scalar_params = [p for p in model.parameters() if p.ndim < 2]
+embed_params = [p for n, p in model.named_parameters() if "embed" in n]
 head_params = [model.lm_head.weight]
 
 # init the optimizer(s)
