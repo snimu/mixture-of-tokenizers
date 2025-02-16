@@ -402,6 +402,7 @@ class GPT(nn.Module):
     def __init__(self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int, max_seq_len: int, chars_per_token: int, alignment: Literal["left", "right"]):
         super().__init__()
         # Handle byte / character inputs ("Mixture of Tokenizers" @omouamoua)
+        self.chars_per_token = chars_per_token
         self.chars_to_tokens = make_embedding(f"ttb_{chars_per_token}_{alignment}.json", vocab_size)
         self.char_emb = nn.Embedding(458, model_dim)  # including pad & eos, there are 458 unique chars
         self.embed = nn.Embedding(vocab_size, model_dim)
