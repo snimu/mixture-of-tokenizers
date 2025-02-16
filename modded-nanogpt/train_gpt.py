@@ -400,11 +400,10 @@ def next_multiple_of_n(v: float | int, *, n: int):
     return next(x for x in range(n, int(v) + 1 + n, n) if x >= v)
 
 class GPT(nn.Module):
-    def __init__(self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int, max_seq_len: int, chars_per_token: int, alignment: Literal["left", "right"]):
+    def __init__(self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int, max_seq_len: int, chars_per_token: int):
         super().__init__()
         # Handle byte / character inputs ("Mixture of Tokenizers" @omouamoua)
         self.chars_per_token = chars_per_token
-        self.chars_to_tokens = make_embedding(f"ttb_{chars_per_token}_{alignment}.json", vocab_size)
         self.char_emb = nn.Embedding(458, model_dim)  # including pad & eos, there are 458 unique chars
         self.embed = nn.Embedding(vocab_size, model_dim)
         self.mot_cross_attn = CrossAttention(model_dim, num_heads, max_seq_len_q=max_seq_len, max_seq_len_kv=max_seq_len*chars_per_token, head_dim=128)
@@ -512,7 +511,7 @@ class GPT(nn.Module):
         return sa_bm, ca_bm
 
 
-    def forward(self, input_seq: Tensor, target_seq: Tensor, sliding_window_num_blocks: Tensor):
+    def forward(self, input_seq: Tensor, input_char_seq: Tensor, target_seq: Tensor, sliding_window_num_blocks: Tensor):
         assert input_seq.ndim == 1
 
         ve = [value_embed(input_seq) for value_embed in self.value_embeds]
@@ -526,7 +525,6 @@ class GPT(nn.Module):
 
         x = x0 = norm(self.embed(input_seq)[None]) # use of norm here by @Grad62304977
 
-        input_char_seq = tokens_to_chars(input_seq, self.chars_to_tokens)
         char_bm, ca_bm = self.create_mot_masks(input_char_seq, chars_per_token=self.chars_per_token)
         xc = self.char_self_attn(self.char_emb(input_char_seq), None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc, ve=None, block_mask=ca_bm)
@@ -653,12 +651,15 @@ print0("="*100)
 
 model: nn.Module = GPT(vocab_size=args.vocab_size, num_layers=12, num_heads=6, model_dim=768,
                        max_seq_len=max(args.train_seq_len, args.val_seq_len),
-                       chars_per_token=args.chars_per_token, alignment=args.alignment).cuda()
+                       chars_per_token=args.chars_per_token).cuda()
 for m in model.modules():
     if isinstance(m, nn.Embedding):
         m.bfloat16()
 for param in model.parameters():
     dist.broadcast(param.detach(), 0)
+
+
+chars_to_tokens = make_embedding(f"ttb_{args.chars_per_token}_{args.alignment}.json", args.vocab_size)
 
 # collect the parameters to optimize
 hidden_matrix_params = [p for n, p in model.blocks.named_parameters() if p.ndim >= 2 and "embed" not in n]
@@ -711,12 +712,10 @@ initial_state = dict(model=copy.deepcopy(model.state_dict()),
                      optimizers=[copy.deepcopy(opt.state_dict()) for opt in optimizers]) # save the initial state
 for _ in range(warmup_steps):
     inputs = targets = torch.randint(0, args.vocab_size, size=(args.train_seq_len,), device="cuda")
-    model(inputs.to(torch.int32), targets, get_window_size_blocks(0)).backward()
-    for name, param in model.named_parameters():
-        if param.grad is None:
-            print(f"Parameter {name} has None gradient")
-        else:
-            dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
+    inputs_char = tokens_to_chars(inputs, chars_to_tokens)
+    model(inputs.to(torch.int32), inputs_char, targets, get_window_size_blocks(0)).backward()
+    for param in model.parameters():
+        dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
     for opt in optimizers:
         opt.step()
     model.zero_grad(set_to_none=True)
@@ -753,7 +752,8 @@ for step in range(train_steps + 1):
         with torch.no_grad():
             for _ in range(val_steps):
                 inputs, targets = next(val_loader)
-                val_loss += model(inputs, targets, get_window_size_blocks(step))
+                inputs_char = tokens_to_chars(inputs, chars_to_tokens)
+                val_loss += model(inputs, inputs_char, targets, get_window_size_blocks(step))
         val_loss /= val_steps
         del val_loader
         dist.all_reduce(val_loss, op=dist.ReduceOp.AVG)
@@ -773,7 +773,8 @@ for step in range(train_steps + 1):
 
     # --------------- TRAINING SECTION -----------------
     inputs, targets = next(train_loader)
-    model(inputs, targets, get_window_size_blocks(step)).backward()
+    inputs_char = tokens_to_chars(inputs, chars_to_tokens)
+    model(inputs, inputs_char, targets, get_window_size_blocks(step)).backward()
     for param in model.parameters():
         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
     # set optimization hyperparameters
