@@ -712,8 +712,11 @@ initial_state = dict(model=copy.deepcopy(model.state_dict()),
 for _ in range(warmup_steps):
     inputs = targets = torch.randint(0, args.vocab_size, size=(args.train_seq_len,), device="cuda")
     model(inputs.to(torch.int32), targets, get_window_size_blocks(0)).backward()
-    for param in model.parameters():
-        dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
+    for name, param in model.named_parameters():
+        if param.grad is None:
+            print(f"Parameter {name} has None gradient")
+        else:
+            dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
     for opt in optimizers:
         opt.step()
     model.zero_grad(set_to_none=True)
