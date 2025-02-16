@@ -25,7 +25,7 @@ import torch.nn.functional as F
 import torch.distributed as dist
 import einops
 # use of FlexAttention contributed by @KoszarskyB
-from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_blockmask
+from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_block_mask
 #torch._inductor.config.coordinate_descent_tuning = True # we have banned this flag for new records because it causes compilation to take 30min
 
 # -----------------------------------------------------------------------------
@@ -419,7 +419,7 @@ class GPT(nn.Module):
         assert num_layers % 2 == 0
         self.skip_weights = nn.Parameter(torch.ones(num_layers//2))
 
-    def create_blockmasks(self, input_seq: Tensor, sliding_window_num_blocks: Tensor):
+    def create_block_masks(self, input_seq: Tensor, sliding_window_num_blocks: Tensor):
         BLOCK_SIZE = 128
         docs = (input_seq == 50256).cumsum(0)
 
@@ -463,7 +463,7 @@ class GPT(nn.Module):
         T = input_seq.size(-1)
         def create_cross_attn_mask(b, h, q_idx, kv_idx):
             return q_idx == (kv_idx // chars_per_token)
-        ca_bm = create_blockmask(
+        ca_bm = create_block_mask(
             create_cross_attn_mask, B=None, H=None, Q_LEN=T//chars_per_token, KV_LEN=T
         )
 
@@ -477,7 +477,7 @@ class GPT(nn.Module):
             # Find if there's an EOT token between kv_idx and q_idx
             doc_border_mask = not torch.any((doc_indices > kv_idx) & (doc_indices < q_idx))
             return causal_mask & sw_mask & doc_border_mask
-        sa_bm = create_blockmask(
+        sa_bm = create_block_mask(
             create_self_attn_mask, B=None, H=None, Q_LEN=T, KV_LEN=T
         )
         return sa_bm, ca_bm
@@ -491,7 +491,7 @@ class GPT(nn.Module):
         ve = [ve[0], ve[1], ve[2]] + [None] * (len(self.blocks) - 6) + [ve[0], ve[1], ve[2]]
         assert len(ve) == len(self.blocks)
 
-        long_bm, short_bm = self.create_blockmasks(input_seq, sliding_window_num_blocks)
+        long_bm, short_bm = self.create_block_masks(input_seq, sliding_window_num_blocks)
         block_masks = [long_bm, short_bm, short_bm, short_bm, long_bm, short_bm, short_bm, long_bm, short_bm, short_bm, short_bm, long_bm]
         assert len(block_masks) == len(self.blocks)
 
