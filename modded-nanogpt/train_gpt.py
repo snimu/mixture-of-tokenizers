@@ -460,26 +460,53 @@ class GPT(nn.Module):
         # Long-short SWA block masks by @leloykun & @YouJiacheng, adapated from suggestion by @Grad62304977, following Gemma 2 paper
         return build_bm(sliding_window_num_blocks), build_bm(sliding_window_num_blocks // 2)
 
-    def create_mot_masks(self, input_seq: Tensor, chars_per_token: int):
+    def create_mot_masks(self, input_seq: Tensor, chars_per_token: int, sliding_window_tokens: int = 16):
         T = input_seq.size(-1)
         def create_cross_attn_mask(b, h, q_idx, kv_idx):
             return q_idx == (kv_idx // chars_per_token)
-        ca_bm = create_block_mask(
+        ca_bm = create_block_mask(  # cross-attention block mask
             create_cross_attn_mask, B=None, H=None, Q_LEN=T//chars_per_token, KV_LEN=T
         )
 
-        # Block every index 457 (eot), and every index sliding_window chars before it
-        sliding_window_tokens = 16  # enough for a mixing of the tokens, less than any possible attention block size 
         sliding_window_size = sliding_window_tokens * chars_per_token
-        doc_indices = torch.where(input_seq == 457)[0]
-        def create_self_attn_mask(b, h, q_idx, kv_idx):
-            causal_mask = q_idx >= kv_idx
-            sw_mask = q_idx <= kv_idx + sliding_window_size
-            # Find if there's an EOT token between kv_idx and q_idx
-            doc_border_mask = not torch.any((doc_indices > kv_idx) & (doc_indices < q_idx))
-            return causal_mask & sw_mask & doc_border_mask
-        sa_bm = create_block_mask(
-            create_self_attn_mask, B=None, H=None, Q_LEN=T, KV_LEN=T
+        BLOCK_SIZE = max(128, 8 * chars_per_token)  # Ensure it's at least 128 and aligns with token boundaries
+        
+        seq_len = len(input_seq)
+        num_blocks = (seq_len + BLOCK_SIZE - 1) // BLOCK_SIZE
+        block_idx = torch.arange(num_blocks, dtype=torch.int32, device=input_seq.device)
+        
+        docs = (input_seq == 457).cumsum(0)
+        docs_low = docs.view(-1, BLOCK_SIZE)[:, 0]
+        docs_high = docs.view(-1, BLOCK_SIZE)[:, -1]
+        
+        # A block can attend to another block if:
+        # 1. Causal (q_block >= kv_block)
+        # 2. Within sliding window of blocks
+        # 3. In same document (doc_id matches)
+        causal_blockmask = block_idx[:, None] >= block_idx
+        window_blocks = (sliding_window_size + BLOCK_SIZE - 1) // BLOCK_SIZE
+        sliding_blockmask = (block_idx[:, None] - block_idx).abs() <= window_blocks
+        doc_blockmask = (docs_low[:, None] <= docs_high) & (docs_high[:, None] >= docs_low)
+        
+        blockmask = causal_blockmask & sliding_blockmask & doc_blockmask
+        
+        def dense_to_ordered(dense_blockmask: torch.Tensor):
+            num_blocks = dense_blockmask.sum(dim=-1, dtype=torch.int32)
+            indices = dense_blockmask.argsort(dim=-1, descending=False, stable=True).flip(-1).to(torch.int32)
+            return num_blocks[None, None].contiguous(), indices[None, None].contiguous()
+        
+        kv_num_blocks, kv_indices = dense_to_ordered(blockmask)
+        
+        def mask_mod(b, h, q_idx, kv_idx):
+            causal = q_idx >= kv_idx
+            sliding = q_idx <= (kv_idx + sliding_window_size)
+            return causal & sliding
+        
+        sa_bm = BlockMask.from_kv_blocks(
+            kv_num_blocks=kv_num_blocks,
+            kv_indices=kv_indices,
+            BLOCK_SIZE=BLOCK_SIZE,
+            mask_mod=mask_mod
         )
         return sa_bm, ca_bm
 
