@@ -390,7 +390,7 @@ def tokens_to_chars(tokens: torch.Tensor, emb: nn.Embedding) -> torch.Tensor:
     if tokens.ndim == 2:
         return einops.rearrange(chars, "b n c -> b (n c)")
     else:
-        return einops.rearrange(chars, "n c -> (n c)")
+        return einops.rearrange(chars, "n c -> (n c)")[None]  # manually add batch dimension
 
 # -----------------------------------------------------------------------------
 # The main model
