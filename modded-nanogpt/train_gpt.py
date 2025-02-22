@@ -310,7 +310,7 @@ class CrossAttention(nn.Module):
         # https://x.com/hi_tysam/status/1879699187107033311
         self.q_w = nn.Parameter(torch.empty(hdim, dim).uniform_(-bound, bound))
         self.kv_w = nn.Parameter(torch.empty(2, hdim, dim).uniform_(-bound, bound))
-        self.lambdas = nn.Parameter(torch.tensor([0.5, 0.5]))
+        self.lambda_factor = nn.Parameter(torch.tensor(0.5))
         self.rotary_q = Rotary(head_dim, max_seq_len_q)
         self.rotary_k = Rotary(head_dim, max_seq_len_kv)
         self.c_proj = CastedLinear(hdim, dim)
@@ -319,22 +319,32 @@ class CrossAttention(nn.Module):
         # inspired by learnable scalars used by @brendanh0gan https://x.com/hi_tysam/status/1879693583898591283
         self.attn_scale = 0.12
 
-    def forward(self, xq: Tensor, xkv: Tensor, ve: Tensor | None, block_mask: BlockMask):
-        B, Tq = xq.size(0), xq.size(1)
-        _, Tkv = xkv.size(0), xkv.size(1)
-        assert B == 1, "Must use batch size = 1 for FlexAttention"
-        k, v = F.linear(xkv, self.kv_w.flatten(end_dim=1).type_as(xkv)).view(B, Tkv, 2 * self.num_heads, self.head_dim).chunk(2, dim=-2)
-        q = F.linear(xq, self.q_w.type_as(xq)).view(B, Tq, self.num_heads, self.head_dim)
+    def forward(self, xq: Tensor, xkv: Tensor):
+        Bq, Tq = xq.size(0), xq.size(1)
+        Bkv, Tkv = xkv.size(0), xkv.size(1)
+        assert Bq == Bkv == 1, "Must use batch size = 1 for FlexAttention"
+        k, v = F.linear(xkv, self.kv_w.flatten(end_dim=1).type_as(xkv)).view(Bq, Tkv, 2 * self.num_heads, self.head_dim).chunk(2, dim=-2)
+        q = F.linear(xq, self.q_w.type_as(xq)).view(Bq, Tq, self.num_heads, self.head_dim)
         q, k = norm(q), norm(k) # QK norm @Grad62304977
         q, k = self.rotary_q(q), self.rotary_k(k)
-        if ve is not None:
-            v = self.lambdas[0] * v + self.lambdas[1] * ve.view_as(v) # @KoszarskyB & @Grad62304977
-        else: # skip mid-layers token value embeddings by @YouJiacheng
-            v = self.lambdas[0] * v
-        y = flex_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), block_mask=block_mask, scale=self.attn_scale).transpose(1, 2)
-        y = y.contiguous().view(B, Tq, self.num_heads * self.head_dim) # re-assemble all head outputs side by side
+        v = self.lambda_factor * v
+
+        # Because we always attend from n chars to 1 token, we can re-shape, use BMM, and save use the attention mask
+        chars_per_token = Tkv // Tq
+        q = einops.rearrange(q, "b tq h d -> b h tq 1 d")
+        k = einops.rearrange(k, "b (t c) h d -> b h t c d", c=chars_per_token)
+        v = einops.rearrange(v, "b (t c) h d -> b h t c d", c=chars_per_token)
+
+        attn_scores = torch.matmul(q, k.transpose(-1, -2)) / (q.size(-1) ** 0.5)
+        attn_weights = torch.softmax(attn_scores, dim=-1)
+
+        y = torch.matmul(attn_weights, v)
+        y = einops.rearrange(y, "b h tq 1 d -> b tq h d")
+
+        y = y.contiguous().view(Bq, Tq, self.num_heads * self.head_dim) # re-assemble all head outputs side by side
         y = self.c_proj(y)
         return y
+
 
 class MLP(nn.Module):
     def __init__(self, dim: int):
