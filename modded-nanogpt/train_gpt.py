@@ -313,8 +313,7 @@ class CrossAttention(nn.Module):
         self.lambda_factor = nn.Parameter(torch.tensor(0.5))
         self.rotary_q = Rotary(head_dim, max_seq_len_q)
         self.rotary_k = Rotary(head_dim, max_seq_len_kv)
-        self.c_proj = CastedLinear(hdim, dim)
-        self.c_proj.weight.detach().zero_() # zero init suggested by @Grad62304977
+        self.c_proj = CastedLinear(hdim, dim)  # No zero init because there won't be a residual!!! TODO: check if a residaul makes sense
         # scale the attention logits by given constant, instead of the default head_dim**-0.5, by @leloykun
         # inspired by learnable scalars used by @brendanh0gan https://x.com/hi_tysam/status/1879693583898591283
         self.attn_scale = 0.12
