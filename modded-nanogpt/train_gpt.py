@@ -515,8 +515,8 @@ class GPT(nn.Module):
                 input_char_seq, chars_per_token=self.chars_per_token, sliding_window_tokens=self.sliding_window_tokens
             )
             B, T, D = xc.shape
-            xloc = xc.view(B, T, self.num_heads, D // self.num_heads)
-            flex_attention(xloc.transpose(1, 2), xloc.transpose(1, 2), xloc.transpose(1, 2), block_mask=char_bm).transpose(1, 2).squeeze(2)  # self.char_self_attn(xc, None, char_bm)
+            xc = xc.view(B, T, self.num_heads, D // self.num_heads)
+            xc = xc + flex_attention(xc.transpose(1, 2), xc.transpose(1, 2), xc.transpose(1, 2), block_mask=char_bm).transpose(1, 2).squeeze(2)  # self.char_self_attn(xc, None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc)
 
         # U-net design by @brendanh0gan
