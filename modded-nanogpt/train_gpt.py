@@ -328,14 +328,15 @@ class CrossAttention(nn.Module):
 
         # Because we always attend from n chars to 1 token, we can re-shape, use BMM, and save use the attention mask
         chars_per_token = Tkv // Tq
-        q = q.transpose(1, 2).unsqueeze(3)  # equivalent: einops.rearrange(q, "b tq h d -> b h tq 1 d")
-        k = k.view(k.shape[0], -1, chars_per_token, k.shape[2], k.shape[3]).transpose(1, 2)  # equivalent: einops.rearrange(k, "b (t c) h d -> b h t c d", c=chars_per_token)
+        q = q.transpose(1, 2).unsqueeze(3)  # einops.rearrange(q, "b tq h d -> b h tq 1 d")
+        k = k.view(k.shape[0], -1, chars_per_token, k.shape[2], k.shape[3]).transpose(1, 2)  # einops.rearrange(k, "b (t c) h d -> b h t c d", c=chars_per_token)
         v = v.view(v.shape[0], -1, chars_per_token, v.shape[2], v.shape[3]).transpose(1, 2)
 
         attn_scores = torch.matmul(q, k.transpose(-1, -2)) / (q.size(-1) ** 0.5)
         attn_weights = torch.softmax(attn_scores, dim=-1)
 
         y = torch.matmul(attn_weights, v)
+        print(f"\n{y.shape=}\n{q.shape=}\n{k.shape=}\n{v.shape=}\n{attn_scores.shape=}\n{attn_weights.shape=}\n")
         y = y.squeeze(3).transpose(1, 2)  # einops.rearrange(y, "b h tq 1 d -> b tq h d")
 
         y = y.contiguous().view(Bq, Tq, self.num_heads * self.head_dim) # re-assemble all head outputs side by side
