@@ -111,6 +111,6 @@ Results with sliding window size of 64:
 
 **Next steps:**
 
-- Increase char-dim to 768
-- Implement cross-document attention blocking
-- Use [mamba](https://github.com/state-spaces/mamba) on the chars
+- [ ] Use [mamba](https://github.com/state-spaces/mamba) on the chars
+- [ ] Increase char-dim to 768
+- [ ] Implement cross-document attention blocking
