@@ -409,8 +409,9 @@ def next_multiple_of_n(v: float | int, *, n: int):
 class GPT(nn.Module):
     def __init__(
             self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int, char_dim: int,
-            max_seq_len: int, chars_per_token: int, use_mot_self_attn: bool):
+            max_seq_len: int, chars_per_token: int, use_mot_self_attn: bool, sliding_window_tokens: int = 16):
         super().__init__()
+        self.sliding_window_tokens = sliding_window_tokens
         # Determine number of heads & head dim for character branch attention & cross attention
         assert (char_dim < 128) or (char_dim % 128 == 0)
         assert model_dim % char_dim == 0
@@ -512,7 +513,9 @@ class GPT(nn.Module):
         # Incorporate byte-level info into tokens
         xc = norm(self.char_embed(input_char_seq))
         if self.use_mot_self_attn:
-            char_bm = self.create_mot_self_attn_mask(input_char_seq, chars_per_token=self.chars_per_token)
+            char_bm = self.create_mot_self_attn_mask(
+                input_char_seq, chars_per_token=self.chars_per_token, sliding_window_tokens=self.sliding_window_tokens
+            )
             xc = xc + self.char_self_attn(xc, None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc)
         # Project into model dim
@@ -577,6 +580,7 @@ parser.add_argument("--chars_per_token", "-c", type=int, choices=[16, 18, 20], d
 parser.add_argument("--alignment", "-a", type=str, choices=["left", "right"], default="right")
 parser.add_argument("--skip_mot_self_attn", "-s", action="store_true")
 parser.add_argument("--char_dim", "-d", type=int, default=128)
+parser.add_argument("--sliding_window_tokens", "-w", type=int, default=16)
 cli_args = parser.parse_args()
 
 @dataclass
@@ -600,11 +604,13 @@ class Hyperparameters:
     alignment = "right" # left or right
     use_mot_self_attn = True
     char_dim = 128
+    sliding_window_tokens = 16
 args = Hyperparameters()
 args.chars_per_token = cli_args.chars_per_token
 args.alignment = cli_args.alignment
 args.use_mot_self_attn = not cli_args.skip_mot_self_attn
 args.char_dim = cli_args.char_dim
+args.sliding_window_tokens = cli_args.sliding_window_tokens
 
 # torchrun sets these env variables
 rank = int(os.environ["RANK"])
@@ -649,7 +655,8 @@ print0("="*100)
 
 model: nn.Module = GPT(vocab_size=args.vocab_size, num_layers=12, num_heads=6, model_dim=768, char_dim=args.char_dim,
                        max_seq_len=max(args.train_seq_len, args.val_seq_len),
-                       chars_per_token=args.chars_per_token, use_mot_self_attn=args.use_mot_self_attn).cuda()
+                       chars_per_token=args.chars_per_token, use_mot_self_attn=args.use_mot_self_attn,
+                       sliding_window_tokens=args.sliding_window_tokens).cuda()
 for m in model.modules():
     if isinstance(m, nn.Embedding):
         m.bfloat16()
