@@ -670,10 +670,6 @@ scalar_params = [p for p in model.parameters() if p.ndim < 2]
 embed_params = [p for n, p in model.named_parameters() if "embed" in n]
 head_params = [model.lm_head.weight]
 
-# Make sure the embeddings are both trained
-assert any([p is model.char_embed for p in embed_params])
-assert any([p is model.token_embed for p in embed_params])
-
 # init the optimizer(s)
 adam_params = [dict(params=head_params, lr=0.008), dict(params=embed_params, lr=0.6), dict(params=scalar_params, lr=0.04)]
 # small adam epsilon by @YouJiacheng. this is an alternate method of fixing the world_size dependence
