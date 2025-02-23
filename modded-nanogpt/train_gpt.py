@@ -408,24 +408,17 @@ def next_multiple_of_n(v: float | int, *, n: int):
 
 class GPT(nn.Module):
     def __init__(
-            self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int, char_dim: int,
+            self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int,
             max_seq_len: int, chars_per_token: int, use_mot_self_attn: bool, sliding_window_tokens: int = 16):
         super().__init__()
         self.sliding_window_tokens = sliding_window_tokens
-        # Determine number of heads & head dim for character branch attention & cross attention
-        assert (char_dim < 128) or (char_dim % 128 == 0)
-        assert model_dim % char_dim == 0
-        self.char_dim = char_dim
-        head_dim_char = min(128, char_dim)  # if the char_dim allows it, use a head_dim of 128; otherwise, a single head of char_dim
-        num_heads_char = char_dim // head_dim_char or 1
         # Handle byte / character inputs ("Mixture of Tokenizers" @omouamoua)
         self.chars_per_token = chars_per_token
         self.use_mot_self_attn = use_mot_self_attn
-        self.char_embed = nn.Embedding(458, char_dim)  # including pad & eos, there are 458 unique chars
-        self.token_embed = nn.Embedding(vocab_size, char_dim)
-        self.mot_cross_attn = CrossAttention(char_dim, num_heads_char, max_seq_len_q=max_seq_len, max_seq_len_kv=max_seq_len*chars_per_token, head_dim=head_dim_char)
-        self.char_self_attn = CausalSelfAttention(char_dim, num_heads_char, max_seq_len*chars_per_token, head_dim=head_dim_char) if use_mot_self_attn else nn.Identity()
-        self.up_proj = CastedLinear(char_dim, model_dim)  # just use default torch init for now
+        self.char_embed = nn.Embedding(458, model_dim)  # including pad & eos, there are 458 unique chars
+        self.token_embed = nn.Embedding(vocab_size, model_dim)
+        self.mot_cross_attn = CrossAttention(model_dim, num_heads, max_seq_len_q=max_seq_len, max_seq_len_kv=max_seq_len*chars_per_token, head_dim=128)
+        self.char_self_attn = CausalSelfAttention(model_dim, num_heads, max_seq_len*chars_per_token, head_dim=128) if use_mot_self_attn else nn.Identity()
         # token value embeddings by @KoszarskyB - inspired by @Grad62304977's value residual implementation following https://arxiv.org/abs/2410.17897
         # value embedding code simplification inspired by @ragulpr https://github.com/KellerJordan/modded-nanogpt/pull/78
         self.value_embeds = nn.ModuleList([nn.Embedding(vocab_size, model_dim) for _ in range(3)])
@@ -508,7 +501,7 @@ class GPT(nn.Module):
         block_masks = [long_bm, short_bm, short_bm, short_bm, long_bm, short_bm, short_bm, long_bm, short_bm, short_bm, short_bm, long_bm]
         assert len(block_masks) == len(self.blocks)
 
-        x = norm(self.token_embed(input_seq)[None]) # use of norm here by @Grad62304977
+        x = x0 = norm(self.token_embed(input_seq)[None]) # use of norm here by @Grad62304977
 
         # Incorporate byte-level info into tokens
         xc = norm(self.char_embed(input_char_seq))
@@ -518,11 +511,6 @@ class GPT(nn.Module):
             )
             xc = xc + self.char_self_attn(xc, None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc)
-        # Project into model dim
-        # Consider the result of this the actual embedding
-        # we have just used a more complex embedding model than an FC layer
-        # Therefore, x0 is determined here
-        x = x0 = norm(self.up_proj(x))
 
         # U-net design by @brendanh0gan
         skip_connections = []
@@ -579,7 +567,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--chars_per_token", "-c", type=int, choices=[16, 18, 20], default=16)
 parser.add_argument("--alignment", "-a", type=str, choices=["left", "right"], default="right")
 parser.add_argument("--skip_mot_self_attn", "-s", action="store_true")
-parser.add_argument("--char_dim", "-d", type=int, default=128)
 parser.add_argument("--sliding_window_tokens", "-w", type=int, default=16)
 cli_args = parser.parse_args()
 
@@ -603,13 +590,11 @@ class Hyperparameters:
     chars_per_token = 16 # number of tokens per character
     alignment = "right" # left or right
     use_mot_self_attn = True
-    char_dim = 128
     sliding_window_tokens = 16
 args = Hyperparameters()
 args.chars_per_token = cli_args.chars_per_token
 args.alignment = cli_args.alignment
 args.use_mot_self_attn = not cli_args.skip_mot_self_attn
-args.char_dim = cli_args.char_dim
 args.sliding_window_tokens = cli_args.sliding_window_tokens
 
 # torchrun sets these env variables
@@ -653,7 +638,7 @@ print0("="*100)
 #    Construct model and optimizer     #
 ########################################
 
-model: nn.Module = GPT(vocab_size=args.vocab_size, num_layers=12, num_heads=6, model_dim=768, char_dim=args.char_dim,
+model: nn.Module = GPT(vocab_size=args.vocab_size, num_layers=12, num_heads=6, model_dim=768,
                        max_seq_len=max(args.train_seq_len, args.val_seq_len),
                        chars_per_token=args.chars_per_token, use_mot_self_attn=args.use_mot_self_attn,
                        sliding_window_tokens=args.sliding_window_tokens).cuda()
