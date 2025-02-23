@@ -708,7 +708,7 @@ initial_state = dict(model=copy.deepcopy(model.state_dict()),
                      optimizers=[copy.deepcopy(opt.state_dict()) for opt in optimizers]) # save the initial state
 for _ in range(warmup_steps):
     inputs = targets = torch.randint(0, args.vocab_size, size=(args.train_seq_len,), device="cuda")
-    inputs_char = tokens_to_chars(inputs, chars_to_tokens)[:, :args.train_seq_len]  # TODO: undo this slicing
+    inputs_char = tokens_to_chars(inputs, chars_to_tokens)
     model(inputs.to(torch.int32), inputs_char, targets, get_window_size_blocks(0)).backward()
     for param in model.parameters():
         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
@@ -748,7 +748,7 @@ for step in range(train_steps + 1):
         with torch.no_grad():
             for _ in range(val_steps):
                 inputs, targets = next(val_loader)
-                inputs_char = tokens_to_chars(inputs, chars_to_tokens)[:, :args.val_seq_len]  # TODO: undo this slicing
+                inputs_char = tokens_to_chars(inputs, chars_to_tokens)
                 val_loss += model(inputs, inputs_char, targets, get_window_size_blocks(step))
         val_loss /= val_steps
         del val_loader
@@ -769,7 +769,7 @@ for step in range(train_steps + 1):
 
     # --------------- TRAINING SECTION -----------------
     inputs, targets = next(train_loader)
-    inputs_char = tokens_to_chars(inputs, chars_to_tokens)[:, :args.train_seq_len]  # TODO: undo this slicing
+    inputs_char = tokens_to_chars(inputs, chars_to_tokens)
     model(inputs, inputs_char, targets, get_window_size_blocks(step)).backward()
     for param in model.parameters():
         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
