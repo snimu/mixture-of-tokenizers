@@ -646,12 +646,12 @@ for param in model.parameters():
     dist.broadcast(param.detach(), 0)
 
 
-char_bm_train = torch.compile(model.create_mot_self_attn_mask(
+char_bm_train = model.create_mot_self_attn_mask(
     T=args.train_seq_len*args.chars_per_token, chars_per_token=args.chars_per_token, sliding_window_tokens=args.sliding_window_tokens
-))
-char_bm_val = torch.compile(model.create_mot_self_attn_mask(
+)
+char_bm_val = model.create_mot_self_attn_mask(
     T=args.val_seq_len*args.chars_per_token, chars_per_token=args.chars_per_token, sliding_window_tokens=args.sliding_window_tokens
-))
+)
 
 chars_to_tokens = make_embedding(f"ttb_{args.chars_per_token}_{args.alignment}.json", args.vocab_size).cuda()
 
