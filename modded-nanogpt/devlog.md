@@ -14,7 +14,8 @@ The devlog for my nanogpt speedrun attempt.
 So what's wrong? I have a few ideas:
 
 - The lack of residual connections to the token embeddings might be a problem
-- Using SelfAttention on the chars (16x sequence length) might be bad when using 
+- Using SelfAttention on the chars (16x sequence length) might be bad with the extreme sequence lengths that nanogpt is using
+  - Before, I had to reduce the sequence length in the validation set; otherwise, int32 indexing doesn't work anymore, and Triton doesn't support int64
 
 Here's the current forward pass:
 
@@ -79,3 +80,28 @@ But first, test some assumptions:
 
 1. Train again with char-dim of 768 like the model-dim &rarr; does loss improve?
 2. Train with larger and smaller sliding window sizes
+
+**Changing sliding window size.**
+
+Repetition: results with sliding window size of 16 (default)
+
+- Per-step time: 523ms
+- Final loss: 3.3087
+
+Results with sliding window size of 4:
+
+- Per-step time: 525ms
+  - &rarr; this doesn't even save any time...
+  - Probably because the block size is 128.
+  - But wait! It's 16 tokens, so 256 chars! That cannot be the reason.
+  - Does FlexAttention simply suck?
+  - Let's wait for the larger sliding window size before jumping to conclusions.
+- Final loss: 3.3115
+  - At least that's lower, so this part makes sense.
+
+Results with sliding window size of 64:
+
+- Per-step time: 525ms
+  - &rarr; why the fuck does this not make any difference?
+  - This makes it seem to me like there is some problem with the block creation.
+  - I hope it is; that would explain the huge slowdown.
