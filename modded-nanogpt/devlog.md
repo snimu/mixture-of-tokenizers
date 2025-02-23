@@ -140,11 +140,17 @@ Dim 768, no self-attn on chars:
 
 Dim 768, self-attn on chars:
 
-- Per-step time: 586ms
-- Final loss: 3.
+- Per-step time: 590ms
+- Final loss: 3.3092
+- This is *worse* than without the char-self-attention!!! WTF?
 
 **Next steps:**
 
 - [x] No char-dim; just use model dim
 - [x] Weighted residual from token embedding to mixed token and byte embeddings; hold up no, this already happens in the first transformer layer
 - [x] Create sliding-window mask once outside the model, just pass it.
+
+**Sliding-window mask.**
+
+- When moving it outside the model, it wants to allocate >500GB of VRAM &rarr; this was either incorrectly implemented, or doesn't work for some other reason.
+- Next step: cache the bm in the model itself
