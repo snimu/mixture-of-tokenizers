@@ -105,3 +105,12 @@ Results with sliding window size of 64:
   - &rarr; why the fuck does this not make any difference?
   - This makes it seem to me like there is some problem with the block creation.
   - I hope it is; that would explain the huge slowdown.
+- Final loss: 3.3104
+  - Better than before, but worse than the MoT-less baseline.
+  - Problem might be from the lack of cross-document attention blocking.
+
+**Next steps:**
+
+- Increase char-dim to 768
+- Implement cross-document attention blocking
+- Use [mamba](https://github.com/state-spaces/mamba) on the chars
