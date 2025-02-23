@@ -15,6 +15,7 @@ import copy
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
@@ -471,7 +472,7 @@ class GPT(nn.Module):
         # Long-short SWA block masks by @leloykun & @YouJiacheng, adapated from suggestion by @Grad62304977, following Gemma 2 paper
         return build_bm(sliding_window_num_blocks), build_bm(sliding_window_num_blocks // 2)
 
-    def create_mot_self_attn_mask(self, input_seq: Tensor, chars_per_token: int, sliding_window_tokens: int = 16):
+    def create_mot_self_attn_mask(self, T: int, chars_per_token: int, sliding_window_tokens: int = 16):
         sliding_window_size = sliding_window_tokens * chars_per_token
 
         def mask_mod(b, h, q_idx, kv_idx):
@@ -479,7 +480,6 @@ class GPT(nn.Module):
             sliding = q_idx <= (kv_idx + sliding_window_size)
             return causal & sliding
 
-        T = input_seq.size(-1)
         sa_bm = create_block_mask(
             mask_mod=mask_mod,
             B=None,
@@ -489,7 +489,7 @@ class GPT(nn.Module):
         )
         return sa_bm
 
-    def forward(self, input_seq: Tensor, input_char_seq: Tensor, target_seq: Tensor, sliding_window_num_blocks: Tensor):
+    def forward(self, input_seq: Tensor, input_char_seq: Tensor, target_seq: Tensor, sliding_window_num_blocks: Tensor, char_bm: Any | None = None):
         assert input_seq.ndim == 1
 
         ve = [value_embed(input_seq) for value_embed in self.value_embeds]
@@ -506,9 +506,6 @@ class GPT(nn.Module):
         # Incorporate byte-level info into tokens
         xc = norm(self.char_embed(input_char_seq))
         if self.use_mot_self_attn:
-            char_bm = self.create_mot_self_attn_mask(
-                input_char_seq, chars_per_token=self.chars_per_token, sliding_window_tokens=self.sliding_window_tokens
-            )
             xc = xc + self.char_self_attn(xc, None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc)
 
@@ -649,6 +646,13 @@ for param in model.parameters():
     dist.broadcast(param.detach(), 0)
 
 
+char_bm_train = torch.compile(model.create_mot_self_attn_mask(
+    T=args.train_seq_len*args.chars_per_token, chars_per_token=args.chars_per_token, sliding_window_tokens=args.sliding_window_tokens
+))
+char_bm_val = torch.compile(model.create_mot_self_attn_mask(
+    T=args.val_seq_len*args.chars_per_token, chars_per_token=args.chars_per_token, sliding_window_tokens=args.sliding_window_tokens
+))
+
 chars_to_tokens = make_embedding(f"ttb_{args.chars_per_token}_{args.alignment}.json", args.vocab_size).cuda()
 
 # collect the parameters to optimize
@@ -705,7 +709,7 @@ initial_state = dict(model=copy.deepcopy(model.state_dict()),
 for _ in range(warmup_steps):
     inputs = targets = torch.randint(0, args.vocab_size, size=(args.train_seq_len,), device="cuda")
     inputs_char = tokens_to_chars(inputs, chars_to_tokens)
-    model(inputs.to(torch.int32), inputs_char, targets, get_window_size_blocks(0)).backward()
+    model(inputs.to(torch.int32), inputs_char, targets, get_window_size_blocks(0), char_bm_train).backward()
     for param in model.parameters():
         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
     for opt in optimizers:
@@ -745,7 +749,7 @@ for step in range(train_steps + 1):
             for _ in range(val_steps):
                 inputs, targets = next(val_loader)
                 inputs_char = tokens_to_chars(inputs, chars_to_tokens)
-                val_loss += model(inputs, inputs_char, targets, get_window_size_blocks(step))
+                val_loss += model(inputs, inputs_char, targets, get_window_size_blocks(step), char_bm_val)
         val_loss /= val_steps
         del val_loader
         dist.all_reduce(val_loss, op=dist.ReduceOp.AVG)
@@ -766,7 +770,7 @@ for step in range(train_steps + 1):
     # --------------- TRAINING SECTION -----------------
     inputs, targets = next(train_loader)
     inputs_char = tokens_to_chars(inputs, chars_to_tokens)
-    model(inputs, inputs_char, targets, get_window_size_blocks(step)).backward()
+    model(inputs, inputs_char, targets, get_window_size_blocks(step), char_bm_train).backward()
     for param in model.parameters():
         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
     # set optimization hyperparameters
