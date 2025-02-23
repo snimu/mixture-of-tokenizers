@@ -111,6 +111,40 @@ Results with sliding window size of 64:
 
 **Next steps:**
 
-- [ ] Use [mamba](https://github.com/state-spaces/mamba) on the chars
-- [ ] Increase char-dim to 768
-- [ ] Implement cross-document attention blocking
+- [x] Use [mamba](https://github.com/state-spaces/mamba) on the chars
+- [x] Increase char-dim to 768
+
+**Mamba.**
+
+There is some kind of import error:
+
+```bash
+Traceback (most recent call last):
+  File "/root/mixture-of-tokenizers/modded-nanogpt/train_gpt.py", line 28, in <module>
+    from mamba_ssm import Mamba2
+  File "/usr/local/lib/python3.10/dist-packages/mamba_ssm/init.py", line 3, in <module>
+    from mamba_ssm.ops.selective_scan_interface import selective_scan_fn, mamba_inner_fn
+  File "/usr/local/lib/python3.10/dist-packages/mamba_ssm/ops/selective_scan_interface.py", line 18, in <module>
+    import selective_scan_cuda
+ImportError: /usr/local/lib/python3.10/dist-packages/selective_scan_cuda.cpython-310-x86_64-linux-gnu.so: undefined symbol: ZN3c107WarningC1ESt7variantIJNS011UserWarningENS0_18DeprecationWarningEEERKNS_14SourceLocationESsb
+```
+
+I'm not dealing with that shit. Let's move on.
+
+**Char-dim.**
+
+Dim 768, no self-attn on chars:
+
+- Per-step time: 134ms
+- Final loss: 3.3063
+
+Dim 768, self-attn on chars:
+
+- Per-step time: 586ms
+- Final loss: 3.
+
+**Next steps:**
+
+- [x] No char-dim; just use model dim
+- [x] Weighted residual from token embedding to mixed token and byte embeddings; hold up no, this already happens in the first transformer layer
+- [x] Create sliding-window mask once outside the model, just pass it.
