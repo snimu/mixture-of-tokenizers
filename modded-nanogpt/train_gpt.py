@@ -516,7 +516,7 @@ class GPT(nn.Module):
             )
             B, T, D = xc.shape
             xc = xc.view(B, T, self.num_heads, D // self.num_heads)
-            xc = xc + flex_attention(xc.transpose(1, 2), xc.transpose(1, 2), xc.transpose(1, 2), block_mask=char_bm).transpose(1, 2).squeeze(2)  # self.char_self_attn(xc, None, char_bm)
+            xc = xc + flex_attention(xc.transpose(1, 2), xc.transpose(1, 2), xc.transpose(1, 2), block_mask=char_bm).transpose(1, 2).view(B, T, D)  # self.char_self_attn(xc, None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc)
 
         # U-net design by @brendanh0gan
