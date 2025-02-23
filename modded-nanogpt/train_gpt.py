@@ -513,7 +513,9 @@ class GPT(nn.Module):
             char_bm = self.create_mot_self_attn_mask(
                 input_char_seq, chars_per_token=self.chars_per_token, sliding_window_tokens=self.sliding_window_tokens
             )
-            xc = xc + self.char_self_attn(xc, None, char_bm)
+            B, T, D = xc.shape
+            xc = xc.unsqueeze(2)
+            xc = xc + flex_attention(xc.transpose(1, 2), xc.transpose(1, 2), xc.transpose(1, 2), block_mask=char_bm).transpose(1, 2).squeeze(2)  # self.char_self_attn(xc, None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc)
 
         # U-net design by @brendanh0gan
