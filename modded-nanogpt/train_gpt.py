@@ -411,6 +411,7 @@ class GPT(nn.Module):
             self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int,
             max_seq_len: int, chars_per_token: int, use_mot_self_attn: bool, sliding_window_tokens: int = 16):
         super().__init__()
+        self.num_heads = num_heads
         self.sliding_window_tokens = sliding_window_tokens
         # Handle byte / character inputs ("Mixture of Tokenizers" @omouamoua)
         self.chars_per_token = chars_per_token
@@ -514,8 +515,8 @@ class GPT(nn.Module):
                 input_char_seq, chars_per_token=self.chars_per_token, sliding_window_tokens=self.sliding_window_tokens
             )
             B, T, D = xc.shape
-            xc = xc.unsqueeze(2)
-            xc = xc + flex_attention(xc.transpose(1, 2), xc.transpose(1, 2), xc.transpose(1, 2), block_mask=char_bm).transpose(1, 2).squeeze(2)  # self.char_self_attn(xc, None, char_bm)
+            xloc = xc.view(B, T, self.num_heads, D // self.num_heads)
+            flex_attention(xloc.transpose(1, 2), xloc.transpose(1, 2), xloc.transpose(1, 2), block_mask=char_bm).transpose(1, 2).squeeze(2)  # self.char_self_attn(xc, None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc)
 
         # U-net design by @brendanh0gan
