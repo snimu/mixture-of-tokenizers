@@ -515,7 +515,7 @@ class GPT(nn.Module):
         xc = norm(self.char_embed(input_char_seq))
         if self.use_mot_self_attn:
             char_bm = self.create_mot_self_attn_mask(input_char_seq, chars_per_token=self.chars_per_token)
-            xc = self.char_self_attn(xc, None, char_bm)
+            xc = xc + self.char_self_attn(xc, None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc)
         # Project into model dim
         # Consider the result of this the actual embedding
