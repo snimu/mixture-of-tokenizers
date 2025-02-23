@@ -430,6 +430,8 @@ class GPT(nn.Module):
         # Add learnable skip connection weights for decoder layers
         assert num_layers % 2 == 0
         self.skip_weights = nn.Parameter(torch.ones(num_layers//2))
+        self.sa_bm = None
+        self.T = 0
 
     def create_block_masks(self, input_seq: Tensor, sliding_window_num_blocks: Tensor):
         BLOCK_SIZE = 128
@@ -472,6 +474,9 @@ class GPT(nn.Module):
         return build_bm(sliding_window_num_blocks), build_bm(sliding_window_num_blocks // 2)
 
     def create_mot_self_attn_mask(self, input_seq: Tensor, chars_per_token: int, sliding_window_tokens: int = 16):
+        T = input_seq.size(-1)
+        if self.sa_bm and T == self.T:
+            return self.sa_bm
         sliding_window_size = sliding_window_tokens * chars_per_token
 
         def mask_mod(b, h, q_idx, kv_idx):
@@ -479,7 +484,6 @@ class GPT(nn.Module):
             sliding = q_idx <= (kv_idx + sliding_window_size)
             return causal & sliding
 
-        T = input_seq.size(-1)
         sa_bm = create_block_mask(
             mask_mod=mask_mod,
             B=None,
