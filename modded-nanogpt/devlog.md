@@ -157,4 +157,17 @@ Dim 768, self-attn on chars:
 
 I cached the sm_bm and it's a very tiny bit faster than without caching.
 
+**Experiment: artificially cutting the sequence length.**
+
 Okay, I need to understand why this one attention layer takes so goddamn long. Idea: reduce it to 1/16th the size (performance is irrelevant), and see how much faster it is. If it approaches the speed of the original, then that's clearly the problem (though I don't get why a small sliding window wouldn't fix it).
+
+Okay yeah, that does it. Fuck. So either, I need to find a way to fix flex_attention with a sliding window; or I need to try to get Mamba to work; or I need to find a way to reduce the sequence length significantly.
+
+- Per-step time: 115ms
+- Final loss: 3.2876
+
+*How is the final loss lower than without the char-self-attention but with cross-attention?*
+
+**Where does the compute cost come from?**
+
+First off, to find out if the problem is the attention mechanism, or the linear transformations, I'll replace the CausalSelfAttention with a direct call to flex_attention, without any transformations.
