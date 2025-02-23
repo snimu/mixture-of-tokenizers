@@ -168,6 +168,16 @@ Okay yeah, that does it. Fuck. So either, I need to find a way to fix flex_atten
 
 *How is the final loss lower than without the char-self-attention but with cross-attention?*
 
-**Where does the compute cost come from?**
+**What's the cause of the reduced speed?**
 
-First off, to find out if the problem is the attention mechanism, or the linear transformations, I'll replace the CausalSelfAttention with a direct call to flex_attention, without any transformations.
+Question: is it the linear layers applied to the byte embeddings, or the cross-attention?
+
+Answer: it cannot be the linear layers, because then reducing the char-dim to 128 would have reduced the performance hit a lot.
+
+So would it make sense to try [mamba](https://github.com/state-spaces/mamba) again, but without the causal-conv1d?
+
+**Decision.**
+
+The problem is obviously that the MoT is very low-cost compared to a model that uses full attention, because the sliding window is just so narrow. But the latest modded-nanogpt already uses ~sliding-window-attention, so the far longer sequence makes a huge difference, especially with the very low number of layers that are used.
+
+So my next step will be to compare to an old version of modded-nanogpt which still uses full attention. For a small run, I might use [this run](https://github.com/KellerJordan/modded-nanogpt/blob/master/records/101024_Muon/train_gpt2.py), and for a larger one, [this one](https://github.com/KellerJordan/modded-nanogpt/blob/master/records/102024_ScaleUp1B/c0078066-c8c9-49c8-868a-ff4d4f32e615.txt).
