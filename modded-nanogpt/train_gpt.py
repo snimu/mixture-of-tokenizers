@@ -25,7 +25,7 @@ import torch.distributed as dist
 # use of FlexAttention contributed by @KoszarskyB
 from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_block_mask
 #torch._inductor.config.coordinate_descent_tuning = True # we have banned this flag for new records because it causes compilation to take 30min
-
+from mamba_smm import Mamba2
 # -----------------------------------------------------------------------------
 # Custom operators: FP8 matmul by @YouJiacheng
 
@@ -409,8 +409,10 @@ def next_multiple_of_n(v: float | int, *, n: int):
 class GPT(nn.Module):
     def __init__(
             self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int, char_dim: int,
-            max_seq_len: int, chars_per_token: int, use_mot_self_attn: bool, sliding_window_tokens: int = 16):
+            max_seq_len: int, chars_per_token: int, use_mot_self_attn: bool, sliding_window_tokens: int = 16,
+            use_mamba: bool = False):
         super().__init__()
+        self.use_mamba = use_mamba
         self.sliding_window_tokens = sliding_window_tokens
         # Determine number of heads & head dim for character branch attention & cross attention
         assert (char_dim < 128) or (char_dim % 128 == 0)
@@ -424,6 +426,8 @@ class GPT(nn.Module):
         self.char_embed = nn.Embedding(458, char_dim)  # including pad & eos, there are 458 unique chars
         self.token_embed = nn.Embedding(vocab_size, char_dim)
         self.mot_cross_attn = CrossAttention(char_dim, num_heads_char, max_seq_len_q=max_seq_len, max_seq_len_kv=max_seq_len*chars_per_token, head_dim=head_dim_char)
+        if use_mamba:
+            self.char_self_attn = Mamba2(d_model=char_dim, d_state=min(head_dim_char, 64), d_conv=4, expand=2)  # just use default values from https://github.com/state-spaces/mamba README
         self.char_self_attn = CausalSelfAttention(char_dim, num_heads_char, max_seq_len*chars_per_token, head_dim=head_dim_char) if use_mot_self_attn else nn.Identity()
         self.up_proj = CastedLinear(char_dim, model_dim)  # just use default torch init for now
         # token value embeddings by @KoszarskyB - inspired by @Grad62304977's value residual implementation following https://arxiv.org/abs/2410.17897
@@ -513,10 +517,13 @@ class GPT(nn.Module):
         # Incorporate byte-level info into tokens
         xc = norm(self.char_embed(input_char_seq))
         if self.use_mot_self_attn:
-            char_bm = self.create_mot_self_attn_mask(
-                input_char_seq, chars_per_token=self.chars_per_token, sliding_window_tokens=self.sliding_window_tokens
-            )
-            xc = xc + self.char_self_attn(xc, None, char_bm)
+            if self.use_mamba:
+                xc = xc + self.char_self_attn(xc)
+            else:
+                char_bm = self.create_mot_self_attn_mask(
+                    input_char_seq, chars_per_token=self.chars_per_token, sliding_window_tokens=self.sliding_window_tokens
+                )
+                xc = xc + self.char_self_attn(xc, None, char_bm)
         x = self.mot_cross_attn(xq=x, xkv=xc)
         # Project into model dim
         # Consider the result of this the actual embedding
@@ -581,6 +588,7 @@ parser.add_argument("--alignment", "-a", type=str, choices=["left", "right"], de
 parser.add_argument("--skip_mot_self_attn", "-s", action="store_true")
 parser.add_argument("--char_dim", "-d", type=int, default=128)
 parser.add_argument("--sliding_window_tokens", "-w", type=int, default=16)
+parser.add_argument("--use-mamba", "-m", action="store_true")
 cli_args = parser.parse_args()
 
 @dataclass
@@ -605,12 +613,14 @@ class Hyperparameters:
     use_mot_self_attn = True
     char_dim = 128
     sliding_window_tokens = 16
+    use_mamba = False
 args = Hyperparameters()
 args.chars_per_token = cli_args.chars_per_token
 args.alignment = cli_args.alignment
 args.use_mot_self_attn = not cli_args.skip_mot_self_attn
 args.char_dim = cli_args.char_dim
 args.sliding_window_tokens = cli_args.sliding_window_tokens
+args.use_mamba = cli_args.use_mamba
 
 # torchrun sets these env variables
 rank = int(os.environ["RANK"])
@@ -656,7 +666,7 @@ print0("="*100)
 model: nn.Module = GPT(vocab_size=args.vocab_size, num_layers=12, num_heads=6, model_dim=768, char_dim=args.char_dim,
                        max_seq_len=max(args.train_seq_len, args.val_seq_len),
                        chars_per_token=args.chars_per_token, use_mot_self_attn=args.use_mot_self_attn,
-                       sliding_window_tokens=args.sliding_window_tokens).cuda()
+                       sliding_window_tokens=args.sliding_window_tokens, use_mamba=args.use_mamba).cuda()
 for m in model.modules():
     if isinstance(m, nn.Embedding):
         m.bfloat16()
