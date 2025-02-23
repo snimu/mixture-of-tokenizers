@@ -154,3 +154,7 @@ Dim 768, self-attn on chars:
 
 - When moving it outside the model, it wants to allocate >500GB of VRAM &rarr; this was either incorrectly implemented, or doesn't work for some other reason.
 - Next step: cache the bm in the model itself
+
+I cached the sm_bm and it's a very tiny bit faster than without caching.
+
+Okay, I need to understand why this one attention layer takes so goddamn long. Idea: reduce it to 1/16th the size (performance is irrelevant), and see how much faster it is. If it approaches the speed of the original, then that's clearly the problem (though I don't get why a small sliding window wouldn't fix it).
