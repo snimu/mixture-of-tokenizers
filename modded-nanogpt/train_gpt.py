@@ -15,7 +15,6 @@ import copy
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
@@ -23,7 +22,6 @@ torch.empty(1, device="cuda", requires_grad=True).backward() # prevents a bug on
 from torch import Tensor, nn
 import torch.nn.functional as F
 import torch.distributed as dist
-import einops
 # use of FlexAttention contributed by @KoszarskyB
 from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_block_mask
 #torch._inductor.config.coordinate_descent_tuning = True # we have banned this flag for new records because it causes compilation to take 30min
@@ -330,15 +328,15 @@ class CrossAttention(nn.Module):
 
         # Because we always attend from n chars to 1 token, we can re-shape, use BMM, and save use the attention mask
         chars_per_token = Tkv // Tq
-        q = einops.rearrange(q, "b tq h d -> b h tq 1 d")
-        k = einops.rearrange(k, "b (t c) h d -> b h t c d", c=chars_per_token)
-        v = einops.rearrange(v, "b (t c) h d -> b h t c d", c=chars_per_token)
+        q = q.transpose(1, 2).unsqueeze(3)  # equivalent: einops.rearrange(q, "b tq h d -> b h tq 1 d")
+        k = k.view(k.shape[0], -1, chars_per_token, k.shape[2], k.shape[3]).transpose(1, 2)  # equivalent: einops.rearrange(k, "b (t c) h d -> b h t c d", c=chars_per_token)
+        v = v.view(v.shape[0], -1, chars_per_token, v.shape[2], v.shape[3]).transpose(1, 2)
 
         attn_scores = torch.matmul(q, k.transpose(-1, -2)) / (q.size(-1) ** 0.5)
         attn_weights = torch.softmax(attn_scores, dim=-1)
 
         y = torch.matmul(attn_weights, v)
-        y = einops.rearrange(y, "b h tq 1 d -> b tq h d")
+        y = y.squeeze(3).transpose(1, 2)  # einops.rearrange(y, "b h tq 1 d -> b tq h d")
 
         y = y.contiguous().view(Bq, Tq, self.num_heads * self.head_dim) # re-assemble all head outputs side by side
         y = self.c_proj(y)
@@ -398,9 +396,9 @@ def tokens_to_chars(tokens: torch.Tensor, emb: nn.Embedding) -> torch.Tensor:
     with torch.no_grad():
         chars = emb(tokens).to(torch.int64)
     if tokens.ndim == 2:
-        return einops.rearrange(chars, "b n c -> b (n c)")
+        return chars.view(chars.shape[0], -1)  # einops.rearrange(chars, "b n c -> b (n c)")
     else:
-        return einops.rearrange(chars, "n c -> (n c)")[None]  # manually add batch dimension
+        return chars.view(-1).unsqueeze(0)  # einops.rearrange(chars, "n c -> (n c)")[None]
 
 # -----------------------------------------------------------------------------
 # The main model
