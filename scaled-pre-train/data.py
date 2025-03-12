@@ -179,13 +179,17 @@ def create_and_upload_data(
     token=os.getenv("HF_TOKEN")
     assert token is not None, "Please set the HF_TOKEN environment variable."
     eot_token = vocab_size - 1
+    print("Creating tokens-to-bytes-embeddings...")
     tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
     tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
-    embedding = tiktoken.encoding_for_model("gpt-2")
+    print("Setting up tiktoken encoding...")
+    encoding = tiktoken.encoding_for_model("gpt-2")
+    print("Setting up fineweb dataloader...")
     dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin")
     tokens_fw = next(dl)
 
     # Download, tokenize, and save the finemath data, and fill it up to T with random fineweb samples
+    print("Setting up HF API...")
     api = HfApi(token=token)
     batch = []
     idx = 0
@@ -193,18 +197,20 @@ def create_and_upload_data(
     num_fw_tokens_train = 0
     num_fm_tokens_val = 0
     num_fw_tokens_val = 0
+    print("Starting data creation...")
     t0 = perf_counter()
     for row in load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", streaming=True):
         is_val_batch = idx < num_fm_val_batches
         is_batch_start = idx % B == 0
         is_batch_end = idx % B == B - 1
         if is_batch_start and not is_val_batch:
-            print(f"finemath train batch {idx}...", end="", flush=True)
+            print(f"finemath train batch {idx}", end="", flush=True)
         elif is_batch_start:
-            print(f"finemath train batch {idx-num_fm_val_batches}...", end="", flush=True)
+            print(f"finemath train batch {idx-num_fm_val_batches}", end="", flush=True)
+        print(".", end="", flush=True)
 
         text = row["text"]
-        tokens_fm = torch.tensor(embedding.encode(text), dtype=torch.int32)
+        tokens_fm = torch.tensor(encoding.encode(text), dtype=torch.int32)
 
         # Don't use incomplete finemath samples
         if len(tokens_fm) > T:
