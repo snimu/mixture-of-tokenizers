@@ -207,10 +207,9 @@ def create_and_upload_data(
         is_batch_start = idx % B == 0
         is_batch_end = idx % B == B - 1
         if is_batch_start and not is_val_batch:
-            print(f"finemath train batch {idx}", end="", flush=True)
+            print(f"finemath train batch {idx}...", end="", flush=True)
         elif is_batch_start:
-            print(f"finemath train batch {idx-num_fm_val_batches}", end="", flush=True)
-        print(".", end="", flush=True)
+            print(f"finemath train batch {idx-num_fm_val_batches}...", end="", flush=True)
 
         text = row["text"]
         tokens_fm = torch.tensor(encoding.encode(text), dtype=torch.int32)
@@ -262,7 +261,7 @@ def create_and_upload_data(
             torch.save(batch, f"data/{filename}")
             api.upload_file(f"data/{filename}", filename, repo_id=repo_id)
             time_taken = perf_counter() - t0
-            print(f"done in {round(time_taken*1000):_}ms ({round(time_taken):_}s).")
+            print(f"{(idx+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
         idx += 1
     
     # Now, turn the rest of the fineweb-edu-100BT tokens into their own batches with create_batch
