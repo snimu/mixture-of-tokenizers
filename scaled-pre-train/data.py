@@ -358,7 +358,7 @@ def create_and_upload_data(
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
             if is_val_batch:
-                filename = f"val_batch_{batch_num}.bin"
+                filename = f"val_batch_finemath_{batch_num}.bin"
             else:
                 filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             torch.save(batch, f"data/{filename}")
@@ -395,7 +395,7 @@ def create_and_upload_data(
     # For fineweb, just use the validation set by karpathy
     dl = distributed_data_generator("fineweb100B/fineweb_val_*.bin")
     tokens_fw = None
-    idx = 0
+    batch_num = 0
     for new_tokens in dl:
         tokens_fw = torch.cat([tokens_fw, new_tokens]) if tokens_fw else new_tokens
         if len(tokens_fw) < B*T:
@@ -410,11 +410,11 @@ def create_and_upload_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
-            filename = f"val_batch_{idx}.bin"
+            filename = f"val_batch_fineweb_{batch_num}.bin"
             torch.save(batch, f"data/{filename}")
             api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
             num_fw_tokens_val += B*T
-            idx += 1
+            batch_num += 1
 
     # Print stats
     print(f"finemath: {num_fm_tokens_train=}")
