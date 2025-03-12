@@ -202,22 +202,23 @@ def create_data(
             tokens = torch.empty((T,), dtype=torch.int32).fill_(eot_token)
             tokens[:len(tokens_fm)] = tokens_fm
             batch.append(tokens.tolist())
-            
-        elif len(tokens_fm) < T and tokens_fm[-1] != eot_token:
-            tokens_fm = torch.cat([tokens_fm, torch.tensor([eot_token]).type_as(tokens_fm).squeeze()])
-
-        elif len(tokens_fm) == T:
-            batch.append(tokens_fm.tolist())
-            fm_tokens += len(tokens_fm)
+        
         else:
-            num_tokens_missing = T - len(tokens_fm)  # 0 <= num_tokens_missing <= T, see condition above
-            while len(tokens_fw) < num_tokens_missing:
-                tokens_fw = torch.cat([tokens_fw, next(dl)])
+            if len(tokens_fm) < T and tokens_fm[-1] != eot_token:
+                tokens_fm = torch.cat([tokens_fm, torch.tensor([eot_token]).type_as(tokens_fm).squeeze()])
 
-            fillup_tokens, tokens_fw = tokens_fw[:num_tokens_missing], tokens_fw[num_tokens_missing:]
-            batch.append(torch.cat([tokens_fm, fillup_tokens]).tolist())
-            fm_tokens += len(tokens_fm)
-            fw_tokens += len(fillup_tokens)
+            if len(tokens_fm) == T:
+                batch.append(tokens_fm.tolist())
+                fm_tokens += len(tokens_fm)
+            else:
+                num_tokens_missing = T - len(tokens_fm)  # 0 <= num_tokens_missing <= T, see condition above
+                while len(tokens_fw) < num_tokens_missing:
+                    tokens_fw = torch.cat([tokens_fw, next(dl)])
+
+                fillup_tokens, tokens_fw = tokens_fw[:num_tokens_missing], tokens_fw[num_tokens_missing:]
+                batch.append(torch.cat([tokens_fm, fillup_tokens]).tolist())
+                fm_tokens += len(tokens_fm)
+                fw_tokens += len(fillup_tokens)
         
         # Save every B samples; a.k.a. every batch
         if idx > 0 and idx % B == 0:
