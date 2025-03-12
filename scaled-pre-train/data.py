@@ -196,10 +196,11 @@ def create_and_upload_data(
     t0 = perf_counter()
     for row in load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", streaming=True):
         is_val_batch = idx < num_fm_val_batches
-        is_batch_end = (idx+1) % B == 0 and idx > 0
-        if is_batch_end and is_val_batch:
-            print(f"finemath val batch {idx}...", end="", flush=True)
-        elif is_batch_end:
+        is_batch_start = idx % B == 0
+        is_batch_end = idx % B == B - 1
+        if is_batch_start and not is_val_batch:
+            print(f"finemath train batch {idx}...", end="", flush=True)
+        elif is_batch_start:
             print(f"finemath train batch {idx-num_fm_val_batches}...", end="", flush=True)
 
         text = row["text"]
