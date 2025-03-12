@@ -178,6 +178,9 @@ def create_and_upload_data(
 ):
     token=os.getenv("HF_TOKEN")
     assert token is not None, "Please set the HF_TOKEN environment variable."
+
+    print(f"\n{B=} {T=} {bytes_per_token=} {pad_byte=} {eot_byte=} {vocab_size=} {num_fm_val_batches=}\n")
+
     eot_token = vocab_size - 1
     print("Creating tokens-to-bytes-embeddings...")
     tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
