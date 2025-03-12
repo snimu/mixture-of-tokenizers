@@ -194,6 +194,7 @@ def create_and_upload_data(
     # Download, tokenize, and save the finemath data, and fill it up to T with random fineweb samples
     print("Setting up HF API...")
     api = HfApi(token=token)
+    api.create_repo(repo_id=repo_id, token=token, repo_type="dataset")
     batch = []
     idx = 0
     num_fm_tokens_train = 0
