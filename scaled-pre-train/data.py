@@ -358,7 +358,7 @@ def create_and_upload_data(
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
             if is_val_batch:
-                filename = f"val_batch_{idx}.bin"
+                filename = f"val_batch_{batch_num}.bin"
             else:
                 filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             torch.save(batch, f"data/{filename}")
