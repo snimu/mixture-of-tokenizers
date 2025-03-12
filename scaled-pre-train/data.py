@@ -1,6 +1,6 @@
 
 import json
-import glob
+from time import perf_counter
 from pathlib import Path
 
 import torch
@@ -190,8 +190,15 @@ def create_and_upload_data(
     num_fw_tokens_train = 0
     num_fm_tokens_val = 0
     num_fw_tokens_val = 0
+    t0 = perf_counter()
     for row in load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", streaming=True):
         is_val_batch = idx < num_fm_val_batches
+        is_batch_end = idx % B == 0 and idx > 0
+        if is_batch_end and is_val_batch:
+            print(f"finemath val batch {idx}...", end="", flush=True)
+        elif is_batch_end:
+            print(f"finemath train batch {idx-num_fm_val_batches}...", end="", flush=True)
+
         text = row["text"]
         tokens_fm = embedding.encode(text)
 
@@ -225,7 +232,7 @@ def create_and_upload_data(
                 num_fw_tokens_train += len(fillup_tokens)
         
         # Save every B samples; a.k.a. every batch
-        if idx > 0 and idx % B == 0:
+        if is_batch_end:
             batch = create_batch(
                 tokens=torch.tensor(batch, dtype=torch.int32),
                 bytes_per_token=bytes_per_token,
@@ -240,6 +247,8 @@ def create_and_upload_data(
                 filename = f"train_batch_{idx - num_fm_val_batches}.bin"
             torch.save(batch, f"data/{filename}")
             api.upload_file(f"data/{filename}", filename, repo_id=repo_id)
+            time_taken = perf_counter() - t0
+            print(f"done in {round(time_taken*1000):_}ms ({round(time_taken):_}s).")
         idx += 1
     
     # Now, turn the rest of the fineweb-edu-100BT tokens into their own batches with create_batch
