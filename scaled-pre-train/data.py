@@ -184,8 +184,10 @@ def create_data(
     # Download, tokenize, and save the finemath data, and fill it up to T with random fineweb samples
     batch = []
     idx = 0
-    fm_tokens = 0
-    fw_tokens = 0
+    num_fm_tokens_train = 0
+    num_fw_tokens_train = 0
+    num_fm_tokens_val = 0
+    num_fw_tokens_val = 0
     for row in load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", streaming=True):
         is_val_batch = idx < num_fm_val_batches
         text = row["text"]
@@ -202,14 +204,14 @@ def create_data(
             tokens = torch.empty((T,), dtype=torch.int32).fill_(eot_token)
             tokens[:len(tokens_fm)] = tokens_fm
             batch.append(tokens.tolist())
-        
+            num_fm_tokens_val += len(torch.where(tokens != eot_token))
         else:
             if len(tokens_fm) < T and tokens_fm[-1] != eot_token:
                 tokens_fm = torch.cat([tokens_fm, torch.tensor([eot_token]).type_as(tokens_fm).squeeze()])
 
             if len(tokens_fm) == T:
                 batch.append(tokens_fm.tolist())
-                fm_tokens += len(tokens_fm)
+                num_fm_tokens_train += len(tokens_fm)
             else:
                 num_tokens_missing = T - len(tokens_fm)  # 0 <= num_tokens_missing <= T, see condition above
                 while len(tokens_fw) < num_tokens_missing:
@@ -217,8 +219,8 @@ def create_data(
 
                 fillup_tokens, tokens_fw = tokens_fw[:num_tokens_missing], tokens_fw[num_tokens_missing:]
                 batch.append(torch.cat([tokens_fm, fillup_tokens]).tolist())
-                fm_tokens += len(tokens_fm)
-                fw_tokens += len(fillup_tokens)
+                num_fm_tokens_train += len(tokens_fm)
+                num_fw_tokens_train += len(fillup_tokens)
         
         # Save every B samples; a.k.a. every batch
         if idx > 0 and idx % B == 0:
@@ -252,7 +254,7 @@ def create_data(
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
             torch.save(batch, f"data/train_batch_{idx}.bin")
-            fw_tokens += B*T
+            num_fw_tokens_train += B*T
             idx += 1
 
     # For finemath, the validation data is created above
@@ -275,12 +277,14 @@ def create_data(
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
             torch.save(batch, f"data/val_batch_{idx}.bin")
-            fw_tokens += B*T
+            num_fw_tokens_val += B*T
             idx += 1
 
     # Print stats
-    print(f"finemath: {fm_tokens} tokens")
-    print(f"fineweb: {fw_tokens} tokens")
+    print(f"finemath: {num_fm_tokens_train=}")
+    print(f"finemath: {num_fm_tokens_val=}")
+    print(f"fineweb: {num_fw_tokens_train=}")
+    print(f"fineweb: {num_fw_tokens_val=}")
 
 
 ########################################
