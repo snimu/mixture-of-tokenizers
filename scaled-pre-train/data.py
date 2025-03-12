@@ -240,7 +240,7 @@ def create_and_upload_data(
                     tokens_fw = torch.cat([tokens_fw, next(dl)])
 
                 fillup_tokens, tokens_fw = tokens_fw[:num_tokens_missing], tokens_fw[num_tokens_missing:]
-                batch.append(torch.cat([tokens_fm, fillup_tokens]).tolist())
+                batch.append(torch.cat([tokens_fm, fillup_tokens.to(tokens_fm.dtype)]).tolist())
                 num_fm_tokens_train += len(tokens_fm)
                 num_fw_tokens_train += len(fillup_tokens)
         
@@ -271,7 +271,7 @@ def create_and_upload_data(
         if len(tokens_fw) < B*T:
             continue
         for i in range(0, len(tokens_fw), B*T):
-            batch = tokens_fw[i:i+B*T].view(B, T)
+            batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
             batch = create_batch(
                 tokens=batch,
                 bytes_per_token=bytes_per_token,
@@ -296,7 +296,7 @@ def create_and_upload_data(
         if len(tokens_fw) < B*T:
             continue
         for i in range(0, len(tokens_fw), B*T):
-            batch = tokens_fw[i:i+B*T].view(B, T)
+            batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
             batch = create_batch(
                 tokens=batch,
                 bytes_per_token=bytes_per_token,
