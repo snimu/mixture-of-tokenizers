@@ -365,6 +365,7 @@ def create_and_upload_data(
             api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
+            batch = []
         idx += 1
     
     # Now, turn the rest of the fineweb-edu-100BT tokens into their own batches with create_batch
