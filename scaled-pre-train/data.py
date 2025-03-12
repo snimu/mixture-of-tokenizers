@@ -200,7 +200,7 @@ def create_and_upload_data(
             print(f"finemath train batch {idx-num_fm_val_batches}...", end="", flush=True)
 
         text = row["text"]
-        tokens_fm = embedding.encode(text)
+        tokens_fm = torch.tensor(embedding.encode(text), dtype=torch.int32)
 
         # Don't use incomplete finemath samples
         if len(tokens_fm) > T:
