@@ -179,7 +179,7 @@ def create_and_upload_data(
     tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
     tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
     embedding = tiktoken.encoding_for_model("gpt-2")
-    dl = distributed_data_generator("data/fineweb10B/fineweb_train_*.bin")
+    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin")
     tokens_fw = next(dl)
 
     # Download, tokenize, and save the finemath data, and fill it up to T with random fineweb samples
@@ -265,7 +265,7 @@ def create_and_upload_data(
 
     # For finemath, the validation data is created above
     # For fineweb, just use the validation set by karpathy
-    dl = distributed_data_generator("data/fineweb10B/fineweb_val_*.bin")
+    dl = distributed_data_generator("fineweb100B/fineweb_val_*.bin")
     tokens_fw = None
     idx = 0
     for new_tokens in dl:
