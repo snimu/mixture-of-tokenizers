@@ -362,7 +362,7 @@ def create_and_upload_data(
             else:
                 filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             torch.save(batch, f"data/{filename}")
-            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id)
+            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
         idx += 1
@@ -385,7 +385,7 @@ def create_and_upload_data(
             )
             filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             torch.save(batch, f"data/{filename}")
-            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id)
+            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
             num_fw_tokens_train += B*T
@@ -411,7 +411,7 @@ def create_and_upload_data(
             )
             filename = f"val_batch_{idx}.bin"
             torch.save(batch, f"data/{filename}")
-            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id)
+            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
             num_fw_tokens_val += B*T
             idx += 1
 
