@@ -165,7 +165,7 @@ def distributed_data_generator(filename_pattern: str):
         yield from _load_data_shard(next(file_iter))
 
 
-def create_data(
+def create_and_upload_data(
         B: int = 1024,
         T: int = 1024,
         bytes_per_token: int = 16,
@@ -173,6 +173,7 @@ def create_data(
         eot_byte: int = 457,
         vocab_size: int = 50257,
         num_fm_val_batches: int = 1,
+        repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
 ):
     eot_token = vocab_size - 1
     tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
@@ -182,6 +183,7 @@ def create_data(
     tokens_fw = next(dl)
 
     # Download, tokenize, and save the finemath data, and fill it up to T with random fineweb samples
+    api = HfApi()
     batch = []
     idx = 0
     num_fm_tokens_train = 0
@@ -233,9 +235,11 @@ def create_data(
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
             if is_val_batch:
-                torch.save(batch, f"data/val_batch_{idx}.bin")
+                filename = f"val_batch_{idx}.bin"
             else:
-                torch.save(batch, f"data/train_batch_{idx - num_fm_val_batches}.bin")
+                filename = f"train_batch_{idx - num_fm_val_batches}.bin"
+            torch.save(batch, f"data/{filename}")
+            api.upload_file(f"data/{filename}", filename, repo_id=repo_id)
         idx += 1
     
     # Now, turn the rest of the fineweb-edu-100BT tokens into their own batches with create_batch
@@ -253,7 +257,9 @@ def create_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
-            torch.save(batch, f"data/train_batch_{idx}.bin")
+            filename = f"train_batch_{idx}.bin"
+            torch.save(batch, f"data/{filename}")
+            api.upload_file(f"data/{filename}", filename, repo_id=repo_id)
             num_fw_tokens_train += B*T
             idx += 1
 
@@ -276,7 +282,9 @@ def create_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
-            torch.save(batch, f"data/val_batch_{idx}.bin")
+            filename = f"val_batch_{idx}.bin"
+            torch.save(batch, f"data/{filename}")
+            api.upload_file(f"data/{filename}", filename, repo_id=repo_id)
             num_fw_tokens_val += B*T
             idx += 1
 
@@ -285,19 +293,6 @@ def create_data(
     print(f"finemath: {num_fm_tokens_val=}")
     print(f"fineweb: {num_fw_tokens_train=}")
     print(f"fineweb: {num_fw_tokens_val=}")
-
-
-########################################
-###### UPLOAD DATA TO HUGGINGFACE ######
-########################################
-
-
-def upload_data():
-    api = HfApi()
-    for filename in glob.glob("data/train_batch_*.bin"):
-        api.upload_file(filename, filename, repo_id="snimu/finemath-fineweb-100B-data-for-MoT")
-    for filename in glob.glob("data/val_batch_*.bin"):
-        api.upload_file(filename, filename, repo_id="snimu/finemath-fineweb-100B-data-for-MoT")
         
 
 
@@ -340,4 +335,4 @@ def _print_batch():
 
 
 if __name__ == "__main__":
-    _print_batch()
+    create_and_upload_data()
