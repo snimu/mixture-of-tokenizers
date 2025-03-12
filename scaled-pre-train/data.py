@@ -196,7 +196,7 @@ def create_and_upload_data(
     t0 = perf_counter()
     for row in load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", streaming=True):
         is_val_batch = idx < num_fm_val_batches
-        is_batch_end = idx % B == 0 and idx > 0
+        is_batch_end = (idx+1) % B == 0 and idx > 0
         if is_batch_end and is_val_batch:
             print(f"finemath val batch {idx}...", end="", flush=True)
         elif is_batch_end:
@@ -236,6 +236,7 @@ def create_and_upload_data(
         
         # Save every B samples; a.k.a. every batch
         if is_batch_end:
+            assert len(batch) == B, f"{len(batch)=} != {B=}"
             batch = create_batch(
                 tokens=torch.tensor(batch, dtype=torch.int32),
                 bytes_per_token=bytes_per_token,
