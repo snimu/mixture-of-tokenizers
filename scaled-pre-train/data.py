@@ -219,7 +219,7 @@ def create_and_upload_data(
             num_fm_tokens_val += len(torch.where(tokens != eot_token))
         else:
             if len(tokens_fm) < T and tokens_fm[-1] != eot_token:
-                tokens_fm = torch.cat([tokens_fm, torch.tensor([eot_token]).type_as(tokens_fm).squeeze()])
+                tokens_fm = torch.cat([tokens_fm, torch.empty((1,), dtype=torch.int32).fill_(eot_token)])
 
             if len(tokens_fm) == T:
                 batch.append(tokens_fm.tolist())
