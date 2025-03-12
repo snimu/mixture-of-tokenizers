@@ -1,5 +1,6 @@
 
 import json
+import os
 from time import perf_counter
 from pathlib import Path
 
@@ -175,6 +176,8 @@ def create_and_upload_data(
         num_fm_val_batches: int = 1,
         repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
 ):
+    token=os.getenv("HF_TOKEN")
+    assert token is not None, "Please set the HF_TOKEN environment variable."
     eot_token = vocab_size - 1
     tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
     tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
@@ -183,7 +186,7 @@ def create_and_upload_data(
     tokens_fw = next(dl)
 
     # Download, tokenize, and save the finemath data, and fill it up to T with random fineweb samples
-    api = HfApi()
+    api = HfApi(token=token)
     batch = []
     idx = 0
     num_fm_tokens_train = 0
