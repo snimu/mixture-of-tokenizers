@@ -263,7 +263,7 @@ def create_and_upload_data(
             torch.save(batch, f"data/{filename}")
             api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id)
             time_taken = perf_counter() - t0
-            print(f"{(idx+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
+            print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
         idx += 1
     
     # Now, turn the rest of the fineweb-edu-100BT tokens into their own batches with create_batch
@@ -272,6 +272,7 @@ def create_and_upload_data(
         if len(tokens_fw) < B*T:
             continue
         for i in range(0, len(tokens_fw), B*T):
+            batch_num += 1
             batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
             batch = create_batch(
                 tokens=batch,
@@ -284,8 +285,9 @@ def create_and_upload_data(
             filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             torch.save(batch, f"data/{filename}")
             api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id)
+            time_taken = perf_counter() - t0
+            print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
             num_fw_tokens_train += B*T
-            idx += 1
 
     # For finemath, the validation data is created above
     # For fineweb, just use the validation set by karpathy
