@@ -203,7 +203,8 @@ def create_and_upload_data(
     print("Starting data creation...")
     t0 = perf_counter()
     for row in load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", streaming=True):
-        is_val_batch = idx < num_fm_val_batches
+        batch_num = idx // B
+        is_val_batch = batch_num < num_fm_val_batches
         is_batch_start = idx % B == 0
         is_batch_end = idx % B == B - 1
         if is_batch_start and is_val_batch:
@@ -257,9 +258,9 @@ def create_and_upload_data(
             if is_val_batch:
                 filename = f"val_batch_{idx}.bin"
             else:
-                filename = f"train_batch_{idx - num_fm_val_batches}.bin"
+                filename = f"train_batch_{idx - num_fm_val_batches + 1}.bin"
             torch.save(batch, f"data/{filename}")
-            api.upload_file(f"data/{filename}", filename, repo_id=repo_id)
+            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id)
             time_taken = perf_counter() - t0
             print(f"{(idx+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
         idx += 1
@@ -281,7 +282,7 @@ def create_and_upload_data(
             )
             filename = f"train_batch_{idx}.bin"
             torch.save(batch, f"data/{filename}")
-            api.upload_file(f"data/{filename}", filename, repo_id=repo_id)
+            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id)
             num_fw_tokens_train += B*T
             idx += 1
 
@@ -306,7 +307,7 @@ def create_and_upload_data(
             )
             filename = f"val_batch_{idx}.bin"
             torch.save(batch, f"data/{filename}")
-            api.upload_file(f"data/{filename}", filename, repo_id=repo_id)
+            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id)
             num_fw_tokens_val += B*T
             idx += 1
 
