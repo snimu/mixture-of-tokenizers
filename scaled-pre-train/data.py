@@ -75,20 +75,58 @@ def pull_from_right(
     return pulled_tensor.view(B, T)
 
 
+def pull_from_left(
+        byte_tensor: torch.Tensor, bytes_per_token: int, pad_byte: int, eot_byte: int
+) -> torch.Tensor:
+    def strip_padding(byte_tensor: torch.Tensor) -> torch.Tensor:
+        return byte_tensor[torch.where(byte_tensor != pad_byte)]
+    B, T = byte_tensor.size()
+    T_reduced = T // bytes_per_token 
+    byte_tensor = byte_tensor.view(B, T_reduced, bytes_per_token)
+    pulled_tensor = torch.empty_like(byte_tensor, dtype=torch.int32).fill_(pad_byte)
+    for batch_idx in range(B):
+        for seq_idx in range(T_reduced):
+            stripped_bytes = strip_padding(byte_tensor[batch_idx, seq_idx])
+            for next_byte_idx in range(1, T_reduced):
+                # Stop if bytes were fully pulled
+                if len(stripped_bytes) >= bytes_per_token:
+                    pulled_tensor[batch_idx, seq_idx] = stripped_bytes[-bytes_per_token:]
+                    break
+                # Stop if there are no more bytes to pull
+                if seq_idx - next_byte_idx < 0:
+                    pulled_tensor[batch_idx, seq_idx, -len(stripped_bytes):] = stripped_bytes
+                    break
+                # Gather bytes from next token
+                stripped_bytes_pulled = strip_padding(byte_tensor[batch_idx, seq_idx - next_byte_idx])
+                # Don't pull eot bytes
+                if all([b == eot_byte for b in stripped_bytes_pulled]):
+                    stripped_bytes = stripped_bytes[-bytes_per_token:] if len(stripped_bytes) > bytes_per_token else stripped_bytes
+                    pulled_tensor[batch_idx, seq_idx, -len(stripped_bytes):] = stripped_bytes
+                    break
+                # Pull bytes from next token
+                stripped_bytes = torch.cat([stripped_bytes_pulled, stripped_bytes]).squeeze()
+    return pulled_tensor.view(B, T)
+
+
 def create_batch(
         tokens: torch.Tensor,
         bytes_per_token: int,
         pad_byte: int,
         eot_byte: int,
-        bytes_to_tokens: nn.Embedding,
+        tokens_to_bytes_right_pad: nn.Embedding,
+        tokens_to_bytes_left_pad: nn.Embedding,
 ) -> torch.Tensor:
     B, T = tokens.size()
-    byte_tensor = tokens_to_bytes(tokens, bytes_to_tokens)
-    byte_tensor_pulled = pull_from_right(byte_tensor, bytes_per_token, pad_byte, eot_byte)
+    byte_tensor_left_padded = tokens_to_bytes(tokens, tokens_to_bytes_left_pad)
+    byte_tensor_pulled_from_left = pull_from_left(byte_tensor_left_padded, bytes_per_token, pad_byte, eot_byte)
+    byte_tensor_right_padded = tokens_to_bytes(tokens, tokens_to_bytes_right_pad)
+    byte_tensor_pulled_from_right = pull_from_right(byte_tensor_right_padded, bytes_per_token, pad_byte, eot_byte)
     full_tensor = torch.cat([
             tokens.unsqueeze(-1),
-            byte_tensor.view(B, T, bytes_per_token),
-            byte_tensor_pulled.view(B, T, bytes_per_token),
+            byte_tensor_left_padded.view(B, T, bytes_per_token),
+            byte_tensor_pulled_from_left.view(B, T, bytes_per_token),
+            byte_tensor_right_padded.view(B, T, bytes_per_token),
+            byte_tensor_pulled_from_right.view(B, T, bytes_per_token),
         ],
         dim=-1,
     )
@@ -136,7 +174,8 @@ def create_data(
         vocab_size: int = 50257,
 ):
     eot_token = vocab_size - 1
-    bytes_to_tokens = make_embedding(f"ttb_{bytes_per_token}_right.json", vocab_size)
+    tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
+    tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
     embedding = tiktoken.encoding_for_model("gpt-2")
     dl = distributed_data_generator("data/fineweb10B/fineweb_train_*.bin")
     tokens_fw = next(dl)
@@ -167,7 +206,14 @@ def create_data(
             fillup_tokens, tokens_fw = tokens_fw[:num_tokens_missing], tokens_fw[num_tokens_missing:]
             batch.append(torch.cat([tokens_fm, fillup_tokens]).tolist())
         
-        batch = create_batch(torch.tensor(batch).astype(torch.int32), bytes_per_token, pad_byte, eot_byte, bytes_to_tokens)
+        batch = create_batch(
+            tokens=torch.tensor(batch).astype(torch.int32),
+            bytes_per_token=bytes_per_token,
+            pad_byte=pad_byte,
+            eot_byte=eot_byte,
+            tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
+            tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
+        )
         torch.save(batch, f"data/train_batch_{idx}.bin")
         idx += 1
     
@@ -176,7 +222,14 @@ def create_data(
         tokens_fw = torch.cat([tokens_fw, new_tokens])
         for i in range(0, len(tokens_fw), B*T):
             batch = tokens_fw[i:i+B*T].view(B, T)
-            batch = create_batch(batch, bytes_per_token, pad_byte, eot_byte, bytes_to_tokens)
+            batch = create_batch(
+                tokens=batch,
+                bytes_per_token=bytes_per_token,
+                pad_byte=pad_byte,
+                eot_byte=eot_byte,
+                tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
+                tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
+            )
             torch.save(batch, f"data/train_batch_{idx}.bin")
             idx += 1
 
@@ -207,18 +260,29 @@ def _print_batch():
     pad_byte = 456
     eot_byte = 457
     vocab_size = 50257
-    bytes_to_tokens = make_embedding(f"ttb_{bytes_per_token}_left.json", vocab_size)
-    byte_tensor = tokens_to_bytes(tokens, bytes_to_tokens)
-    batch = create_batch(tokens, bytes_per_token, pad_byte, eot_byte, bytes_to_tokens)
+    bytes_to_tokens_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
+    bytes_to_tokens_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
+    byte_tensor_left_pad = tokens_to_bytes(tokens, bytes_to_tokens_left_pad)
+    byte_tensor_right_pad = tokens_to_bytes(tokens, bytes_to_tokens_right_pad)
+    batch = create_batch(tokens, bytes_per_token, pad_byte, eot_byte, bytes_to_tokens_right_pad, bytes_to_tokens_left_pad)
     print(f"{tokens.shape=}\n{batch.shape=}\n\nTOKENS")
     print(tokens)
-    print("\n\nBYTES")
-    print(byte_tensor.view(B, T, bytes_per_token))
-    print("\n\nBATCH")
-    print(batch)
+    print("\n\nBYTES LEFT PAD")
+    print(byte_tensor_left_pad.view(B, T, bytes_per_token))
+    print("\n\nBYTES RIGHT PAD")
+    print(byte_tensor_right_pad.view(B, T, bytes_per_token))
+    print("\n\nBATCH-TOKENS")
+    print(batch[:, :, 0])
+    print("\n\nBATCH-BYTES LEFT PAD")
+    print(batch[:, :, 1:17])
+    print("\n\nBATCH-BYTES LEFT PULLED")
+    print(batch[:, :, 17:33])
+    print("\n\nBATCH-BYTES RIGHT PAD")
+    print(batch[:, :, 33:49])
+    print("\n\nBATCH-BYTES RIGHT PULLED")
+    print(batch[:, :, 49:65])
     print("\n\n")
 
 
 if __name__ == "__main__":
-    create_data()
-    upload_data()
+    _print_batch()
