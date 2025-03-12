@@ -163,7 +163,7 @@ def distributed_data_generator(filename_pattern: str):
     files = sorted(Path.cwd().glob(filename_pattern))
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
     while True:
-        yield from _load_data_shard(next(file_iter))
+        yield _load_data_shard(next(file_iter))
 
 
 def create_and_upload_data(
