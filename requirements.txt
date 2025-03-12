@@ -1,3 +1,5 @@
 torch
 transformers
 huggingface_hub[cli]
+tiktoken
+datasets
