@@ -206,10 +206,10 @@ def create_and_upload_data(
         is_val_batch = idx < num_fm_val_batches
         is_batch_start = idx % B == 0
         is_batch_end = idx % B == B - 1
-        if is_batch_start and not is_val_batch:
+        if is_batch_start and is_val_batch:
             print(f"finemath train batch {idx}...", end="", flush=True)
         elif is_batch_start:
-            print(f"finemath train batch {idx-num_fm_val_batches}...", end="", flush=True)
+            print(f"finemath train batch {idx-num_fm_val_batches+1}...", end="", flush=True)
 
         text = row["text"]
         tokens_fm = torch.tensor(encoding.encode(text), dtype=torch.int32)
