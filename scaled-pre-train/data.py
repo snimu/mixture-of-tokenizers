@@ -208,9 +208,9 @@ def create_and_upload_data(
         is_batch_start = idx % B == 0
         is_batch_end = idx % B == B - 1
         if is_batch_start and is_val_batch:
-            print(f"finemath val batch {idx}...", end="", flush=True)
+            print(f"finemath val batch {batch_num}...", end="", flush=True)
         elif is_batch_start:
-            print(f"finemath train batch {idx-num_fm_val_batches+1}...", end="", flush=True)
+            print(f"finemath train batch {batch_num - num_fm_val_batches}...", end="", flush=True)
 
         text = row["text"]
         tokens_fm = torch.tensor(encoding.encode(text), dtype=torch.int32)
@@ -258,7 +258,7 @@ def create_and_upload_data(
             if is_val_batch:
                 filename = f"val_batch_{idx}.bin"
             else:
-                filename = f"train_batch_{idx - num_fm_val_batches + 1}.bin"
+                filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             torch.save(batch, f"data/{filename}")
             api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id)
             time_taken = perf_counter() - t0
@@ -280,7 +280,7 @@ def create_and_upload_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
-            filename = f"train_batch_{idx}.bin"
+            filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             torch.save(batch, f"data/{filename}")
             api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id)
             num_fw_tokens_train += B*T
