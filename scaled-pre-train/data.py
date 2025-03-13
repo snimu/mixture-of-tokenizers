@@ -366,6 +366,7 @@ def create_and_upload_data(
             )
             torch.save(batch, f"data/{filename}")
             api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
+            os.remove(f"data/{filename}")  # Delete the file after uploading it
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
             batch = []
@@ -393,6 +394,7 @@ def create_and_upload_data(
             )
             torch.save(batch, f"data/{filename}")
             api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
+            os.remove(f"data/{filename}")  # Delete the file after uploading it
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
             num_fw_tokens_train += B*T
