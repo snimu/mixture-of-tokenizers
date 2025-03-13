@@ -9,6 +9,7 @@ with open(sys.argv[0]) as f:
 import uuid
 import time
 import copy
+from typing import Literal
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -375,6 +376,12 @@ class Block(nn.Module):
 
 # -----------------------------------------------------------------------------
 # The main model
+class ByteHyperparameters(dataclass):
+    bytes_per_token: int = 16
+    padding: Literal["left", "right"] = "left"
+    pull: bool = False
+    add_padded_and_pulled: bool = False
+
 
 def next_multiple_of_n(v: float | int, *, n: int):
     return next(x for x in range(n, int(v) + 1 + n, n) if x >= v)
@@ -383,6 +390,8 @@ class GPT(nn.Module):
     def __init__(
             self, vocab_size: int, num_layers: int, num_heads: int,
             model_dim: int, max_seq_len: int, expansion_factor: int = 4,
+            byte_params_in: ByteHyperparameters | None = None,
+            byte_params_out: ByteHyperparameters | None = None,
     ):
         super().__init__()
         self.embed = nn.Embedding(vocab_size, model_dim)
@@ -397,6 +406,7 @@ class GPT(nn.Module):
         # Add learnable skip connection weights for decoder layers
         assert num_layers % 2 == 0
         self.skip_weights = nn.Parameter(torch.ones(num_layers//2))
+        #
 
     def create_blockmasks(self, input_seq: Tensor, sliding_window_num_blocks: Tensor):
         BLOCK_SIZE = 128
@@ -516,6 +526,12 @@ class Hyperparameters:
     # architecture
     vocab_size = 50257
     expansion_factor = 4 # expansion factor for MLP
+    padding_in: Literal["left", "right"] = "left"
+    pull_in: bool = True
+    add_padded_and_pulled_in: bool = True
+    padding_out: Literal["left", "right"] = "right"
+    pull_out: bool = True
+    add_padded_and_pulled_out: bool = False
     # evaluation and logging
     val_loss_every = 125 # every how many steps to evaluate val loss? 0 for only at the end
     save_checkpoint = False
@@ -565,6 +581,16 @@ print0("="*100)
 model: nn.Module = GPT(
     vocab_size=args.vocab_size, num_layers=16, num_heads=8, model_dim=1024,
     max_seq_len=max(args.train_seq_len, args.val_seq_len), expansion_factor=args.expansion_factor,
+    byte_params_in=ByteHyperparameters(
+        padding=args.padding_in,
+        pull=args.pull_in,
+        add_padded_and_pulled=args.add_padded_and_pulled_in,
+    ),
+    byte_params_out=ByteHyperparameters(
+        padding=args.padding_out,
+        pull=args.pull_out,
+        add_padded_and_pulled=args.add_padded_and_pulled_out,
+    ),
 ).cuda()
 for m in model.modules():
     if isinstance(m, nn.Embedding):
