@@ -313,6 +313,13 @@ def create_and_upload_data(
             print(f"finemath val batch {batch_num}...", end="", flush=True)
         elif is_batch_start:
             print(f"finemath train batch {batch_num - num_fm_val_batches}...", end="", flush=True)
+        if is_val_batch:
+            filename = f"val_batch_finemath_{batch_num}.bin"
+        else:
+            filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
+        if os.path.exists(filename):
+            print(f"Skipping {filename} because it already exists...")
+            continue
 
         text = row["text"]
         tokens_fm = torch.tensor(encoding.encode(text), dtype=torch.int32)
@@ -357,10 +364,6 @@ def create_and_upload_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
-            if is_val_batch:
-                filename = f"val_batch_finemath_{batch_num}.bin"
-            else:
-                filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             torch.save(batch, f"data/{filename}")
             api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
             time_taken = perf_counter() - t0
