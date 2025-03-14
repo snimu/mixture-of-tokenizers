@@ -1,4 +1,5 @@
 
+import time
 import argparse
 import json
 import os
@@ -10,6 +11,7 @@ from torch import nn
 import tiktoken
 from datasets import load_dataset
 from huggingface_hub import HfApi
+import huggingface_hub
 
 
 #####################################################################
@@ -268,6 +270,19 @@ def distributed_data_generator(filename_pattern: str):
         yield _load_data_shard(next(file_iter))
 
 
+def upload_with_backoff(api: HfApi, filename: str, repo_id: str):
+    for i in range(5):
+        try:
+            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
+            break
+        except huggingface_hub.hf_api.HTTPError as e:
+            print(f"Upload failed with error {e}. Retrying in 10 seconds...")
+            if i < 5:
+                time.sleep(10)
+            else:
+                raise e
+
+
 def create_and_upload_data(
         from_batch: int = 0,
         skip_fm_val_batches: bool = False,
@@ -375,7 +390,7 @@ def create_and_upload_data(
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
             torch.save(batch, f"data/{filename}")
-            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
+            upload_with_backoff(api, filename, repo_id)
             os.remove(f"data/{filename}")  # Delete the file after uploading it
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
@@ -405,7 +420,7 @@ def create_and_upload_data(
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
             torch.save(batch, f"data/{filename}")
-            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
+            upload_with_backoff(api, filename, repo_id)
             os.remove(f"data/{filename}")  # Delete the file after uploading it
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
@@ -433,7 +448,8 @@ def create_and_upload_data(
                 )
                 filename = f"val_batch_fineweb_{batch_num}.bin"
                 torch.save(batch, f"data/{filename}")
-                api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
+                upload_with_backoff(api, filename, repo_id)
+                os.remove(f"data/{filename}")  # Delete the file after uploading it
                 num_fw_tokens_val += B*T
                 batch_num += 1
 
