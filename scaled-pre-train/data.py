@@ -270,6 +270,8 @@ def distributed_data_generator(filename_pattern: str):
 
 def create_and_upload_data(
         from_batch: int = 0,
+        skip_fm_val_batches: bool = False,
+        skip_fw_val_batches: bool = False,
         B: int = 1024,
         T: int = 1024,
         bytes_per_token: int = 16,
@@ -313,6 +315,8 @@ def create_and_upload_data(
         is_val_batch = batch_num < num_fm_val_batches
         is_batch_start = idx % B == 0
         is_batch_end = idx % B == B - 1
+        if is_val_batch and skip_fm_val_batches:
+            continue
         if (not is_val_batch) and (batch_num - num_fm_val_batches < from_batch):  # Skip non-val-batches before the from_batch
             continue
         if is_batch_start and is_val_batch:
@@ -409,28 +413,29 @@ def create_and_upload_data(
 
     # For finemath, the validation data is created above
     # For fineweb, just use the validation set by karpathy
-    dl = distributed_data_generator("fineweb100B/fineweb_val_*.bin")
-    tokens_fw = None
-    batch_num = 0
-    for new_tokens in dl:
-        tokens_fw = torch.cat([tokens_fw, new_tokens]) if tokens_fw else new_tokens
-        if len(tokens_fw) < B*T:
-            continue
-        for i in range(0, len(tokens_fw), B*T):
-            batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
-            batch = create_batch(
-                tokens=batch,
-                bytes_per_token=bytes_per_token,
-                pad_byte=pad_byte,
-                eot_byte=eot_byte,
-                tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
-                tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
-            )
-            filename = f"val_batch_fineweb_{batch_num}.bin"
-            torch.save(batch, f"data/{filename}")
-            api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
-            num_fw_tokens_val += B*T
-            batch_num += 1
+    if not skip_fw_val_batches:
+        dl = distributed_data_generator("fineweb100B/fineweb_val_*.bin")
+        tokens_fw = None
+        batch_num = 0
+        for new_tokens in dl:
+            tokens_fw = torch.cat([tokens_fw, new_tokens]) if tokens_fw else new_tokens
+            if len(tokens_fw) < B*T:
+                continue
+            for i in range(0, len(tokens_fw), B*T):
+                batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
+                batch = create_batch(
+                    tokens=batch,
+                    bytes_per_token=bytes_per_token,
+                    pad_byte=pad_byte,
+                    eot_byte=eot_byte,
+                    tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
+                    tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
+                )
+                filename = f"val_batch_fineweb_{batch_num}.bin"
+                torch.save(batch, f"data/{filename}")
+                api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
+                num_fw_tokens_val += B*T
+                batch_num += 1
 
     # Print stats
     print(f"finemath: {num_fm_tokens_train=}")
@@ -481,5 +486,7 @@ def _print_batch():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--from-batch", type=int, default=0)
+    parser.add_argument("--skip-fm-val-batches", action="store_true")
+    parser.add_argument("--skip-fw-val-batches", action="store_true")
     args = parser.parse_args()
-    create_and_upload_data(args.from_batch)
+    create_and_upload_data(args.from_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
