@@ -1,4 +1,5 @@
 
+import argparse
 import json
 import os
 from time import perf_counter
@@ -268,6 +269,7 @@ def distributed_data_generator(filename_pattern: str):
 
 
 def create_and_upload_data(
+        from_batch: int = 0,
         B: int = 1024,
         T: int = 1024,
         bytes_per_token: int = 16,
@@ -281,6 +283,8 @@ def create_and_upload_data(
     assert token is not None, "Please set the HF_TOKEN environment variable."
 
     print(f"\n{B=} {T=} {bytes_per_token=} {pad_byte=} {eot_byte=} {vocab_size=} {num_fm_val_batches=}\n")
+
+    os.makedirs("data", exist_ok=True)
 
     eot_token = vocab_size - 1
     print("Creating tokens-to-bytes-embeddings...")
@@ -309,6 +313,8 @@ def create_and_upload_data(
         is_val_batch = batch_num < num_fm_val_batches
         is_batch_start = idx % B == 0
         is_batch_end = idx % B == B - 1
+        if (not is_val_batch) and (batch_num - num_fm_val_batches < from_batch):  # Skip non-val-batches before the from_batch
+            continue
         if is_batch_start and is_val_batch:
             print(f"finemath val batch {batch_num}...", end="", flush=True)
         elif is_batch_start:
@@ -379,6 +385,8 @@ def create_and_upload_data(
             continue
         for i in range(0, len(tokens_fw), B*T):
             batch_num += 1
+            if batch_num - num_fm_val_batches < from_batch:  # Skip non-val-batches before the from_batch
+                continue
             filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             if os.path.exists(f"data/{filename}"):
                 print(f"Skipping {filename} because it already exists...")
@@ -471,4 +479,7 @@ def _print_batch():
 
 
 if __name__ == "__main__":
-    create_and_upload_data()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--from-batch", type=int, default=0)
+    args = parser.parse_args()
+    create_and_upload_data(args.from_batch)
