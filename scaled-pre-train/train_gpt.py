@@ -20,8 +20,9 @@ torch.empty(1, device="cuda", requires_grad=True).backward() # prevents a bug on
 from torch import Tensor, nn
 import torch.nn.functional as F
 import torch.distributed as dist
+import einops
 # use of FlexAttention contributed by @KoszarskyB
-from torch.nn.attention.flex_attention import BlockMask, flex_attention
+from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_block_mask
 #torch._inductor.config.coordinate_descent_tuning = True # we have banned this flag for new records because it causes compilation to take 30min
 
 # -----------------------------------------------------------------------------
@@ -214,6 +215,14 @@ class Muon(torch.optim.Optimizer):
 
 # -----------------------------------------------------------------------------
 # PyTorch nn.Module definitions for the model
+@dataclass
+class ByteHyperparameters:
+    bytes_per_token: int = 16
+    vocab_size: int = 458
+    padding: Literal["left", "right"] = "left"
+    pull: bool = False
+    add_padded_and_pulled: bool = False
+    sliding_window_tokens: int = 8
 
 def norm(x: Tensor):
     return F.rms_norm(x, (x.size(-1),))
@@ -374,13 +383,159 @@ class Block(nn.Module):
         x = x + self.mlp(norm(x))
         return x
 
+
+class FlexibleEmbedding(nn.Module):
+    def __init__(self, dim: int, vocab_size, byte_params: ByteHyperparameters | None = None):
+        super().__init__()
+        self.embed_tokens = nn.Embedding(vocab_size, dim)
+        self.embed_bytes = nn.Embedding(byte_params.vocab_size, dim) if byte_params is not None else nn.Identity()
+        self.byte_params = byte_params
+
+        if byte_params is None:
+            self.forward = self._forward_tokens
+        elif not byte_params.pull:
+            self.forward = self._forward_bytes_padded
+        elif not byte_params.add_padded_and_pulled:
+            self.forward = self._forward_bytes_pulled
+        else:
+            self.forward = self._forward_bytes_padded_and_pulled
+    
+    def _mix_tokens_and_bytes(self, token_embs: Tensor, byte_embs: Tensor) -> Tensor:
+        byte_embs = self.attention(byte_embs, None, self.block_mask)
+        return self.cross_attention(xq=token_embs, xkv=byte_embs)
+    
+    def _forward_tokens(
+            self,
+            tokens: Tensor,
+            byte_tensor: Tensor,
+            byte_tensor_pulled: Tensor,
+    ) -> tuple[Tensor, None]:
+        return norm(self.embed_tokens(tokens)), None
+    
+    def _forward_bytes_padded(
+            self,
+            tokens: Tensor,
+            byte_tensor: Tensor,
+            byte_tensor_pulled: Tensor,
+    ) -> tuple[Tensor, Tensor]:
+        token_embs = norm(self.embed_tokens(tokens))
+        byte_embs = norm(self.embed_bytes(byte_tensor))
+        return token_embs, byte_embs
+
+    
+    def _forward_bytes_pulled(
+            self,
+            tokens: Tensor,
+            byte_tensor: Tensor,
+            byte_tensor_pulled: Tensor,
+    ) -> tuple[Tensor, Tensor]:
+        token_embs = norm(self.embed_tokens(tokens))
+        byte_embs = norm(self.embed_bytes(byte_tensor_pulled))
+        return token_embs, byte_embs
+    
+    def _forward_bytes_padded_and_pulled(
+            self,
+            tokens: Tensor,
+            byte_tensor: Tensor,
+            byte_tensor_pulled: Tensor,
+    ) -> tuple[Tensor, Tensor]:
+        token_embs = norm(self.embed_tokens(tokens))
+        byte_embs = norm(self.embed_bytes(byte_tensor) + self.embed_bytes(byte_tensor_pulled))
+        return token_embs, byte_embs
+
+
+class ByteMixin(nn.Module):
+    def __init__(self, dim: int, max_seq_len: int, byte_params: ByteHyperparameters | None):
+        super().__init__()
+        self.dim = dim
+        self.max_seq_len = max_seq_len
+        self.byte_params = byte_params
+
+        self.attention = None if byte_params is None else CausalSelfAttention(
+            dim=dim,
+            num_heads=dim//128,
+            max_seq_len=max_seq_len * byte_params.bytes_per_token,
+            head_dim=128,
+        )
+        self.cross_attention = None if byte_params is None else CrossAttention(
+            dim=dim,
+            num_heads=dim//128,
+            max_seq_len_kv=max_seq_len * byte_params.bytes_per_token,
+            max_seq_len_q=max_seq_len,
+            head_dim=128,
+        )
+
+        def sliding_window_mask(b, h, q_idx, kv_idx):
+            causality = q_idx >= kv_idx
+            sliding_window = q_idx - kv_idx < byte_params.sliding_window_tokens * byte_params.bytes_per_token
+            return causality & sliding_window
+        
+        T = max_seq_len * byte_params.bytes_per_token
+        self.block_mask = None if byte_params is None else create_block_mask(
+            mask_mod=sliding_window_mask,
+            B=None,
+            H=None,
+            Q_LEN=T,
+            KV_LEN=T,
+        )
+        self.forward = self._forward_tokens if byte_params is None else self._forward_bytes
+    
+    def _forward_bytes(self, token_embs: Tensor, byte_embs: Tensor) -> Tensor:
+        byte_embs = self.attention(byte_embs, None, self.block_mask)
+        return self.cross_attention(xq=token_embs, xkv=byte_embs)
+    
+    def _forward_tokens(self, token_embs: Tensor, byte_embs: Tensor | None) -> Tensor:
+        return token_embs
+
+
+class ByteMixout(nn.Module):
+    def __init__(
+            self,
+            dim: int,
+            max_seq_len: int,
+            byte_params: ByteHyperparameters | None,
+            n_layer_output: int = 1,
+        ):
+        super().__init__()
+        if byte_params is None:
+            self.attention_layers = None
+        else:
+            self.attention_layers = nn.ModuleList([
+                CausalSelfAttention(
+                    dim=dim,
+                    num_heads=dim//128,
+                    max_seq_len=max_seq_len,
+                ) for _ in range(n_layer_output)
+            ])
+
+        self.byte_params = byte_params
+        
+        def causal_mask(b, h, q_idx, kv_idx):
+            return q_idx >= kv_idx
+        
+        T = max_seq_len * byte_params.bytes_per_token
+        self.block_mask = None if byte_params is None else create_block_mask(
+            mask_mod=causal_mask,
+            B=None,
+            H=None,
+            Q_LEN=T,
+            KV_LEN=T,
+        )
+    
+        self.forward = self._forward_tokens if byte_params is None else self._forward_bytes
+
+    def _forward_tokens(self, x: Tensor) -> Tensor:
+        return x
+
+    def _forward_bytes(self, x: Tensor) -> Tensor:
+        x = einops.repeat(x, f"... seq dim-> ... (seq {self.byte_params.bytes_per_token}) dim")
+        for layer in self.attention_layers:
+            x = x + layer(norm(x), ve=None, block_mask=self.block_mask)
+        return x
+
+
 # -----------------------------------------------------------------------------
 # The main model
-class ByteHyperparameters(dataclass):
-    bytes_per_token: int = 16
-    padding: Literal["left", "right"] = "left"
-    pull: bool = False
-    add_padded_and_pulled: bool = False
 
 
 def next_multiple_of_n(v: float | int, *, n: int):
@@ -392,63 +547,47 @@ class GPT(nn.Module):
             model_dim: int, max_seq_len: int, expansion_factor: int = 4,
             byte_params_in: ByteHyperparameters | None = None,
             byte_params_out: ByteHyperparameters | None = None,
+            n_layer_output: int = 1,
     ):
         super().__init__()
-        self.embed = nn.Embedding(vocab_size, model_dim)
+        self.embed = FlexibleEmbedding(dim=model_dim, vocab_size=vocab_size, byte_params=byte_params_in)
+        self.byte_mixin = ByteMixin(
+            dim=model_dim, max_seq_len=max_seq_len, byte_params=byte_params_in
+        )
         # token value embeddings by @KoszarskyB - inspired by @Grad62304977's value residual implementation following https://arxiv.org/abs/2410.17897
         # value embedding code simplification inspired by @ragulpr https://github.com/KellerJordan/modded-nanogpt/pull/78
         self.value_embeds = nn.ModuleList([nn.Embedding(vocab_size, model_dim) for _ in range(3)])
         self.blocks = nn.ModuleList([Block(model_dim, num_heads, max_seq_len, i, expansion_factor) for i in range(num_layers)])
+        self.byte_mixout = ByteMixout(
+            dim=model_dim, max_seq_len=max_seq_len, byte_params=byte_params_out, n_layer_output=n_layer_output
+        ) if byte_params_out is not None else nn.Identity()
         # there are only 50257 unique GPT-2 tokens; we extend to nearest multiple of 128 for efficiency.
         # suggested to me by @Grad62304977. this originates from Karpathy's experiments.
-        self.lm_head = CastedLinear(model_dim, next_multiple_of_n(vocab_size, n=128), use_fp8=True, x_s=0.5, w_s=2**-9, grad_s=2**-19)
+        self.lm_head = CastedLinear(model_dim, next_multiple_of_n(vocab_size, n=128), use_fp8=True, x_s=2.0, w_s=2.0**9, grad_s=2.0**19)
         self.lm_head.weight.detach().zero_() # @Grad62304977
         # Add learnable skip connection weights for decoder layers
         assert num_layers % 2 == 0
         self.skip_weights = nn.Parameter(torch.ones(num_layers//2))
-        #
 
-    def create_blockmasks(self, input_seq: Tensor, sliding_window_num_blocks: Tensor):
-        BLOCK_SIZE = 128
-        docs = (input_seq == 50256).cumsum(0)
+        def causal_mask(b, h, q_idx, kv_idx):
+            return q_idx >= kv_idx
+        
+        T = max_seq_len * byte_params_in.bytes_per_token
+        self.block_mask = create_block_mask(
+            mask_mod=causal_mask,
+            B=None,
+            H=None,
+            Q_LEN=T,
+            KV_LEN=T,
+        )
 
-        def document_causal(b, h, q_idx, kv_idx):
-            causal_mask = q_idx >= kv_idx
-            document_mask = docs[q_idx] == docs[kv_idx]
-            return causal_mask & document_mask
-
-        def dense_to_ordered(dense_blockmask: Tensor):
-            num_blocks = dense_blockmask.sum(dim=-1, dtype=torch.int32)
-            indices = dense_blockmask.argsort(dim=-1, descending=False, stable=True).flip(-1).to(torch.int32)
-            return num_blocks[None, None].contiguous(), indices[None, None].contiguous()
-
-        # manual block mask creation by @YouJiacheng
-        assert len(input_seq) % BLOCK_SIZE == 0
-        NUM_BLOCKS = len(input_seq) // BLOCK_SIZE
-        block_idx = torch.arange(NUM_BLOCKS, dtype=torch.int32, device="cuda")
-        causal_blockmask_any = block_idx[:, None] >= block_idx
-        causal_blockmask_all = block_idx[:, None] > block_idx
-        docs_low = docs.view(-1, BLOCK_SIZE)[:, 0].contiguous()
-        docs_high = docs.view(-1, BLOCK_SIZE)[:, -1].contiguous()
-        document_blockmask_any = (docs_low[:, None] <= docs_high) & (docs_high[:, None] >= docs_low)
-        document_blockmask_all = (docs_low[:, None] == docs_high) & (docs_high[:, None] == docs_low)
-        blockmask_any = causal_blockmask_any & document_blockmask_any
-        blockmask_all = causal_blockmask_all & document_blockmask_all
-        partial_kv_num_blocks, partial_kv_indices = dense_to_ordered(blockmask_any & ~blockmask_all)
-        full_kv_num_blocks, full_kv_indices = dense_to_ordered(blockmask_all)
-        def build_bm(window_size_blocks: Tensor) -> BlockMask:
-            return BlockMask.from_kv_blocks(
-                torch.clamp_max(partial_kv_num_blocks, torch.clamp_min(window_size_blocks - full_kv_num_blocks, 1)),
-                partial_kv_indices,
-                torch.clamp_max(full_kv_num_blocks, window_size_blocks - 1),
-                full_kv_indices,
-                BLOCK_SIZE=BLOCK_SIZE,
-                mask_mod=document_causal,
-            )
-        # Long-short SWA block masks by @leloykun & @YouJiacheng, adapated from suggestion by @Grad62304977, following Gemma 2 paper
-        return build_bm(sliding_window_num_blocks), build_bm(sliding_window_num_blocks // 2)
-
-    def forward(self, input_seq: Tensor, target_seq: Tensor, sliding_window_num_blocks: Tensor):
+    def forward(
+            self,
+            input_seq: Tensor,
+            target_seq: Tensor,
+            byte_tensor: Tensor,
+            byte_tensor_pulled_left: Tensor,
+    ):
         assert input_seq.ndim == 1
 
         ve = [value_embed(input_seq) for value_embed in self.value_embeds]
@@ -456,11 +595,8 @@ class GPT(nn.Module):
         ve = [ve[0], ve[1], ve[2]] + [None] * (len(self.blocks) - 6) + [ve[0], ve[1], ve[2]]
         assert len(ve) == len(self.blocks)
 
-        long_bm, short_bm = self.create_blockmasks(input_seq, sliding_window_num_blocks)
-        block_masks = [long_bm, short_bm, short_bm, short_bm, long_bm, short_bm, short_bm, short_bm, short_bm, short_bm, short_bm, long_bm, short_bm, short_bm, short_bm, long_bm]
-        assert len(block_masks) == len(self.blocks)
-
-        x = x0 = norm(self.embed(input_seq)[None]) # use of norm here by @Grad62304977
+        xt, xb = self.embed(tokens=input_seq, byte_tensor=byte_tensor, byte_tensor_pulled=byte_tensor_pulled_left)
+        x = x0 = self.byte_mixin(xt, xb)
 
         # U-net design by @brendanh0gan
         skip_connections = []
@@ -468,10 +604,11 @@ class GPT(nn.Module):
         for i in range(len(self.blocks)):
             if i >= n:
                 x = x + self.skip_weights[i - n] * skip_connections.pop()
-            x = self.blocks[i](x, ve[i], x0, block_masks[i])
+            x = self.blocks[i](x, ve[i], x0, self.block_mask)
             if i < n:
                 skip_connections.append(x)
 
+        x = self.byte_mixout(x)
         x = norm(x)
         logits = self.lm_head(x)
         # @Grad62304977 added tanh softcapping following Gemma 2 paper, @KoszarskyB reduced it from 30 to 15, @YouJiacheng shifted it by +15 (2*sigmoid(2*x)=tanh(x)+1)
