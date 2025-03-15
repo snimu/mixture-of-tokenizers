@@ -438,7 +438,9 @@ def create_and_upload_data(
             tokens_fw = torch.cat([tokens_fw, new_tokens]) if tokens_fw else new_tokens
             if len(tokens_fw) < B*T:
                 continue
-            for i in range(0, len(tokens_fw), B*T):
+            for i in range(0, len(tokens_fw) // B*T + 1, B*T):
+                if len(tokens_fw) < B*T:
+                    break
                 batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
                 batch = create_batch(
                     tokens=batch,
