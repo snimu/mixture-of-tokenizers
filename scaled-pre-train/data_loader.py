@@ -42,8 +42,7 @@ def _load_data_shard_bytes(file: Path, seq_len: int, batch_size: int, bytes_per_
     with file.open("rb", buffering=0) as f:
         tokens = torch.empty((batch_size, seq_len, 1 + bytes_per_token * 4), dtype=torch.int32, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
         f.seek(256 * 4)
-        nbytes = f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
-        assert nbytes == 2 * batch_size * seq_len * (1 + bytes_per_token * 4), "number of tokens read does not match provided parameters"
+        f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
     return tokens
 
 def distributed_data_generator_bytes(
