@@ -18,7 +18,7 @@ def download(
 
     def _download(filename: str):
         try:
-            hf_hub_download(repo_id=repo_id, filename=filename, repo_type="dataset", token=token)
+            hf_hub_download(repo_id=repo_id, filename=filename, local_dir="data", repo_type="dataset", token=token)
             return 1, filename
         except hfhub.hf_api.HTTPError:
             return 0, filename
