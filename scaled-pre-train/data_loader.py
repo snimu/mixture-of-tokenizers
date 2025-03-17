@@ -82,16 +82,16 @@ def load_byte_decoder(alignment: Literal["left", "right"], bytes_per_token: int 
     with open(f"embeddings/ttb_{bytes_per_token}_{alignment}_pad.json", "r") as f:
         text = f.read()
     ttb = json.loads(text)
-    btt = {int(v): k for k, v in ttb.items()}
+    btt = {tuple(v): k for k, v in ttb.items()}
     return btt
 
 
-def decode_bytes(byte_tensor: torch.Tensor, byte_decoder: dict[int, str], bytes_per_token: int = 16) -> str:
-    bts = byte_tensor.tolist()
+def decode_bytes(byte_tensor: torch.Tensor, byte_decoder: dict[tuple, str], bytes_per_token: int = 16) -> str:
+    bts = byte_tensor.squeeze().tolist()
     text = ""
 
-    for i in range(0, len(bts), bytes_per_token):
-        text += byte_decoder[bts[i:i+bytes_per_token]]
+    for chars in bts:
+        text += byte_decoder[tuple(chars)]
     return text
 
 
