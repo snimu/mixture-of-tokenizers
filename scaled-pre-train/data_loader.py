@@ -61,11 +61,11 @@ def distributed_data_generator_bytes(
     assert batch_size % world_size == 0
     local_batch_size = batch_size // world_size
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
-    tokens, pos = _load_data_shard_bytes(next(file_iter), seq_len, batch_size, bytes_per_token), 0
+    data, pos = _load_data_shard_bytes(next(file_iter), seq_len, batch_size, bytes_per_token), 0
     while True:
-        if pos + batch_size + 1 >= len(tokens):
-            tokens, pos = _load_data_shard_bytes(next(file_iter), seq_len, batch_size, bytes_per_token), 0
-        buf = tokens[pos + rank * local_batch_size:][:local_batch_size + 1]
+        if pos + batch_size + 1 >= len(data):
+            data, pos = _load_data_shard_bytes(next(file_iter), seq_len, batch_size, bytes_per_token), 0
+        buf = data[pos + rank * local_batch_size:][:local_batch_size + 1]
         tokens = buf[:, :-1, 0].to(device="cuda", dtype=torch.int32, non_blocking=True)
         bytes_left_padded = buf[:, :-1, 1:17].to(device="cuda", dtype=torch.int32, non_blocking=True)
         bytes_pulled_left = buf[:, :-1, 17:33].to(device="cuda", dtype=torch.int32, non_blocking=True)
@@ -104,7 +104,7 @@ def test_timing():
     dg = distributed_data_generator("fineweb100B/fineweb_train_*.bin", 1024, 0, 1)
     t0 = perf_counter()
     n_toks = 0
-    for _ in range(64):
+    for _ in range(16):
         x, _ = next(dg)
         n_toks += len(x) + 1  # +1 because x cuts off one of the tokens, but the byte loader doesn't
     print("Time tokens: ", perf_counter() - t0)
