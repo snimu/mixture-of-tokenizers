@@ -78,20 +78,20 @@ def distributed_data_generator_bytes(
 # TODO: test that the tokens are reasonable (decode them) & that the bytes are reasonable (decode them, too)
 
 
-def load_byte_decoder(alignment: Literal["left", "right"], bytes_per_token: int = 16):
-    with open(f"embeddings/ttb_{bytes_per_token}_{alignment}_pad.json", "r") as f:
+def load_byte_decoder() -> dict[int, str]:
+    with open("embeddings/int_to_byte.json", "r") as f:
         text = f.read()
-    ttb = json.loads(text)
-    btt = {tuple(v): k for k, v in ttb.items()}
+    btt = json.loads(text)
     return btt
 
 
-def decode_bytes(byte_tensor: torch.Tensor, byte_decoder: dict[tuple, str], bytes_per_token: int = 16) -> str:
+def decode_bytes(byte_tensor: torch.Tensor, byte_decoder: dict[int, str], bytes_per_token: int = 16) -> str:
     bts = byte_tensor.squeeze().tolist()
+    bts = [char for chars in bts for char in chars]
     text = ""
 
-    for chars in bts:
-        text += byte_decoder[tuple(chars)]
+    for char in bts:
+        text += byte_decoder[int(char)]
     return text
 
 
@@ -125,13 +125,12 @@ def check_plausibility():
     encoding = tiktoken.encoding_for_model("gpt-2")
     print("\n\nTOKENS DECODED:\n\n", encoding.decode(tokens[entry].tolist()))
 
-    byte_decoder_left = load_byte_decoder("left")
-    print("\n\nBYTES LEFT DECODED:\n\n", decode_bytes(bytes_left_padded[entry], byte_decoder_left))
-    print("\n\nBYTES PULLED LEFT DECODED:\n\n", decode_bytes(bytes_pulled_left[entry], byte_decoder_left))
+    byte_decoder = load_byte_decoder()
+    print("\n\nBYTES LEFT DECODED:\n\n", decode_bytes(bytes_left_padded[entry], byte_decoder))
+    print("\n\nBYTES PULLED LEFT DECODED:\n\n", decode_bytes(bytes_pulled_left[entry], byte_decoder))
 
-    byte_decoder_right = load_byte_decoder("right")
-    print("\n\nBYTES RIGHT DECODED:\n\n", decode_bytes(bytes_right_padded[entry], byte_decoder_right))
-    print("\n\nBYTES PULLED RIGHT DECODED:\n\n", decode_bytes(bytes_pulled_right[entry], byte_decoder_right))
+    print("\n\nBYTES RIGHT DECODED:\n\n", decode_bytes(bytes_right_padded[entry], byte_decoder))
+    print("\n\nBYTES PULLED RIGHT DECODED:\n\n", decode_bytes(bytes_pulled_right[entry], byte_decoder))
     assert len(tokens) == 1024
 
 
