@@ -283,6 +283,19 @@ def upload_with_backoff(api: HfApi, filename: str, repo_id: str):
                 raise e
 
 
+def save_file(filename: str, data: torch.Tensor):
+    # When saving:
+    with open(f"data/{filename}", "wb") as f:
+        # Write a header for identification (256 int32 values)
+        header = torch.zeros(256, dtype=torch.int32)
+        header[0] = 20240520  # magic number
+        header[1] = 1  # version
+        header[2] = data.numel()  # number of elements
+        f.write(header.numpy().tobytes())
+        # Write the actual data
+        f.write(data.numpy().tobytes())
+
+
 def create_and_upload_data(
         from_batch: int = 0,
         skip_fm_val_batches: bool = False,
@@ -389,7 +402,7 @@ def create_and_upload_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
-            torch.save(batch, f"data/{filename}")
+            save_file(f"data/{filename}", batch)
             upload_with_backoff(api, filename, repo_id)
             os.remove(f"data/{filename}")  # Delete the file after uploading it
             time_taken = perf_counter() - t0
@@ -421,7 +434,7 @@ def create_and_upload_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
-            torch.save(batch, f"data/{filename}")
+            save_file(f"data/{filename}", batch)
             upload_with_backoff(api, filename, repo_id)
             os.remove(f"data/{filename}")  # Delete the file after uploading it
             time_taken = perf_counter() - t0
@@ -451,7 +464,7 @@ def create_and_upload_data(
                     tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
                 )
                 filename = f"val_batch_fineweb_{batch_num}.bin"
-                torch.save(batch, f"data/{filename}")
+                save_file(f"data/{filename}", batch)
                 upload_with_backoff(api, filename, repo_id)
                 os.remove(f"data/{filename}")  # Delete the file after uploading it
                 num_fw_tokens_val += B*T
