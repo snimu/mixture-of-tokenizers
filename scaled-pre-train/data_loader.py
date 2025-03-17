@@ -79,7 +79,7 @@ def distributed_data_generator_bytes(
 
 
 def load_byte_decoder(alignment: Literal["left", "right"], bytes_per_token: int = 16):
-    with open(f"embeddings/ttb_{bytes_per_token}_{alignment}.json", "r") as f:
+    with open(f"embeddings/ttb_{bytes_per_token}_{alignment}_pad.json", "r") as f:
         text = f.read()
     ttb = json.loads(text)
     btt = {int(v): k for k, v in ttb.items()}
