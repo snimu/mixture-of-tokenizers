@@ -283,9 +283,9 @@ def upload_with_backoff(api: HfApi, filename: str, repo_id: str):
                 raise e
 
 
-def save_file(filename: str, data: torch.Tensor):
+def save_file(path: str, data: torch.Tensor):
     # When saving:
-    with open(f"data/{filename}", "wb") as f:
+    with open(path, "wb") as f:
         # Write a header for identification (256 int32 values)
         header = torch.zeros(256, dtype=torch.int32)
         header[0] = 20240520  # magic number
