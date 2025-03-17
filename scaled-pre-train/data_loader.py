@@ -1,11 +1,14 @@
 """Just for testing the data loader, the dataloader will later be in train_gpt.py"""
 
+import json
 import random
 import subprocess as sp
 from pathlib import Path
 from time import perf_counter
+from typing import Literal
 
 import torch
+import tiktoken
 
 from data_download import download
 
@@ -71,25 +74,67 @@ def distributed_data_generator_bytes(
         yield tokens, bytes_left_padded, bytes_pulled_left, bytes_right_padded, bytes_pulled_right
 
 
+# TODO: one dataloader for each combination of padding & pulling
+# TODO: test that the tokens are reasonable (decode them) & that the bytes are reasonable (decode them, too)
+
+
+def load_byte_decoder(alignment: Literal["left", "right"], bytes_per_token: int = 16):
+    with open(f"embeddings/ttb_{bytes_per_token}_{alignment}.json", "r") as f:
+        text = f.read()
+    ttb = json.loads(text)
+    btt = {int(v): k for k, v in ttb.items()}
+    return btt
+
+
+def decode_bytes(byte_tensor: torch.Tensor, byte_decoder: dict[int, str], bytes_per_token: int = 16) -> str:
+    bts = byte_tensor.tolist()
+    text = ""
+
+    for i in range(0, len(bts), bytes_per_token):
+        text += byte_decoder[bts[i:i+bytes_per_token]]
+    return text
+
+
 def download_test_data():
-    sp.run(["bash", "fineweb100B.sh", "16"])
-    download(num_train_files=16, num_fm_val_files=0, num_fw_val_files=0)
+    sp.run(["bash", "fineweb100B.sh", "64"])
+    download(num_train_files=64, num_fm_val_files=0, num_fw_val_files=0)
 
 
 def test_timing():
     dg = distributed_data_generator("fineweb100B/fineweb_train_*.bin", 1024, 0, 1)
     t0 = perf_counter()
-    for _ in range(10):
-        next(dg)
+    n_toks = 0
+    for _ in range(64):
+        x, _ = next(dg)
+        n_toks += len(x) + 1  # +1 because x cuts off one of the tokens, but the byte loader doesn't
     print("Time tokens: ", perf_counter() - t0)
 
     dg = distributed_data_generator_bytes("data/train_batch_*.bin", 1024, 1024, 16, 0, 1)
     t0 = perf_counter()
-    for _ in range(10):
-        next(dg)
+    n_toks_b = 0
+    while n_toks_b < n_toks:
+        tokens, _, _, _, _ = next(dg)
+        n_toks_b += len(tokens)
     print("Time bytes: ", perf_counter() - t0)
+
+
+def check_plausibility():
+    dg = distributed_data_generator("fineweb100B/fineweb_train_*.bin", 1024, 0, 1)
+    tokens, bytes_left_padded, bytes_pulled_left, bytes_right_padded, bytes_pulled_right = next(dg)
+    encoding = tiktoken.encoding_for_model("gpt-2")
+    print("\n\nTOKENS DECODED:\n\n", encoding.decode(tokens))
+
+    byte_decoder_left = load_byte_decoder("left")
+    print("\n\nBYTES LEFT DECODED:\n\n", decode_bytes(bytes_left_padded, byte_decoder_left))
+    print("\n\nBYTES PULLED LEFT DECODED:\n\n", decode_bytes(bytes_pulled_left, byte_decoder_left))
+
+    byte_decoder_right = load_byte_decoder("right")
+    print("\n\nBYTES RIGHT DECODED:\n\n", decode_bytes(bytes_right_padded, byte_decoder_right))
+    print("\n\nBYTES PULLED RIGHT DECODED:\n\n", decode_bytes(bytes_pulled_right, byte_decoder_right))
+    assert len(tokens) == 1024
 
 
 if __name__ == "__main__":
     download_test_data()
     test_timing()
+    check_plausibility()
