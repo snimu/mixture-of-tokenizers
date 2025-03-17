@@ -1,8 +1,8 @@
 
 import os
-from psutil import cpu_count
 from concurrent.futures import ThreadPoolExecutor
 
+from psutil import cpu_count
 from huggingface_hub import hf_hub_download
 import huggingface_hub as hfhub
 
