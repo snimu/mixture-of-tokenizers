@@ -403,7 +403,7 @@ def create_and_upload_data(
         if len(tokens_fw) < B*T:
             continue
         for i in range(0, len(tokens_fw) // B*T + 1, B*T):
-            if len(tokens_fw) < B*T:
+            if len(tokens_fw[i:]) < B*T:
                 break
             batch_num += 1
             if batch_num - num_fm_val_batches < from_batch:  # Skip non-val-batches before the from_batch
@@ -439,7 +439,7 @@ def create_and_upload_data(
             if len(tokens_fw) < B*T:
                 continue
             for i in range(0, len(tokens_fw) // B*T + 1, B*T):
-                if len(tokens_fw) < B*T:
+                if len(tokens_fw[i:]) < B*T:
                     break
                 batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
                 batch = create_batch(
