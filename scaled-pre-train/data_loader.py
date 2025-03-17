@@ -122,7 +122,7 @@ def check_plausibility():
     dg = distributed_data_generator_bytes("data/train_batch_*.bin", 1024, 1024, 16, 0, 1)
     tokens, bytes_left_padded, bytes_pulled_left, bytes_right_padded, bytes_pulled_right = next(dg)
     encoding = tiktoken.encoding_for_model("gpt-2")
-    print("\n\nTOKENS DECODED:\n\n", encoding.decode(tokens))
+    print("\n\nTOKENS DECODED:\n\n", encoding.decode(tokens.tolist()))
 
     byte_decoder_left = load_byte_decoder("left")
     print("\n\nBYTES LEFT DECODED:\n\n", decode_bytes(bytes_left_padded, byte_decoder_left))
