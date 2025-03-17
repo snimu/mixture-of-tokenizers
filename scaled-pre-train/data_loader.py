@@ -57,7 +57,17 @@ def distributed_data_generator_bytes(
         bytes_per_token: int,
         rank : int,
         world_size : int,
+        return_tokens: bool = True,
+        return_bytes_left_padded: bool = True,
+        return_bytes_pulled_left: bool = True,
+        return_bytes_right_padded: bool = True,
+        return_bytes_pulled_right: bool = True,
 ):
+    def slice_tensor(tensor: torch.Tensor, dtype: torch.dtype, doit: bool = True) -> torch.Tensor:
+        if doit:
+            return tensor.to(device="cuda", dtype=dtype, non_blocking=True)
+        else:
+            return None
     files = sorted(Path.cwd().glob(filename_pattern))
     random.shuffle(files)
     assert batch_size % world_size == 0
@@ -68,11 +78,12 @@ def distributed_data_generator_bytes(
         if pos + batch_size + 1 >= len(data):
             data, pos = _load_data_shard_bytes(next(file_iter), seq_len, batch_size, bytes_per_token), 0
         buf = data[pos + rank * local_batch_size:][:local_batch_size + 1]
-        tokens = buf[:, :-1, 0].to(device="cuda", dtype=torch.int32, non_blocking=True)
-        bytes_left_padded = buf[:, :-1, 1:17].to(device="cuda", dtype=torch.int32, non_blocking=True)
-        bytes_pulled_left = buf[:, :-1, 17:33].to(device="cuda", dtype=torch.int32, non_blocking=True)
-        bytes_right_padded = buf[:, 1:, 33:49].to(device="cuda", dtype=torch.int64, non_blocking=True)
-        bytes_pulled_right = buf[:, 1:, 49:65].to(device="cuda", dtype=torch.int64, non_blocking=True)
+        tokens = slice_tensor(buf[:, :-1, 0], torch.int32, return_tokens)
+        bytes_left_padded = slice_tensor(buf[:, :-1, 1:17],torch.int32, return_bytes_left_padded)
+        bytes_pulled_left = slice_tensor(buf[:, :-1, 17:33], torch.int32, return_bytes_pulled_left)
+        bytes_right_padded = slice_tensor(buf[:, 1:, 33:49], torch.int64, return_bytes_right_padded)
+        bytes_pulled_right = slice_tensor(buf[:, 1:, 49:65], torch.int64, return_bytes_pulled_right)
+        pos += batch_size
         yield tokens, bytes_left_padded, bytes_pulled_left, bytes_right_padded, bytes_pulled_right
 
 
