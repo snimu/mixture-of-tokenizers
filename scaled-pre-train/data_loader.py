@@ -120,17 +120,18 @@ def test_timing():
 
 def check_plausibility():
     dg = distributed_data_generator_bytes("data/train_batch_*.bin", 1024, 1024, 16, 0, 1)
+    entry = random.randint(0, 1023)
     tokens, bytes_left_padded, bytes_pulled_left, bytes_right_padded, bytes_pulled_right = next(dg)
     encoding = tiktoken.encoding_for_model("gpt-2")
-    print("\n\nTOKENS DECODED:\n\n", encoding.decode(tokens.tolist()))
+    print("\n\nTOKENS DECODED:\n\n", encoding.decode(tokens[entry].tolist()))
 
     byte_decoder_left = load_byte_decoder("left")
-    print("\n\nBYTES LEFT DECODED:\n\n", decode_bytes(bytes_left_padded, byte_decoder_left))
-    print("\n\nBYTES PULLED LEFT DECODED:\n\n", decode_bytes(bytes_pulled_left, byte_decoder_left))
+    print("\n\nBYTES LEFT DECODED:\n\n", decode_bytes(bytes_left_padded[entry], byte_decoder_left))
+    print("\n\nBYTES PULLED LEFT DECODED:\n\n", decode_bytes(bytes_pulled_left[entry], byte_decoder_left))
 
     byte_decoder_right = load_byte_decoder("right")
-    print("\n\nBYTES RIGHT DECODED:\n\n", decode_bytes(bytes_right_padded, byte_decoder_right))
-    print("\n\nBYTES PULLED RIGHT DECODED:\n\n", decode_bytes(bytes_pulled_right, byte_decoder_right))
+    print("\n\nBYTES RIGHT DECODED:\n\n", decode_bytes(bytes_right_padded[entry], byte_decoder_right))
+    print("\n\nBYTES PULLED RIGHT DECODED:\n\n", decode_bytes(bytes_pulled_right[entry], byte_decoder_right))
     assert len(tokens) == 1024
 
 
