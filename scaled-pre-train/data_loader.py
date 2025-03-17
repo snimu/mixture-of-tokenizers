@@ -126,6 +126,14 @@ def test_timing():
         n_toks_b += len(tokens)
     print("Time bytes: ", perf_counter() - t0)
 
+    dg = distributed_data_generator_bytes("data/train_batch_*.bin", 1024, 1024, 16, 0, 1, return_bytes_right_padded=False)
+    t0 = perf_counter()
+    n_toks_b = 0
+    while n_toks_b < n_toks:
+        _, _, _, _, bytes_pulled_right = next(dg)
+        n_toks_b += len(bytes_pulled_right)
+    print("Time bytes (no bytes right padded): ", perf_counter() - t0)
+
 
 def check_plausibility():
     dg = distributed_data_generator_bytes("data/train_batch_*.bin", 1024, 1024, 16, 0, 1)
