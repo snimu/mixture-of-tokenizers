@@ -5,7 +5,6 @@ import random
 import subprocess as sp
 from pathlib import Path
 from time import perf_counter
-from typing import Literal
 
 import torch
 import tiktoken
@@ -42,6 +41,9 @@ def distributed_data_generator(filename_pattern: str, batch_size: int, rank : in
 
 
 def _load_data_shard_bytes(file: Path, seq_len: int, batch_size: int, bytes_per_token: int):
+    header = torch.from_file(str(file), False, 256, dtype=torch.int32) # header is 256 int32
+    assert header[0] == 20240520, "magic number mismatch in the data .bin file"
+    assert header[1] == 1, "unsupported version"
     with file.open("rb", buffering=0) as f:
         tokens = torch.empty((batch_size, seq_len, 1 + bytes_per_token * 4), dtype=torch.int32, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
         f.seek(256 * 4)
@@ -72,10 +74,6 @@ def distributed_data_generator_bytes(
         bytes_right_padded = buf[:, 1:, 33:49].to(device="cuda", dtype=torch.int64, non_blocking=True)
         bytes_pulled_right = buf[:, 1:, 49:65].to(device="cuda", dtype=torch.int64, non_blocking=True)
         yield tokens, bytes_left_padded, bytes_pulled_left, bytes_right_padded, bytes_pulled_right
-
-
-# TODO: one dataloader for each combination of padding & pulling
-# TODO: test that the tokens are reasonable (decode them) & that the bytes are reasonable (decode them, too)
 
 
 def load_byte_decoder() -> dict[int, str]:
@@ -131,7 +129,7 @@ def check_plausibility():
 
     print("\n\nBYTES RIGHT DECODED:\n\n", decode_bytes(bytes_right_padded[entry], byte_decoder))
     print("\n\nBYTES PULLED RIGHT DECODED:\n\n", decode_bytes(bytes_pulled_right[entry], byte_decoder))
-    assert len(tokens) == 1024
+    assert len(tokens) == 1023  # tokens etc are all cut off by one
 
 
 if __name__ == "__main__":
