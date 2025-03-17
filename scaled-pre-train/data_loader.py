@@ -81,7 +81,7 @@ def distributed_data_generator_bytes(
 def load_byte_decoder() -> dict[int, str]:
     with open("embeddings/int_to_byte.json", "r") as f:
         text = f.read()
-    btt = json.loads(text)
+    btt = {int(k): v for k, v in json.loads(text).items()}
     return btt
 
 
