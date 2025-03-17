@@ -119,7 +119,7 @@ def test_timing():
 
 
 def check_plausibility():
-    dg = distributed_data_generator("fineweb100B/fineweb_train_*.bin", 1024, 0, 1)
+    dg = distributed_data_generator_bytes("data/train_batch_*.bin", 1024, 1024, 16, 0, 1)
     tokens, bytes_left_padded, bytes_pulled_left, bytes_right_padded, bytes_pulled_right = next(dg)
     encoding = tiktoken.encoding_for_model("gpt-2")
     print("\n\nTOKENS DECODED:\n\n", encoding.decode(tokens))
