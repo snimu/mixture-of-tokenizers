@@ -336,9 +336,14 @@ def create_and_upload_data(
     num_fw_tokens_train = 0
     num_fm_tokens_val = 0
     num_fw_tokens_val = 0
+    print("Downloading finemath data...")
+    data = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
+    print(f"{type(data)=}")
+    print(f"{len(data)=}")
+    print(f"{data[0]=}")
     print("Starting data creation...")
     t0 = perf_counter()
-    for row in load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", streaming=True):
+    for row in data:
         batch_num = idx // B
         is_val_batch = batch_num < num_fm_val_batches
         is_batch_start = idx % B == 0
