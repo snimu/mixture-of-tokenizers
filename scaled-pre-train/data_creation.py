@@ -3,8 +3,8 @@ import time
 import argparse
 import json
 import os
-import requests
-import urllib3
+from requests.exceptions import ConnectionError
+from urllib3.exceptions import ProtocolError
 from time import perf_counter
 from pathlib import Path
 
@@ -13,7 +13,7 @@ from torch import nn
 import tiktoken
 from datasets import load_dataset
 from huggingface_hub import HfApi
-import huggingface_hub
+from huggingface_hub.errors import HTTPError
 
 
 #####################################################################
@@ -278,21 +278,7 @@ def upload_with_backoff(api: HfApi, filename: str, repo_id: str):
         try:
             api.upload_file(path_or_fileobj=f"data/{filename}", path_in_repo=filename, repo_id=repo_id, repo_type="dataset")
             break
-        except huggingface_hub.hf_api.HTTPError as e:
-            print(f"Upload failed with error {e}. Retrying in 10 seconds...")
-            if i < 5:
-                time.sleep(sleep_time)
-                sleep_time *= 2
-            else:
-                raise e
-        except requests.exceptions.ConnectionError as e:
-            print(f"Upload failed with error {e}. Retrying in 10 seconds...")
-            if i < 5:
-                time.sleep(sleep_time)
-                sleep_time *= 2
-            else:
-                raise e
-        except urllib3.exceptions.ProtocolError as e:
+        except (HTTPError, ConnectionError, ProtocolError) as e:
             print(f"Upload failed with error {e}. Retrying in 10 seconds...")
             if i < 5:
                 time.sleep(sleep_time)
