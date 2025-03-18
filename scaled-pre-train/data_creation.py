@@ -11,7 +11,7 @@ from pathlib import Path
 import torch
 from torch import nn
 import tiktoken
-from datasets import load_dataset
+from datasets import load_dataset, arrow_dataset
 from huggingface_hub import HfApi
 from huggingface_hub.errors import HTTPError
 
@@ -341,10 +341,8 @@ def create_and_upload_data(
     num_fm_tokens_val = 0
     num_fw_tokens_val = 0
     print("Downloading finemath data...")
-    data = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
-    print(f"{type(data)=}")
-    print(f"{len(data)=}")
-    print(f"{data[0]=}")
+    data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
+    data.sort("text")
     print("Starting data creation...")
     t0 = perf_counter()
     for row in data:
