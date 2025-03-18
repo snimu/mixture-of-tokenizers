@@ -48,6 +48,7 @@ def tokens_to_bytes(tokens: torch.Tensor, emb: nn.Embedding) -> torch.Tensor:
         return byte_tensor.view(-1).unsqueeze(0)  # einops.rearrange(byte_tensor, "n c -> (n c)")[None]
 
 
+@torch.compile
 def pull_from_right(
         byte_tensor: torch.Tensor, bytes_per_token: int, pad_byte: int, eot_byte: int
 ) -> torch.Tensor:
@@ -128,6 +129,7 @@ def pull_from_right(
     return pulled_tensor.view(B, T)
 
 
+@torch.compile
 def pull_from_left(
         byte_tensor: torch.Tensor, bytes_per_token: int, pad_byte: int, eot_byte: int
 ) -> torch.Tensor:
