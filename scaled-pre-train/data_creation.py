@@ -352,6 +352,7 @@ def create_and_upload_data(
         is_val_batch = batch_num < num_fm_val_batches
         is_batch_start = idx % B == 0
         is_batch_end = idx % B == B - 1
+        idx += 1
         if is_val_batch and skip_fm_val_batches:
             continue
         if (not is_val_batch) and (batch_num - num_fm_val_batches < from_batch):  # Skip non-val-batches before the from_batch
@@ -419,7 +420,6 @@ def create_and_upload_data(
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
             batch = []
-        idx += 1
     
     # Now, turn the rest of the fineweb-edu-100BT tokens into their own batches with create_batch
     for new_tokens in dl:
