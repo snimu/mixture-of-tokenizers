@@ -369,7 +369,7 @@ def create_and_upload_data(
             continue
 
         text = row["text"]
-        tokens_fm = torch.tensor(encoding.encode(text), dtype=torch.int32)
+        tokens_fm = torch.tensor(encoding.encode(text, disallowed_special=()), dtype=torch.int32)
 
         # Don't use incomplete finemath samples
         if len(tokens_fm) > T:
