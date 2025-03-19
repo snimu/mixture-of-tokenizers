@@ -7,6 +7,7 @@ from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError
 from time import perf_counter
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 import torch
 from torch import nn
@@ -274,7 +275,8 @@ def distributed_data_generator(filename_pattern: str):
         yield _load_data_shard(next(file_iter))
 
 
-def upload_with_backoff(api: HfApi, filename: str, repo_id: str):
+def upload_with_backoff(api: HfApi, batch: torch.Tensor, filename: str, repo_id: str):
+    save_file(f"data/{filename}", batch)
     sleep_time = 10
     for i in range(5):
         try:
@@ -287,6 +289,7 @@ def upload_with_backoff(api: HfApi, filename: str, repo_id: str):
                 sleep_time *= 2
             else:
                 raise e
+    os.remove(f"data/{filename}")  # Delete the file after uploading it
 
 
 def save_file(path: str, data: torch.Tensor):
@@ -348,6 +351,8 @@ def create_and_upload_data(
     print("Starting data creation...")
     is_batch_start = True
     batch_num = 0
+    executor = ThreadPoolExecutor(max_workers=5)
+    futures = []
     t0 = perf_counter()
     for idx in (range(len(data))):
         is_val_batch = batch_num < num_fm_val_batches
@@ -401,6 +406,10 @@ def create_and_upload_data(
         
         # Save every B samples; a.k.a. every batch
         if len(batch) == B:
+            if len(futures) == 5:
+                for future in futures:
+                    future.result()
+                futures = []
             batch = create_batch(
                 tokens=torch.tensor(batch, dtype=torch.int32),
                 bytes_per_token=bytes_per_token,
@@ -409,9 +418,7 @@ def create_and_upload_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
-            save_file(f"data/{filename}", batch)
-            upload_with_backoff(api, filename, repo_id)
-            os.remove(f"data/{filename}")  # Delete the file after uploading it
+            futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
             batch = []
@@ -435,6 +442,10 @@ def create_and_upload_data(
             if os.path.exists(f"data/{filename}"):
                 print(f"Skipping {filename} because it already exists...")
                 continue
+            if len(futures) == 5:
+                for future in futures:
+                    future.result()
+                futures = []
             batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
             batch = create_batch(
                 tokens=batch,
@@ -444,9 +455,7 @@ def create_and_upload_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
-            save_file(f"data/{filename}", batch)
-            upload_with_backoff(api, filename, repo_id)
-            os.remove(f"data/{filename}")  # Delete the file after uploading it
+            futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
             num_fw_tokens_train += B*T
@@ -464,6 +473,10 @@ def create_and_upload_data(
             for i in range(0, len(tokens_fw) // B*T + 1, B*T):
                 if len(tokens_fw[i:]) < B*T:
                     break
+                if len(futures) == 5:
+                    for future in futures:
+                        future.result()
+                    futures = []
                 batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
                 batch = create_batch(
                     tokens=batch,
@@ -474,11 +487,14 @@ def create_and_upload_data(
                     tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
                 )
                 filename = f"val_batch_fineweb_{batch_num}.bin"
-                save_file(f"data/{filename}", batch)
-                upload_with_backoff(api, filename, repo_id)
-                os.remove(f"data/{filename}")  # Delete the file after uploading it
+                futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
                 num_fw_tokens_val += B*T
                 batch_num += 1
+    # Wait for all uploads to finish
+    for future in futures:
+        future.result()
+    futures = []
+    executor.shutdown()
 
     # Print stats
     print(f"finemath: {num_fm_tokens_train=}")
