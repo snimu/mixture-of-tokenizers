@@ -357,7 +357,7 @@ def create_and_upload_data(
             continue
         if (not is_val_batch) and (batch_num - num_fm_val_batches < from_batch):  # Skip non-val-batches before the from_batch
             if is_batch_start:
-                print(f"Skipping finemath train batch {batch_num - num_fm_val_batches}...", end="", flush=True)
+                print(f"Skipping finemath train batch {batch_num - num_fm_val_batches}...", flush=True)
             continue
         if is_batch_start and is_val_batch:
             print(f"finemath val batch {batch_num}...", end="", flush=True)
