@@ -368,9 +368,6 @@ def create_and_upload_data(
             filename = f"val_batch_finemath_{batch_num}.bin"
         else:
             filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
-        if os.path.exists(f"data/{filename}"):
-            print(f"Skipping {filename} because it already exists...")
-            continue
 
         text = data[idx]["text"]
         tokens_fm = torch.tensor(encoding.encode(text, disallowed_special=()), dtype=torch.int32)
@@ -388,22 +385,19 @@ def create_and_upload_data(
             batch.append(tokens.tolist())
             num_fm_tokens_val += len(torch.where(tokens != eot_token))
         else:
-            if len(tokens_fm) < T and tokens_fm[-1] != eot_token:
+            num_fm_tokens_train += len(tokens_fm)
+            if len(tokens_fm) < T:  # Append a single eot token to separate finemath from fineweb
                 tokens_fm = torch.cat([tokens_fm, torch.empty((1,), dtype=torch.int32).fill_(eot_token)])
-
-            if len(tokens_fm) == T:
-                batch.append(tokens_fm.tolist())
-                num_fm_tokens_train += len(tokens_fm)
-            else:
+            if len(tokens_fm) < T:  # Only a single eot token was appended, fill up the rest with fineweb
                 num_tokens_missing = T - len(tokens_fm)  # 0 <= num_tokens_missing <= T, see condition above
                 while len(tokens_fw) < num_tokens_missing:
                     tokens_fw = torch.cat([tokens_fw, next(dl)])
 
                 fillup_tokens, tokens_fw = tokens_fw[:num_tokens_missing], tokens_fw[num_tokens_missing:]
-                batch.append(torch.cat([tokens_fm, fillup_tokens.to(tokens_fm.dtype)]).tolist())
-                num_fm_tokens_train += len(tokens_fm)
+                tokens_fm = torch.cat([tokens_fm, fillup_tokens.to(tokens_fm.dtype)])
                 num_fw_tokens_train += len(fillup_tokens)
-        
+            batch.append(tokens_fm.tolist())
+
         # Save every B samples; a.k.a. every batch
         if len(batch) == B:
             if len(futures) == 5:
