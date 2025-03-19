@@ -9,6 +9,7 @@ from time import perf_counter
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
+import numpy as np
 import torch
 from torch import nn
 import tiktoken
@@ -295,14 +296,28 @@ def upload_with_backoff(api: HfApi, batch: torch.Tensor, filename: str, repo_id:
 def save_file(path: str, data: torch.Tensor):
     # When saving:
     with open(path, "wb") as f:
-        # Write a header for identification (256 int32 values)
-        header = torch.zeros(256, dtype=torch.int32)
-        header[0] = 20240520  # magic number
-        header[1] = 1  # version
-        header[2] = data.numel()  # number of elements
-        f.write(header.numpy().tobytes())
-        # Write the actual data
-        f.write(data.numpy().tobytes())
+        header = np.zeros(256, dtype=np.int32) # header is always 256 int32 values
+        header[0] = 20240520
+        header[1] = 1
+        header[2] = data.numel() # number of tokens after the 256*4 bytes of header
+        # construct the data (numpy array of tokens)
+        toks_np = np.array(data, dtype=np.int32)
+        # write to file
+        with open(path, "wb") as f:
+            f.write(header.tobytes())
+            f.write(toks_np.tobytes())
+
+
+def verify_data(path: str, data: torch.Tensor, B, T, bytes_per_token):
+    save_file(path, data)
+
+    with Path(path).open("rb", buffering=0) as f:
+        tokens = torch.empty((B, T, 1 + bytes_per_token * 4), dtype=torch.int32, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
+        f.seek(256 * 4)
+        f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
+    assert data.shape == tokens.shape, f"{data.shape=} vs {tokens.shape=}"
+    assert (data == tokens).all(), f"{len(torch.where(data != tokens)[0])} tokens mismatch"
+    os.remove(path)
 
 
 def create_and_upload_data(
@@ -412,6 +427,8 @@ def create_and_upload_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
+            if batch_num % 100 == 0:
+                verify_data(f"data/{filename}", batch, B, T, bytes_per_token)
             futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
