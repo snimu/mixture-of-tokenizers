@@ -347,17 +347,14 @@ def create_and_upload_data(
     data.sort("text")
     print("Starting data creation...")
     t0 = perf_counter()
-    for row in data:
+    for idx in (range(len(data))):
         batch_num = idx // B
         is_val_batch = batch_num < num_fm_val_batches
         is_batch_start = idx % B == 0
         is_batch_end = idx % B == B - 1
-        idx += 1
         if is_val_batch and skip_fm_val_batches:
             continue
         if (not is_val_batch) and (batch_num - num_fm_val_batches < from_batch):  # Skip non-val-batches before the from_batch
-            if is_batch_start:
-                print(f"Skipping finemath train batch {batch_num - num_fm_val_batches}...", flush=True)
             continue
         if is_batch_start and is_val_batch:
             print(f"finemath val batch {batch_num}...", end="", flush=True)
@@ -371,7 +368,7 @@ def create_and_upload_data(
             print(f"Skipping {filename} because it already exists...")
             continue
 
-        text = row["text"]
+        text = data[idx]["text"]
         tokens_fm = torch.tensor(encoding.encode(text, disallowed_special=()), dtype=torch.int32)
 
         # Don't use incomplete finemath samples
