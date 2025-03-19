@@ -466,6 +466,8 @@ def create_and_upload_data(
                 tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
+            if batch_num % 100 == 0:
+                verify_data(f"data/{filename}", batch, B, T, bytes_per_token)
             futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
@@ -498,6 +500,8 @@ def create_and_upload_data(
                     tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
                 )
                 filename = f"val_batch_fineweb_{batch_num}.bin"
+                if batch_num % 100 == 0:
+                    verify_data(f"data/{filename}", batch, B, T, bytes_per_token)
                 futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
                 num_fw_tokens_val += B*T
                 batch_num += 1
