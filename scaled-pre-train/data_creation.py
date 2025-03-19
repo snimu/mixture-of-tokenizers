@@ -433,7 +433,7 @@ def create_and_upload_data(
             futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
             time_taken_step = perf_counter() - t0
             time_taken_global = perf_counter() - t0_global
-            t0_global = perf_counter()
+            t0 = perf_counter()
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
             batch = []
             is_batch_start = True
@@ -474,7 +474,7 @@ def create_and_upload_data(
             futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
             time_taken_step = perf_counter() - t0
             time_taken_global = perf_counter() - t0_global
-            t0_global = perf_counter()
+            t0 = perf_counter()
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
             num_fw_tokens_train += B*T
 
