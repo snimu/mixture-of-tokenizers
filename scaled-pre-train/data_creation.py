@@ -346,12 +346,11 @@ def create_and_upload_data(
     data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
     data.sort("text")
     print("Starting data creation...")
+    is_batch_start = True
+    batch_num = 0
     t0 = perf_counter()
     for idx in (range(len(data))):
-        batch_num = idx // B
         is_val_batch = batch_num < num_fm_val_batches
-        is_batch_start = idx % B == 0
-        is_batch_end = idx % B == B - 1
         if is_val_batch and skip_fm_val_batches:
             continue
         if (not is_val_batch) and (batch_num - num_fm_val_batches < from_batch):  # Skip non-val-batches before the from_batch
@@ -401,8 +400,7 @@ def create_and_upload_data(
                 num_fw_tokens_train += len(fillup_tokens)
         
         # Save every B samples; a.k.a. every batch
-        if is_batch_end:
-            assert len(batch) == B, f"{len(batch)=} != {B=}"
+        if len(batch) == B:
             batch = create_batch(
                 tokens=torch.tensor(batch, dtype=torch.int32),
                 bytes_per_token=bytes_per_token,
@@ -417,6 +415,10 @@ def create_and_upload_data(
             time_taken = perf_counter() - t0
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken*1000):_}ms ({round(time_taken):_}s)")
             batch = []
+            is_batch_start = True
+            batch_num += 1
+        else:
+            is_batch_start = False
     
     # Now, turn the rest of the fineweb-edu-100BT tokens into their own batches with create_batch
     for new_tokens in dl:
