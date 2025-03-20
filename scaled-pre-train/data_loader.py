@@ -150,7 +150,11 @@ def check_plausibility():
     print("\n\nBYTES RIGHT DECODED:\n\n", decode_bytes(bytes_right_padded[entry], byte_decoder))
     print("\n\nBYTES PULLED RIGHT DECODED:\n\n", decode_bytes(bytes_pulled_right[entry], byte_decoder))
     
-    print(f"\n\n{tokens.shape=}, {bytes_left_padded.shape=}, {bytes_pulled_left.shape=}, {bytes_right_padded.shape=}, {bytes_pulled_right.shape=}")
+    assert tuple(tokens.shape) == (1024, 1023, 1)
+    assert tuple(bytes_left_padded.shape) == (1024, 1023, 16)
+    assert tuple(bytes_pulled_left.shape) == (1024, 1023, 16)
+    assert tuple(bytes_right_padded.shape) == (1024, 1023, 16)
+    assert tuple(bytes_pulled_right.shape) == (1024, 1023, 16)
 
 
 if __name__ == "__main__":
