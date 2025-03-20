@@ -95,17 +95,13 @@ def load_byte_decoder() -> dict[int, str]:
 
 
 def decode_bytes(byte_tensor: torch.Tensor, byte_decoder: dict[int, str], bytes_per_token: int = 16) -> str:
-    bts = byte_tensor.squeeze().tolist()
-    bts = [b for bs in bts for b in bs]
     text = ""
-
-    for i, b in enumerate(bts):
-        char = byte_decoder[int(b)]
-        text += char if char != "pad" else ":"
-        if i > 0 and i % bytes_per_token == 0:
-            text += " "
-    text = text.replace(" ", "_")
-
+    for bts in byte_tensor.squeeze().tolist():
+        text += "("
+        for b in bts:
+            char = byte_decoder[int(b)]
+            text += char if char != "pad" else ":"
+        text += ") "
     return text
 
 
@@ -148,12 +144,13 @@ def check_plausibility():
     print("\n\nTOKENS DECODED:\n\n", encoding.decode(tokens[entry].tolist()))
 
     byte_decoder = load_byte_decoder()
-    # print("\n\nBYTES LEFT DECODED:\n\n", decode_bytes(bytes_left_padded[entry], byte_decoder))
-    # print("\n\nBYTES PULLED LEFT DECODED:\n\n", decode_bytes(bytes_pulled_left[entry], byte_decoder))
+    print("\n\nBYTES LEFT DECODED:\n\n", decode_bytes(bytes_left_padded[entry], byte_decoder))
+    print("\n\nBYTES PULLED LEFT DECODED:\n\n", decode_bytes(bytes_pulled_left[entry], byte_decoder))
 
     print("\n\nBYTES RIGHT DECODED:\n\n", decode_bytes(bytes_right_padded[entry], byte_decoder))
     print("\n\nBYTES PULLED RIGHT DECODED:\n\n", decode_bytes(bytes_pulled_right[entry], byte_decoder))
-    assert len(tokens) == 1023  # tokens etc are all cut off by one
+    
+    print(f"\n\n{tokens.shape=}, {bytes_left_padded.shape=}, {bytes_pulled_left.shape=}, {bytes_right_padded.shape=}, {bytes_pulled_right.shape=}")
 
 
 if __name__ == "__main__":
