@@ -64,68 +64,63 @@ def pull_from_right(
     non_pad_mask = byte_tensor != pad_byte  # Shape: (B, T_reduced, bytes_per_token)
     is_eot_token = torch.all(byte_tensor == eot_byte, dim=2)  # Shape: (B, T_reduced)
     
-    # Count valid (non-padding) bytes per token
-    valid_bytes_count = non_pad_mask.sum(dim=2)  # Shape: (B, T_reduced)
-    
     # Initialize output tensor
-    pulled_tensor = torch.empty_like(byte_tensor)
-    pulled_tensor.fill_(pad_byte)
+    pulled_tensor = torch.full_like(byte_tensor, pad_byte)
     
-    # Process each batch
+    # Process each batch (we still need this loop as batches can have different EOT patterns)
     for batch_idx in range(B):
-        # Get data for this batch
-        batch_tensor = byte_tensor[batch_idx]  # (T_reduced, bytes_per_token)
-        batch_non_pad = non_pad_mask[batch_idx]  # (T_reduced, bytes_per_token)
-        batch_is_eot = is_eot_token[batch_idx]   # (T_reduced)
-        batch_valid_count = valid_bytes_count[batch_idx]  # (T_reduced)
+        # Calculate valid bytes per token and their cumulative positions
+        valid_bytes_per_token = non_pad_mask[batch_idx].sum(dim=1)
+        cum_positions = torch.zeros(T_reduced + 1, dtype=torch.long, device=byte_tensor.device)
+        cum_positions[1:] = torch.cumsum(valid_bytes_per_token, dim=0)
         
-        # Calculate cumulative positions of valid bytes using tensor operations
-        token_positions = torch.cat([
-            torch.zeros(1, dtype=torch.long, device=byte_tensor.device),
-            torch.cumsum(batch_valid_count, dim=0)
-        ])  # (T_reduced + 1)
+        # Extract all valid bytes at once using a list comprehension and single cat operation
+        valid_bytes_list = [byte_tensor[batch_idx, t][non_pad_mask[batch_idx, t]] 
+                           for t in range(T_reduced) if valid_bytes_per_token[t] > 0]
         
-        # Extract all valid (non-padded) bytes at once using boolean indexing
-        all_valid_bytes = batch_tensor[batch_non_pad]  # Flattened tensor of all valid bytes
-        
-        # Find positions of EOT tokens
-        eot_positions = torch.where(batch_is_eot)[0]
-        
-        # Vectorized computation of next EOT token for each position
-        if len(eot_positions) > 0:
-            # For each token position, find the next EOT token efficiently
-            token_indices = torch.arange(T_reduced, device=byte_tensor.device)
-            next_eot_indices_raw = torch.searchsorted(eot_positions, token_indices)
+        # Skip if no valid bytes in this batch
+        if not valid_bytes_list:
+            continue
             
-            # Convert to actual EOT positions
-            next_eot_indices = torch.full((T_reduced,), T_reduced, device=byte_tensor.device)
-            valid_mask = next_eot_indices_raw < len(eot_positions)
-            next_eot_indices[valid_mask] = eot_positions[next_eot_indices_raw[valid_mask]]
+        all_valid_bytes = torch.cat(valid_bytes_list)
+        
+        # Find EOT positions
+        eot_positions = is_eot_token[batch_idx].nonzero(as_tuple=True)[0]
+        
+        # For each token, find its next EOT token using searchsorted (vectorized)
+        if len(eot_positions) > 0:
+            token_indices = torch.arange(T_reduced, device=byte_tensor.device)
+            next_eot_idx = torch.searchsorted(eot_positions, token_indices)
+            
+            # Convert searchsorted indices to actual EOT positions
+            next_eot = torch.full((T_reduced,), T_reduced, device=byte_tensor.device)
+            valid_mask = next_eot_idx < len(eot_positions)
+            if valid_mask.any():
+                next_eot[valid_mask] = eot_positions[next_eot_idx[valid_mask]]
         else:
             # No EOT tokens in this batch
-            next_eot_indices = torch.full((T_reduced,), T_reduced, device=byte_tensor.device)
+            next_eot = torch.full((T_reduced,), T_reduced, device=byte_tensor.device)
         
-        # We still need to process each token sequentially
+        # Process each token (minimal operations in this loop now)
         for token_idx in range(T_reduced):
             # For EOT tokens, keep original bytes
-            if batch_is_eot[token_idx]:
-                token_valid_mask = batch_non_pad[token_idx]
-                token_valid_bytes = batch_tensor[token_idx, token_valid_mask]
-                if len(token_valid_bytes) > 0:
-                    pulled_tensor[batch_idx, token_idx, :len(token_valid_bytes)] = token_valid_bytes
+            if is_eot_token[batch_idx, token_idx]:
+                start_idx = cum_positions[token_idx].item()
+                end_idx = cum_positions[token_idx + 1].item()
+                if start_idx < end_idx:
+                    token_bytes = all_valid_bytes[start_idx:end_idx]
+                    pulled_tensor[batch_idx, token_idx, :len(token_bytes)] = token_bytes
                 continue
             
-            # For other tokens, pull bytes up to the next EOT token
-            start_idx = token_positions[token_idx].item()
-            next_eot_idx = next_eot_indices[token_idx].item()
-            end_idx = token_positions[next_eot_idx].item()
+            # For non-EOT tokens, pull bytes up to the next EOT
+            start_idx = cum_positions[token_idx].item()
+            next_eot_pos = next_eot[token_idx].item()
+            end_idx = cum_positions[next_eot_pos].item()
             
-            # Calculate bytes to pull (limited to bytes_per_token)
             bytes_to_pull = min(bytes_per_token, end_idx - start_idx)
             
             if bytes_to_pull > 0 and start_idx < len(all_valid_bytes):
-                pulled_bytes = all_valid_bytes[start_idx:start_idx + bytes_to_pull]
-                pulled_tensor[batch_idx, token_idx, :len(pulled_bytes)] = pulled_bytes
+                pulled_tensor[batch_idx, token_idx, :bytes_to_pull] = all_valid_bytes[start_idx:start_idx + bytes_to_pull]
     
     # Reshape back to original dimensions
     return pulled_tensor.view(B, T)
@@ -146,74 +141,78 @@ def pull_from_left(
     is_eot_token = torch.all(byte_tensor == eot_byte, dim=2)  # Shape: (B, T_reduced)
     
     # Initialize output tensor
-    pulled_tensor = torch.empty_like(byte_tensor)
-    pulled_tensor.fill_(pad_byte)
+    pulled_tensor = torch.full_like(byte_tensor, pad_byte)
     
     # Process each batch
     for batch_idx in range(B):
-        # Get data for this batch
-        batch_tensor = byte_tensor[batch_idx]  # (T_reduced, bytes_per_token)
-        batch_non_pad = non_pad_mask[batch_idx]  # (T_reduced, bytes_per_token)
-        batch_is_eot = is_eot_token[batch_idx]   # (T_reduced)
+        # Calculate valid bytes per token and their cumulative positions
+        valid_bytes_per_token = non_pad_mask[batch_idx].sum(dim=1)
+        cum_positions = torch.zeros(T_reduced + 1, dtype=torch.long, device=byte_tensor.device)
+        cum_positions[1:] = torch.cumsum(valid_bytes_per_token, dim=0)
         
-        # Extract all valid bytes and their positions
-        valid_bytes_list = []
-        token_start_positions = [0]  # Starting position for each token's bytes
+        # Extract all valid bytes at once using a list comprehension and single cat operation
+        valid_bytes_list = [byte_tensor[batch_idx, t][non_pad_mask[batch_idx, t]] 
+                           for t in range(T_reduced) if valid_bytes_per_token[t] > 0]
         
-        for token_idx in range(T_reduced):
-            token_valid_mask = batch_non_pad[token_idx]
-            token_valid_bytes = batch_tensor[token_idx, token_valid_mask].tolist()
-            valid_bytes_list.extend(token_valid_bytes)
-            token_start_positions.append(token_start_positions[-1] + len(token_valid_bytes))
+        # Skip if no valid bytes in this batch
+        if not valid_bytes_list:
+            continue
+            
+        all_valid_bytes = torch.cat(valid_bytes_list)
         
-        # Convert to tensor
-        if valid_bytes_list:
-            all_valid_bytes = torch.tensor(valid_bytes_list, device=byte_tensor.device)
+        # Find EOT positions
+        eot_positions = is_eot_token[batch_idx].nonzero(as_tuple=True)[0]
+        
+        # Pre-compute previous EOT indices for all token positions
+        token_indices = torch.arange(T_reduced, device=byte_tensor.device)
+        if len(eot_positions) > 0:
+            # Use a trick with searchsorted to find the previous EOT
+            prev_eot_idx = torch.searchsorted(eot_positions, token_indices, right=True) - 1
+            
+            # Convert to actual positions and handle no-previous-EOT case
+            prev_eot = torch.full((T_reduced,), -1, device=byte_tensor.device)
+            valid_mask = prev_eot_idx >= 0
+            if valid_mask.any():
+                prev_eot[valid_mask] = eot_positions[prev_eot_idx[valid_mask]]
         else:
-            all_valid_bytes = torch.tensor([], device=byte_tensor.device, dtype=torch.int32)
-        
-        # Find EOT token positions
-        eot_positions = torch.where(batch_is_eot)[0].tolist()
+            # No EOT tokens in this batch
+            prev_eot = torch.full((T_reduced,), -1, device=byte_tensor.device)
         
         # Process each token
         for token_idx in range(T_reduced):
-            current_start = token_start_positions[token_idx]
-            current_end = token_start_positions[token_idx + 1]
+            current_start = cum_positions[token_idx].item()
+            current_end = cum_positions[token_idx + 1].item()
             
             # If this is an EOT token, only use its own bytes
-            if batch_is_eot[token_idx]:
-                bytes_to_use = all_valid_bytes[current_start:current_end]
-                if len(bytes_to_use) > 0:
-                    pulled_tensor[batch_idx, token_idx, -len(bytes_to_use):] = bytes_to_use
+            if is_eot_token[batch_idx, token_idx]:
+                valid_bytes = current_end - current_start
+                if valid_bytes > 0:
+                    # Place bytes right-aligned (left-padded)
+                    pulled_tensor[batch_idx, token_idx, -valid_bytes:] = all_valid_bytes[current_start:current_end]
                 continue
             
-            # Find the previous EOT token (or -1 if none)
-            prev_eot_idx = -1
-            for idx in eot_positions:
-                if idx < token_idx:
-                    prev_eot_idx = max(prev_eot_idx, idx)
-            
-            # Calculate the starting position for byte pulling
-            # If there's a previous EOT, start from the token after it
-            if prev_eot_idx >= 0:
-                pull_start = token_start_positions[prev_eot_idx + 1]
+            # Determine where to start pulling bytes from
+            prev_eot_pos = prev_eot[token_idx].item()
+            if prev_eot_pos >= 0:
+                # Start from token after the previous EOT
+                pull_start = cum_positions[prev_eot_pos + 1].item()
             else:
-                # Otherwise, start from the beginning
+                # No previous EOT, start from beginning
                 pull_start = 0
             
-            # Calculate bytes to pull
+            # Determine the byte range to pull
             total_bytes = current_end - pull_start
             
             if total_bytes <= bytes_per_token:
-                # If we have fewer bytes than needed, use all of them
+                # If we have fewer bytes than capacity, use all of them
                 bytes_to_use = all_valid_bytes[pull_start:current_end]
-            else:
-                # If we have more bytes than needed, take the rightmost bytes_per_token bytes
-                bytes_to_use = all_valid_bytes[current_end - bytes_per_token:current_end]
-            
-            # Place bytes in output tensor
-            if len(bytes_to_use) > 0:
+                # Place bytes right-aligned (left-padded)
                 pulled_tensor[batch_idx, token_idx, -len(bytes_to_use):] = bytes_to_use
+            else:
+                # If we have more bytes than capacity, take the rightmost bytes
+                bytes_to_use = all_valid_bytes[current_end - bytes_per_token:current_end]
+                # Place all bytes (fills the token completely)
+                pulled_tensor[batch_idx, token_idx, -bytes_per_token:] = bytes_to_use
     
     # Reshape back to original dimensions
     return pulled_tensor.view(B, T)
@@ -530,7 +529,7 @@ def create_and_upload_data(
 
 
 def _print_batch():
-    B, T = 2, 4
+    B, T = 1024, 1024
     tokens = torch.randint(0, 50256, (B, T), dtype=torch.int32)
     eot_positions = torch.rand(B, T)
     tokens = torch.where(eot_positions > 0.8, 50256, tokens)
@@ -562,10 +561,14 @@ def _print_batch():
     print("\n\n")
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--from-batch", type=int, default=0)
     parser.add_argument("--skip-fm-val-batches", action="store_true")
     parser.add_argument("--skip-fw-val-batches", action="store_true")
     args = parser.parse_args()
     create_and_upload_data(args.from_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
+
+
+if __name__ == "__main__":
+    main()
