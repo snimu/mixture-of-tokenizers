@@ -239,14 +239,14 @@ def create_batch(
 ) -> torch.Tensor:
     B, T = tokens.size()
     byte_tensor_left_padded = tokens_to_bytes(tokens, tokens_to_bytes_left_pad)
-    byte_tensor_pulled_from_left = pull_from_left(byte_tensor_left_padded, bytes_per_token, pad_byte, eot_byte)
+    # byte_tensor_pulled_from_left = pull_from_left(byte_tensor_left_padded, bytes_per_token, pad_byte, eot_byte)
     byte_tensor_right_padded = tokens_to_bytes(tokens, tokens_to_bytes_right_pad)
     byte_tensor_pulled_from_right = pull_from_right(byte_tensor_right_padded, bytes_per_token, pad_byte, eot_byte)
     full_tensor = torch.cat([
             tokens.unsqueeze(-1),
             byte_tensor_left_padded.view(B, T, bytes_per_token),
-            byte_tensor_pulled_from_left.view(B, T, bytes_per_token),
-            byte_tensor_right_padded.view(B, T, bytes_per_token),
+            # byte_tensor_pulled_from_left.view(B, T, bytes_per_token),
+            # byte_tensor_right_padded.view(B, T, bytes_per_token),
             byte_tensor_pulled_from_right.view(B, T, bytes_per_token),
         ],
         dim=-1,
