@@ -45,7 +45,7 @@ def _load_data_shard_bytes(file: Path, seq_len: int, batch_size: int, bytes_per_
     assert header[0] == 20240520, "magic number mismatch in the data .bin file"
     assert header[1] == 1, "unsupported version"
     with file.open("rb", buffering=0) as f:
-        tokens = torch.empty((batch_size, seq_len, 1 + bytes_per_token * 4), dtype=torch.uint16, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
+        tokens = torch.empty((batch_size, seq_len, 1 + bytes_per_token * 4), dtype=torch.int32, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
         f.seek(256 * 4)
         f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
     return tokens

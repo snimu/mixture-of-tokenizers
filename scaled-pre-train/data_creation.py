@@ -170,7 +170,7 @@ def pull_from_left(
         if valid_bytes_list:
             all_valid_bytes = torch.tensor(valid_bytes_list, device=byte_tensor.device)
         else:
-            all_valid_bytes = torch.tensor([], device=byte_tensor.device, dtype=torch.uint16)
+            all_valid_bytes = torch.tensor([], device=byte_tensor.device, dtype=torch.int32)
         
         # Find EOT token positions
         eot_positions = torch.where(batch_is_eot)[0].tolist()
@@ -386,7 +386,7 @@ def create_and_upload_data(
             filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
 
         text = data[idx]["text"]
-        tokens_fm = torch.tensor(encoding.encode(text, disallowed_special=()), dtype=torch.uint16)
+        tokens_fm = torch.tensor(encoding.encode(text, disallowed_special=()), dtype=torch.int32)
 
         # Don't use incomplete finemath samples
         if len(tokens_fm) > T:
@@ -396,14 +396,14 @@ def create_and_upload_data(
         # There has to be an EOT token between them.
         # Exception: first N batches, which will be the finemath-validation set
         if is_val_batch:
-            tokens = torch.empty((T,), dtype=torch.uint16).fill_(eot_token)
+            tokens = torch.empty((T,), dtype=torch.int32).fill_(eot_token)
             tokens[:len(tokens_fm)] = tokens_fm
             batch.append(tokens.tolist())
             num_fm_tokens_val += len(torch.where(tokens != eot_token))
         else:
             num_fm_tokens_train += len(tokens_fm)
             if len(tokens_fm) < T:  # Append a single eot token to separate finemath from fineweb
-                tokens_fm = torch.cat([tokens_fm, torch.empty((1,), dtype=torch.uint16).fill_(eot_token)])
+                tokens_fm = torch.cat([tokens_fm, torch.empty((1,), dtype=torch.int32).fill_(eot_token)])
             if len(tokens_fm) < T:  # Only a single eot token was appended, fill up the rest with fineweb
                 num_tokens_missing = T - len(tokens_fm)  # 0 <= num_tokens_missing <= T, see condition above
                 while len(tokens_fw) < num_tokens_missing:
@@ -421,7 +421,7 @@ def create_and_upload_data(
                     future.result()
                 futures = []
             batch = create_batch(
-                tokens=torch.tensor(batch, dtype=torch.uint16),
+                tokens=torch.tensor(batch, dtype=torch.int32),
                 bytes_per_token=bytes_per_token,
                 pad_byte=pad_byte,
                 eot_byte=eot_byte,
@@ -460,7 +460,7 @@ def create_and_upload_data(
                 for future in futures:
                     future.result()
                 futures = []
-            batch = tokens_fw[i:i+B*T].view(B, T).to(torch.uint16)
+            batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
             batch = create_batch(
                 tokens=batch,
                 bytes_per_token=bytes_per_token,
@@ -495,7 +495,7 @@ def create_and_upload_data(
                     for future in futures:
                         future.result()
                     futures = []
-                batch = tokens_fw[i:i+B*T].view(B, T).to(torch.uint16)
+                batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
                 batch = create_batch(
                     tokens=batch,
                     bytes_per_token=bytes_per_token,
@@ -531,7 +531,7 @@ def create_and_upload_data(
 
 def _print_batch():
     B, T = 2, 4
-    tokens = torch.randint(0, 50256, (B, T), dtype=torch.uint16)
+    tokens = torch.randint(0, 50256, (B, T), dtype=torch.int32)
     eot_positions = torch.rand(B, T)
     tokens = torch.where(eot_positions > 0.8, 50256, tokens)
     bytes_per_token = 16
