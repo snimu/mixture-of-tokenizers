@@ -397,10 +397,7 @@ def create_and_upload_data(
 
         text = data[idx]["text"]
         tokens_fm = torch.tensor(encoding.encode(text, disallowed_special=()), dtype=torch.int32)
-
-        # Don't use incomplete finemath samples
-        if len(tokens_fm) > T:
-            continue
+        tokens_fm = tokens_fm[:T]
 
         # The sample will be filled to T with a random fineweb slice;
         # There has to be an EOT token between them.
