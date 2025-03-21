@@ -322,7 +322,7 @@ def verify_data(path: str, data: torch.Tensor, B, T, bytes_per_token):
     save_file(path, data)
 
     with Path(path).open("rb", buffering=0) as f:
-        tokens = torch.empty((B, T, 1 + bytes_per_token * 4), dtype=torch.int32, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
+        tokens = torch.empty((B, T, 1 + bytes_per_token * 2), dtype=torch.int32, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
         f.seek(256 * 4)
         f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
     assert data.shape == tokens.shape, f"{data.shape=} vs {tokens.shape=}"
