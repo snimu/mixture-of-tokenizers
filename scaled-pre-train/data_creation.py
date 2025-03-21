@@ -355,14 +355,11 @@ def create_tokenized_data(B: int = 16*1024, T: int = 1024, vocab_size: int = 502
         return fm_tokens
 
     fw_tokens = next(fwdl)
-    batch = []
     for idx, data_slice in enumerate(data.iter(B)):
         print(f"Batch {idx + 1}/{len(data['text']) // B}...", flush=True)
         texts = data_slice["text"]
         with ThreadPoolExecutor(max_workers=nproc) as executor:
-            futures = [executor.submit(encoding.encode, text, disallowed_special=()) for text in texts]
-            for future in futures:
-                batch.append(future.result())
+            batch = list(executor.map(lambda text: encoding.encode(text, disallowed_special=()), texts))
         batch = [tokens[:T] for tokens in batch]
         missing_tokens = [T - len(tokens) for tokens in batch]
         while len(fw_tokens) < sum(missing_tokens):
@@ -374,13 +371,14 @@ def create_tokenized_data(B: int = 16*1024, T: int = 1024, vocab_size: int = 502
             start += n_missing
         fw_tokens = fw_tokens[start:]  # keep the remainder
         with ThreadPoolExecutor(max_workers=nproc) as executor:
-            futures = [executor.submit(fill, tokens, fillup_tokens) for tokens, fillup_tokens in zip(batch, fillup_tokens)]
-            for i, future in enumerate(futures):
-                batch[i] = future.result()  # I don't care about the order of the futures
+            filled_batch = list(executor.map(
+                lambda args: fill(args[0], args[1]), 
+                zip(batch, fillup_tokens)
+            ))
         if idx == 0:
-            save_file("data/finemath_tokens_val.bin", batch)
+            save_file("data/finemath_tokens_val.bin", filled_batch)
         else:
-            save_file(f"data/finemath_tokens_train_{idx-1}.bin", batch)
+            save_file(f"data/finemath_tokens_train_{idx-1}.bin", filled_batch)
     print(f"Time taken: {int(perf_counter() - t0):_}s")
 
 
