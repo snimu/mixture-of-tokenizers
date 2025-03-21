@@ -1,4 +1,14 @@
-
+# /// script
+# requires-python = "==3.12"
+# dependencies = [
+#   "torch",
+#   "transformers",
+#   "huggingface_hub[cli]",
+#   "tiktoken",
+#   "datasets",
+#   "psutil",
+# ]
+# ///
 import time
 import argparse
 import json
@@ -9,6 +19,7 @@ from time import perf_counter
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
+import psutil
 import numpy as np
 import torch
 from torch import nn
@@ -319,6 +330,60 @@ def verify_data(path: str, data: torch.Tensor, B, T, bytes_per_token):
     os.remove(path)
 
 
+def create_tokenized_data(B: int = 16*1024, T: int = 1024, vocab_size: int = 50257):
+    t0 = perf_counter()
+    os.makedirs("data", exist_ok=True)
+
+    print("Setting up tiktoken encoding...")
+    encoding = tiktoken.encoding_for_model("gpt-2")
+
+    print("Downloading finemath data...")
+    data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
+    print("Sorting finemath data...")
+    data = data.sort("text")
+    print("Setting up fineweb data...")
+    fwdl = distributed_data_generator("fineweb100B/fineweb_train_*.bin")
+    print("Tokenizing finemath data...")
+    nproc = psutil.cpu_count(logical=True) - 2
+    eot_token = vocab_size - 1
+
+    def fill(fm_tokens: list[int], fillup_tokens: list[int]) -> list[int]:
+        nonlocal eot_token
+        if not (fm_tokens[-1] == eot_token and fillup_tokens[0] == eot_token):
+            fillup_tokens[0] = eot_token
+        fm_tokens.extend(fillup_tokens)
+        return fm_tokens
+
+    fw_tokens = next(fwdl)
+    batch = []
+    for idx, data_slice in enumerate(data.iter(B)):
+        print(f"Batch {idx + 1}/{len(data['text']) // B}...", flush=True)
+        texts = data_slice["text"]
+        with ThreadPoolExecutor(max_workers=nproc) as executor:
+            futures = [executor.submit(encoding.encode, text, disallowed_special=()) for text in texts]
+            for future in futures:
+                batch.append(future.result())
+        batch = [tokens[:T] for tokens in batch]
+        missing_tokens = [T - len(tokens) for tokens in batch]
+        while len(fw_tokens) < sum(missing_tokens):
+            fw_tokens = torch.cat([fw_tokens, next(fwdl)])
+        fillup_tokens = []
+        start = 0
+        for n_missing in missing_tokens:
+            fillup_tokens.append(fw_tokens[start:start + n_missing])
+            start += n_missing
+        fw_tokens = fw_tokens[start:]  # keep the remainder
+        with ThreadPoolExecutor(max_workers=nproc) as executor:
+            futures = [executor.submit(fill, tokens, fillup_tokens) for tokens, fillup_tokens in zip(batch, fillup_tokens)]
+            for i, future in enumerate(futures):
+                batch[i] = future.result()  # I don't care about the order of the futures
+        if idx == 0:
+            save_file("data/finemath_tokens_val.bin", batch)
+        else:
+            save_file(f"data/finemath_tokens_train_{idx-1}.bin", batch)
+    print(f"Time taken: {int(perf_counter() - t0):_}s")
+
+
 def create_and_upload_data(
         from_batch: int = 0,
         skip_fm_val_batches: bool = False,
@@ -571,4 +636,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    create_tokenized_data()
