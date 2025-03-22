@@ -648,15 +648,36 @@ def main():
         if not args.no_fw:
             create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches, args.count_batches)
     else:
+        assert args.to_batch > 0
         nproc = (psutil.cpu_count(logical=True) - 2) // 2  # one thread for data creation, one for uploading
         nproc = min(args.nproc, nproc) if args.nproc > 1 else nproc  # Set nproc to -1 to get the maximum out
+
+        interval, remainder = divmod(abs(args.from_batch - args.to_batch), nproc)
+        from_to  = [(args.from_batch + i*interval, args.from_batch + (i+1)*interval) for i in range(nproc)]
+
         with ThreadPoolExecutor(nproc) as executor:
             if not args.no_fm:
-                future = executor.submit(create_finemath_data, args.from_batch, args.to_batch, args.skip_fm_val_batches)
-                future.result()
+                futures = []
+                for i in range(nproc):
+                    futures.append(executor.submit(create_finemath_data, from_to[i][0], from_to[i][1], args.skip_fm_val_batches, args.count_batches))
+                for future in futures:
+                    future.result()
+                
+                if remainder > 0:
+                    remainder_start = args.from_batch + nproc*interval
+                    remainder_end = remainder_start + remainder
+                    create_finemath_data(remainder_start, remainder_end, args.skip_fm_val_batches, args.count_batches)
             if not args.no_fw:
-                future = executor.submit(create_fineweb_data, args.from_batch, args.to_batch, args.skip_fw_val_batches)
-                future.result()
+                futures = []
+                for i in range(nproc):
+                    futures.append(executor.submit(create_fineweb_data, from_to[i][0], from_to[i][1], args.skip_fw_val_batches, args.count_batches))
+                for future in futures:
+                    future.result()
+
+                if remainder > 0:
+                    remainder_start = args.from_batch + nproc*interval
+                    remainder_end = remainder_start + remainder
+                    create_fineweb_data(remainder_start, remainder_end, args.skip_fw_val_batches, args.count_batches)
 
 
 if __name__ == "__main__":
