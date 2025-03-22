@@ -12,6 +12,7 @@
 import time
 import argparse
 import json
+import random
 import os
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError
@@ -279,8 +280,10 @@ def _load_data_shard(file: Path):
     return tokens
 
 
-def distributed_data_generator(filename_pattern: str):
+def distributed_data_generator(filename_pattern: str, shuffle: bool = False):
     files = sorted(Path.cwd().glob(filename_pattern))
+    if shuffle:
+        random.shuffle(files)
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
     while True:
         try:
@@ -367,7 +370,7 @@ def create_finemath_data(
     optional_print("Setting up tiktoken encoding...", verbose)
     encoding = tiktoken.encoding_for_model("gpt-2")
     optional_print("Setting up fineweb dataloader...", verbose)
-    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin")
+    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin", shuffle=True)  # shuffle so that different threads still use different data (at least random data, possibly with overlap)
     tokens_fw = next(dl)
 
     # Download, tokenize, and save the finemath data, and fill it up to T with random fineweb samples
@@ -490,7 +493,7 @@ def create_fineweb_data(
     tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
     tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
     optional_print("Setting up fineweb dataloader...", verbose)
-    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin")
+    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin", shuffle=False)
     if count_batches:
         optional_print("Counting batches...", verbose)
         num_tokens = 0
@@ -630,6 +633,8 @@ def _print_batch():
 
 
 def main():
+    # Finemath: 6542 batches (at B=1024, T=1024 --> 6,859,784,192 tokens)
+    # Fineweb: 85067 batches (at B=1024, T=1024 --> 89,199,214,592 tokens)
     parser = argparse.ArgumentParser()
     parser.add_argument("--from-batch", type=int, default=0)
     parser.add_argument("--to-batch", type=int, default=-1)
@@ -661,7 +666,7 @@ def main():
             if not args.no_fm:
                 futures = []
                 for i in range(nproc):
-                    futures.append(executor.submit(create_finemath_data, from_to[i][0], from_to[i][1], args.skip_fm_val_batches, args.count_batches))
+                    futures.append(executor.submit(create_finemath_data, from_to[i][0], from_to[i][1], args.skip_fm_val_batches, args.count_batches, verbose=(i==0)))
                 for future in futures:
                     future.result()
                 
@@ -672,7 +677,7 @@ def main():
             if not args.no_fw:
                 futures = []
                 for i in range(nproc):
-                    futures.append(executor.submit(create_fineweb_data, from_to[i][0], from_to[i][1], args.skip_fw_val_batches, args.count_batches))
+                    futures.append(executor.submit(create_fineweb_data, from_to[i][0], from_to[i][1], args.skip_fw_val_batches, args.count_batches, verbose=(i==0)))
                 for future in futures:
                     future.result()
 
