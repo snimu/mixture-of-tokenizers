@@ -381,7 +381,7 @@ def create_finemath_data(
     optional_print("Starting data creation...", verbose)
     is_batch_start = True
     batch_num = 0
-    executor = ThreadPoolExecutor(max_workers=5)
+    executor = ThreadPoolExecutor(max_workers=1)
     futures = []
     t0 = perf_counter()
     t0_global = perf_counter()
@@ -430,10 +430,9 @@ def create_finemath_data(
 
         # Save every B samples; a.k.a. every batch
         if len(batch) == B:
-            if len(futures) == 5:
-                for future in futures:
-                    future.result()
-                futures = []
+            for future in futures:
+                future.result()
+            futures = []
             batch = create_batch(
                 tokens=torch.tensor(batch, dtype=torch.int32),
                 bytes_per_token=bytes_per_token,
@@ -466,7 +465,6 @@ def create_fineweb_data(
         pad_byte: int = 456,
         eot_byte: int = 457,
         vocab_size: int = 50257,
-        num_fm_val_batches: int = 1,
         repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
         verbose: bool = True,
 ):
@@ -474,7 +472,7 @@ def create_fineweb_data(
     assert token is not None, "Please set the HF_TOKEN environment variable."
 
     optional_print("FINEWEB DATA CREATION", verbose)
-    optional_print(f"\n{B=} {T=} {bytes_per_token=} {pad_byte=} {eot_byte=} {vocab_size=} {num_fm_val_batches=}\n", verbose)
+    optional_print(f"\n{B=} {T=} {bytes_per_token=} {pad_byte=} {eot_byte=} {vocab_size=}\n", verbose)
     os.makedirs("data", exist_ok=True)
 
     optional_print("Creating tokens-to-bytes-embeddings...", verbose)
@@ -486,7 +484,7 @@ def create_fineweb_data(
 
     batch_num = 0
     futures = []
-    executor = ThreadPoolExecutor(max_workers=5)
+    executor = ThreadPoolExecutor(max_workers=1)
     t0 = perf_counter()
     t0_global = perf_counter()
     api = HfApi(token=token)
@@ -503,16 +501,17 @@ def create_fineweb_data(
             if len(tokens_fw[i:]) < B*T:
                 break
             batch_num += 1
-            if batch_num - num_fm_val_batches < from_batch:  # Skip non-val-batches before the from_batch
+            if batch_num < from_batch:  # Skip non-val-batches before the from_batch
                 continue
-            filename = f"train_batch_fw_{batch_num - num_fm_val_batches}.bin"
+            if batch_num > to_batch:  # Skip non-val-batches after the to_batch
+                break
+            filename = f"train_batch_fw_{batch_num}.bin"
             if os.path.exists(f"data/{filename}"):
                 optional_print(f"Skipping {filename} because it already exists...", verbose)
                 continue
-            if len(futures) == 5:
-                for future in futures:
-                    future.result()
-                futures = []
+            for future in futures:
+                future.result()
+            futures = []
             batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
             batch = create_batch(
                 tokens=batch,
@@ -617,9 +616,20 @@ def main():
     parser.add_argument("--to-batch", type=int, default=-1)
     parser.add_argument("--skip-fm-val-batches", action="store_true")
     parser.add_argument("--skip-fw-val-batches", action="store_true")
+    parser.add_argument("--nproc", type=int, default=-1)
     args = parser.parse_args()
-    create_finemath_data(args.from_batch, args.to_batch, args.skip_fm_val_batches)  # TODO: threaded (but only 2 threads for data upload)
-    create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches)
+
+    if args.nproc == 1:
+        create_finemath_data(args.from_batch, args.to_batch, args.skip_fm_val_batches)
+        create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches)
+    else:
+        nproc = (psutil.cpu_count(logical=True) - 2) // 2  # one thread for data creation, one for uploading
+        nproc = min(args.nproc, nproc) if args.nproc > 1 else nproc  # Set nproc to -1 to get the maximum out
+        with ThreadPoolExecutor(nproc) as executor:
+            future = executor.submit(create_finemath_data, args.from_batch, args.to_batch, args.skip_fm_val_batches)
+            future.result()
+            future = executor.submit(create_fineweb_data, args.from_batch, args.to_batch, args.skip_fw_val_batches)
+            future.result()
 
 
 if __name__ == "__main__":
