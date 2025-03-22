@@ -339,6 +339,7 @@ def create_finemath_data(
         from_batch: int = 0,
         to_batch: int = -1,
         skip_val_batches: bool = False,
+        count_batches: bool = False,
         B: int = 1024,
         T: int = 1024,
         bytes_per_token: int = 16,
@@ -377,6 +378,12 @@ def create_finemath_data(
     num_fm_tokens_val = 0
     optional_print("Downloading finemath data...", verbose)
     data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
+
+    if count_batches:
+        optional_print("Counting batches...", verbose)
+        num_batches = len(data) // B  # One entry in the batch per line
+        optional_print(f"Number of batches: {num_batches}", verbose)
+        return
     data.sort("text")
     optional_print("Starting data creation...", verbose)
     is_batch_start = True
@@ -459,6 +466,7 @@ def create_fineweb_data(
         from_batch: int = 0,
         to_batch: int = -1,
         skip_val_batches: bool = False,
+        count_batches: bool = False,
         B: int = 1024,
         T: int = 1024,
         bytes_per_token: int = 16,
@@ -480,6 +488,15 @@ def create_fineweb_data(
     tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
     optional_print("Setting up fineweb dataloader...", verbose)
     dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin")
+    if count_batches:
+        optional_print("Counting batches...", verbose)
+        num_tokens = 0
+        for tokens in dl:
+            num_tokens += len(tokens)
+        num_batches = num_tokens // (B*T)
+        optional_print(f"Number of batches: {num_batches}", verbose)
+        return
+            
     tokens_fw = next(dl)
 
     batch_num = 0
@@ -619,13 +636,17 @@ def main():
     parser.add_argument("--no-fm", action="store_true")
     parser.add_argument("--no-fw", action="store_true")
     parser.add_argument("--nproc", type=int, default=-1)
+    parser.add_argument("--count-batches", action="store_true")
     args = parser.parse_args()
+
+    if args.count_batches:
+        assert args.nproc == 1, "--count-batches only works with --nproc=1"
 
     if args.nproc == 1:
         if not args.no_fm:
-            create_finemath_data(args.from_batch, args.to_batch, args.skip_fm_val_batches)
+            create_finemath_data(args.from_batch, args.to_batch, args.skip_fm_val_batches, args.count_batches)
         if not args.no_fw:
-            create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches)
+            create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches, args.count_batches)
     else:
         nproc = (psutil.cpu_count(logical=True) - 2) // 2  # one thread for data creation, one for uploading
         nproc = min(args.nproc, nproc) if args.nproc > 1 else nproc  # Set nproc to -1 to get the maximum out
