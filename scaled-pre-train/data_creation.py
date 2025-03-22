@@ -285,8 +285,8 @@ def distributed_data_generator(filename_pattern: str):
     while True:
         try:
             yield _load_data_shard(next(file_iter))
-        except RuntimeError:
-            raise StopIteration
+        except (RuntimeError, StopIteration):
+            break
 
 
 def upload_with_backoff(api: HfApi, batch: torch.Tensor, filename: str, repo_id: str):
