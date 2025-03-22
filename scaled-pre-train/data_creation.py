@@ -616,20 +616,26 @@ def main():
     parser.add_argument("--to-batch", type=int, default=-1)
     parser.add_argument("--skip-fm-val-batches", action="store_true")
     parser.add_argument("--skip-fw-val-batches", action="store_true")
+    parser.add_argument("--no-fm", action="store_true")
+    parser.add_argument("--no-fw", action="store_true")
     parser.add_argument("--nproc", type=int, default=-1)
     args = parser.parse_args()
 
     if args.nproc == 1:
-        create_finemath_data(args.from_batch, args.to_batch, args.skip_fm_val_batches)
-        create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches)
+        if not args.no_fm:
+            create_finemath_data(args.from_batch, args.to_batch, args.skip_fm_val_batches)
+        if not args.no_fw:
+            create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches)
     else:
         nproc = (psutil.cpu_count(logical=True) - 2) // 2  # one thread for data creation, one for uploading
         nproc = min(args.nproc, nproc) if args.nproc > 1 else nproc  # Set nproc to -1 to get the maximum out
         with ThreadPoolExecutor(nproc) as executor:
-            future = executor.submit(create_finemath_data, args.from_batch, args.to_batch, args.skip_fm_val_batches)
-            future.result()
-            future = executor.submit(create_fineweb_data, args.from_batch, args.to_batch, args.skip_fw_val_batches)
-            future.result()
+            if not args.no_fm:
+                future = executor.submit(create_finemath_data, args.from_batch, args.to_batch, args.skip_fm_val_batches)
+                future.result()
+            if not args.no_fw:
+                future = executor.submit(create_fineweb_data, args.from_batch, args.to_batch, args.skip_fw_val_batches)
+                future.result()
 
 
 if __name__ == "__main__":
