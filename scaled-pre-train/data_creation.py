@@ -239,14 +239,14 @@ def create_batch(
 ) -> torch.Tensor:
     B, T = tokens.size()
     byte_tensor_left_padded = tokens_to_bytes(tokens, tokens_to_bytes_left_pad)
-    # byte_tensor_pulled_from_left = pull_from_left(byte_tensor_left_padded, bytes_per_token, pad_byte, eot_byte)
+    byte_tensor_pulled_from_left = pull_from_left(byte_tensor_left_padded, bytes_per_token, pad_byte, eot_byte)
     byte_tensor_right_padded = tokens_to_bytes(tokens, tokens_to_bytes_right_pad)
     byte_tensor_pulled_from_right = pull_from_right(byte_tensor_right_padded, bytes_per_token, pad_byte, eot_byte)
     full_tensor = torch.cat([
             tokens.unsqueeze(-1),
             byte_tensor_left_padded.view(B, T, bytes_per_token),
-            # byte_tensor_pulled_from_left.view(B, T, bytes_per_token),
-            # byte_tensor_right_padded.view(B, T, bytes_per_token),
+            byte_tensor_pulled_from_left.view(B, T, bytes_per_token),
+            byte_tensor_right_padded.view(B, T, bytes_per_token),
             byte_tensor_pulled_from_right.view(B, T, bytes_per_token),
         ],
         dim=-1,
@@ -322,7 +322,7 @@ def verify_data(path: str, data: torch.Tensor, B, T, bytes_per_token):
     save_file(path, data)
 
     with Path(path).open("rb", buffering=0) as f:
-        tokens = torch.empty((B, T, 1 + bytes_per_token * 2), dtype=torch.int32, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
+        tokens = torch.empty((B, T, 1 + bytes_per_token * 4), dtype=torch.int32, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
         f.seek(256 * 4)
         f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
     assert data.shape == tokens.shape, f"{data.shape=} vs {tokens.shape=}"
@@ -571,10 +571,11 @@ def _print_batch():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--from-batch", type=int, default=0)
+    parser.add_argument("--to-batch", type=int, default=-1)
     parser.add_argument("--skip-fm-val-batches", action="store_true")
     parser.add_argument("--skip-fw-val-batches", action="store_true")
     args = parser.parse_args()
-    create_and_upload_data(args.from_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
+    create_and_upload_data(args.from_batch, args.to_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
 
 
 if __name__ == "__main__":
