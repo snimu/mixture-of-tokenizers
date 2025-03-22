@@ -283,7 +283,10 @@ def distributed_data_generator(filename_pattern: str):
     files = sorted(Path.cwd().glob(filename_pattern))
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
     while True:
-        yield _load_data_shard(next(file_iter))
+        try:
+            yield _load_data_shard(next(file_iter))
+        except RuntimeError:
+            raise StopIteration
 
 
 def upload_with_backoff(api: HfApi, batch: torch.Tensor, filename: str, repo_id: str):
@@ -547,7 +550,6 @@ def create_fineweb_data(
             optional_print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)", verbose)
             num_fw_tokens_train += B*T
 
-    # For finemath, the validation data is created above
     # For fineweb, just use the validation set by karpathy
     if not skip_val_batches:
         dl = distributed_data_generator("fineweb100B/fineweb_val_*.bin")
