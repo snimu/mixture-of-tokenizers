@@ -342,8 +342,7 @@ def optional_print(s: str, verbose: bool = True, **kwargs):
 
 
 def create_finemath_data(
-        from_batch: int = 0,
-        to_batch: int = -1,
+        datafile: str,
         skip_val_batches: bool = False,
         count_batches: bool = False,
         B: int = 1024,
@@ -378,19 +377,19 @@ def create_finemath_data(
     api = HfApi(token=token)
     api.create_repo(repo_id=repo_id, token=token, repo_type="dataset", exist_ok=True)
     batch = []
-    idx = 0
     num_fm_tokens_train = 0
     num_fw_tokens_train = 0
     num_fm_tokens_val = 0
-    optional_print("Downloading finemath data...", verbose)
-    data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
+
+    with open(datafile, "r") as f:
+        texts = json.loads(f.read())
 
     if count_batches:
         optional_print("Counting batches...", verbose)
-        num_batches = len(data) // B  # One entry in the batch per line
+        num_batches = len(texts) // B  # One entry in the batch per line
         optional_print(f"Number of batches: {num_batches}", verbose)
         return
-    data.sort("text")
+
     optional_print("Starting data creation...", verbose)
     is_batch_start = True
     batch_num = 0
@@ -398,14 +397,10 @@ def create_finemath_data(
     futures = []
     t0 = perf_counter()
     t0_global = perf_counter()
-    for idx in (range(len(data))):
+    for text in texts:
         is_val_batch = batch_num < num_fm_val_batches
         if is_val_batch and skip_val_batches:
             continue
-        if (not is_val_batch) and (batch_num - num_fm_val_batches < from_batch):  # Skip non-val-batches before the from_batch
-            continue
-        if not is_val_batch and (batch_num - num_fm_val_batches > to_batch):  # Skip non-val-batches after the to_batch
-            break
         if is_batch_start and is_val_batch:
             optional_print(f"finemath val batch {batch_num}...", verbose, end="", flush=True)
         elif is_batch_start:
@@ -415,7 +410,6 @@ def create_finemath_data(
         else:
             filename = f"train_batch_fm_{batch_num - num_fm_val_batches}.bin"
 
-        text = data[idx]["text"]
         tokens_fm = torch.tensor(encoding.encode(text, disallowed_special=()), dtype=torch.int32)
         tokens_fm = tokens_fm[:T]
 
@@ -646,12 +640,25 @@ def main():
     parser.add_argument("--count-batches", action="store_true")
     args = parser.parse_args()
 
+    B = 1024
+
     if args.count_batches:
         assert args.nproc == 1, "--count-batches only works with --nproc=1"
 
+    if not args.no_fm:
+        data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
+        data.sort("text")
+        texts = list(data["text"])
+        random.seed(42)
+        random.shuffle(texts)
+        args.to_batch = args.to_batch if args.to_batch > 0 else len(texts)
+
     if args.nproc == 1:
         if not args.no_fm:
-            create_finemath_data(args.from_batch, args.to_batch, args.skip_fm_val_batches, args.count_batches)
+            filename = "finemath-4plus.txt"
+            with open(filename, "w") as f:
+                f.write(json.dumps(texts[B*args.from_batch:B*args.to_batch]))
+            create_finemath_data(filename, args.skip_fm_val_batches, args.count_batches)
         if not args.no_fw:
             create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches, args.count_batches)
     else:
@@ -664,9 +671,23 @@ def main():
 
         with ThreadPoolExecutor(nproc) as executor:
             if not args.no_fm:
+                # Split the data into chunks & save it -> can be used in different threads
+                text_chunks = [texts[B*from_to[i][0]:B*from_to[i][1]] for i in range(nproc)]
+                text_chunk_names = [f"finemath-4plus-{i}.txt" for i in range(nproc)]
+                for i, text in enumerate(text_chunks):
+                    filename = f"finemath-4plus-{i}.txt"
+                    if not Path(filename).exists():
+                        with open(filename, "w") as f:
+                            f.write(json.dumps(text))
                 futures = []
                 for i in range(nproc):
-                    futures.append(executor.submit(create_finemath_data, from_to[i][0], from_to[i][1], args.skip_fm_val_batches, args.count_batches, verbose=(i==0)))
+                    futures.append(executor.submit(
+                        create_finemath_data,
+                        datafile=text_chunk_names[i],
+                        skip_val_batches=args.skip_fm_val_batches,  # TODO: do the val batch in its own function call
+                        count_batches=args.count_batches,
+                        verbose=(i==0),
+                    ))
                 for future in futures:
                     future.result()
                 
