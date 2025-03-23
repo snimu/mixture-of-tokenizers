@@ -628,8 +628,8 @@ def _print_batch():
 
 
 def main():
-    # Finemath: 6542 batches (at B=1024, T=1024 --> 6,859,784,192 tokens)
-    # Fineweb: 85067 batches (at B=1024, T=1024 --> 89,199,214,592 tokens)
+    # Finemath: 6542 batches (at B=1024, T=1024 --> 6,859,784,192 tokens) (I was dumb -> includes val batch -> 6541 train batches)
+    # Fineweb: 85067 batches (at B=1024, T=1024 --> 89,199,214,592 tokens) (This only includes train batches)
 
     # Note: this interface was grown over time in Sunday-night sessions, so it sucks.
     # But if I can create the data, then that's enough for me.
