@@ -347,6 +347,7 @@ def create_finemath_data(
         skip_val_batches: bool = False,
         count_batches: bool = False,
         verbose: bool = True,
+        start_batch: int = 0,
         B: int = 1024,
         T: int = 1024,
         bytes_per_token: int = 16,
@@ -393,7 +394,7 @@ def create_finemath_data(
 
     optional_print("Starting data creation...", verbose)
     is_batch_start = True
-    batch_num = 0
+    batch_num = start_batch
     executor = ThreadPoolExecutor(max_workers=1)
     futures = []
     t0 = perf_counter()
@@ -664,7 +665,7 @@ def main():
             filename = "finemath-4plus.txt"
             with open(filename, "w") as f:
                 f.write(json.dumps(texts[B*args.from_batch:B*args.to_batch]))
-            create_finemath_data(filename, args.skip_fm_val_batches, args.count_batches)
+            create_finemath_data(filename, args.skip_fm_val_batches, args.count_batches, start_batch=args.from_batch)
         if not args.no_fw:
             create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches, args.count_batches)
     else:
@@ -694,8 +695,8 @@ def main():
                         f.write(json.dumps(text))
 
             # Work on the training chunks in parallel
-            # datafile, skip_val_batches, count_batches, verbose
-            args = [(text_chunk_names[i], args.skip_fm_val_batches, False, (i==0)) for i in range(nproc)]
+            # datafile, skip_val_batches, count_batches, verbose, start_batch
+            args = [(text_chunk_names[i], args.skip_fm_val_batches, False, (i==0), from_to[i][0]) for i in range(nproc)]
             with mp.Pool(nproc) as pool:
                 pool.starmap(create_finemath_data, args)
 
