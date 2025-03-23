@@ -14,6 +14,7 @@ import argparse
 import json
 import random
 import os
+import multiprocessing as mp
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError
 from time import perf_counter
@@ -345,6 +346,7 @@ def create_finemath_data(
         datafile: str,
         skip_val_batches: bool = False,
         count_batches: bool = False,
+        verbose: bool = True,
         B: int = 1024,
         T: int = 1024,
         bytes_per_token: int = 16,
@@ -353,7 +355,6 @@ def create_finemath_data(
         vocab_size: int = 50257,
         num_fm_val_batches: int = 1,
         repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
-        verbose: bool = True,
 ):
     token=os.getenv("HF_TOKEN")
     assert token is not None, "Please set the HF_TOKEN environment variable."
@@ -467,6 +468,7 @@ def create_fineweb_data(
         to_batch: int = -1,
         skip_val_batches: bool = False,
         count_batches: bool = False,
+        verbose: bool = True,
         B: int = 1024,
         T: int = 1024,
         bytes_per_token: int = 16,
@@ -474,7 +476,6 @@ def create_fineweb_data(
         eot_byte: int = 457,
         vocab_size: int = 50257,
         repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
-        verbose: bool = True,
 ):
     token=os.getenv("HF_TOKEN")
     assert token is not None, "Please set the HF_TOKEN environment variable."
@@ -645,14 +646,20 @@ def main():
     if args.count_batches:
         assert args.nproc == 1, "--count-batches only works with --nproc=1"
 
+    # Prepare finemath data
     if not args.no_fm:
         data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
         data.sort("text")
         texts = list(data["text"])
-        random.seed(42)
+        # I will split the texts into batches.
+        # I don't want them to be alphabetical,
+        # but they must be repeatable (from-batch & to-batch should always do the same thing).
+        # So shuffle them with a given seed.
+        random.seed(123456)
         random.shuffle(texts)
         args.to_batch = args.to_batch if args.to_batch > 0 else len(texts)
 
+    # Don't fuck with multiprocessing if I don't have to.
     if args.nproc == 1:
         if not args.no_fm:
             filename = "finemath-4plus.txt"
@@ -662,50 +669,43 @@ def main():
         if not args.no_fw:
             create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches, args.count_batches)
     else:
-        assert args.to_batch > 0
-        nproc = (psutil.cpu_count(logical=True) - 2) // 2  # one thread for data creation, one for uploading
+        assert args.to_batch > 0  # TODO: just set this to the correct value for fineweb & finemath
+        nproc = (psutil.cpu_count(logical=True) - 2)
         nproc = min(args.nproc, nproc) if args.nproc > 1 else nproc  # Set nproc to -1 to get the maximum out
 
+        # TODO: treat val-batches independently
         interval, remainder = divmod(abs(args.from_batch - args.to_batch), nproc)
         from_to  = [(args.from_batch + i*interval, args.from_batch + (i+1)*interval) for i in range(nproc)]
 
-        with ThreadPoolExecutor(nproc) as executor:
-            if not args.no_fm:
-                # Split the data into chunks & save it -> can be used in different threads
-                text_chunks = [texts[B*from_to[i][0]:B*from_to[i][1]] for i in range(nproc)]
-                text_chunk_names = [f"finemath-4plus-{i}.txt" for i in range(nproc)]
-                for i, text in enumerate(text_chunks):
-                    filename = f"finemath-4plus-{i}.txt"
-                    if not Path(filename).exists():
-                        with open(filename, "w") as f:
-                            f.write(json.dumps(text))
-                futures = []
-                for i in range(nproc):
-                    futures.append(executor.submit(
-                        create_finemath_data,
-                        datafile=text_chunk_names[i],
-                        skip_val_batches=args.skip_fm_val_batches,  # TODO: do the val batch in its own function call
-                        count_batches=args.count_batches,
-                        verbose=(i==0),
-                    ))
-                for future in futures:
-                    future.result()
-                
-                if remainder > 0:
-                    remainder_start = args.from_batch + nproc*interval
-                    remainder_end = remainder_start + remainder
-                    create_finemath_data(remainder_start, remainder_end, args.skip_fm_val_batches, args.count_batches)
-            if not args.no_fw:
-                futures = []
-                for i in range(nproc):
-                    futures.append(executor.submit(create_fineweb_data, from_to[i][0], from_to[i][1], args.skip_fw_val_batches, args.count_batches, verbose=(i==0)))
-                for future in futures:
-                    future.result()
+        if not args.no_fm:
+            # Split the data into chunks & save it -> can be used in different threads
+            text_chunks = [texts[B*from_to[i][0]:B*from_to[i][1]] for i in range(nproc)]
+            text_chunk_names = [f"finemath-4plus-{i}.txt" for i in range(nproc)]
+            for i, text in enumerate(text_chunks):
+                filename = f"finemath-4plus-{i}.txt"
+                if not Path(filename).exists():
+                    with open(filename, "w") as f:
+                        f.write(json.dumps(text))
 
-                if remainder > 0:
-                    remainder_start = args.from_batch + nproc*interval
-                    remainder_end = remainder_start + remainder
-                    create_fineweb_data(remainder_start, remainder_end, args.skip_fw_val_batches, args.count_batches)
+            # datafile, skip_val_batches, count_batches, verbose
+            args = [(text_chunk_names[i], args.skip_fm_val_batches, False, (i==0)) for i in range(nproc)]
+            with mp.Pool(nproc) as pool:
+                pool.starmap(create_finemath_data, args)
+
+            if remainder > 0:
+                remainder_start = args.from_batch + nproc*interval
+                remainder_end = remainder_start + remainder
+                create_finemath_data(remainder_start, remainder_end, args.skip_fm_val_batches, args.count_batches)
+        if not args.no_fw:
+            # from_batch, to_batch, skip_val_batches, count_batches, verbose
+            args = [(from_to[i][0], from_to[i][1], True, False, (i==0)) for i in range(nproc)]
+            with mp.Pool(nproc) as pool:
+                pool.starmap(create_fineweb_data, args)
+
+            if remainder > 0:
+                remainder_start = args.from_batch + nproc*interval
+                remainder_end = remainder_start + remainder
+                create_fineweb_data(remainder_start, remainder_end, True, args.count_batches)
 
 
 if __name__ == "__main__":
