@@ -630,15 +630,18 @@ def _print_batch():
 def main():
     # Finemath: 6542 batches (at B=1024, T=1024 --> 6,859,784,192 tokens)
     # Fineweb: 85067 batches (at B=1024, T=1024 --> 89,199,214,592 tokens)
+
+    # Note: this interface was grown over time in Sunday-night sessions, so it sucks.
+    # But if I can create the data, then that's enough for me.
     parser = argparse.ArgumentParser()
-    parser.add_argument("--from-batch", type=int, default=0)
-    parser.add_argument("--to-batch", type=int, default=-1)
-    parser.add_argument("--skip-fm-val-batches", action="store_true")
-    parser.add_argument("--skip-fw-val-batches", action="store_true")
-    parser.add_argument("--no-fm", action="store_true")
-    parser.add_argument("--no-fw", action="store_true")
-    parser.add_argument("--nproc", type=int, default=-1)
-    parser.add_argument("--count-batches", action="store_true")
+    parser.add_argument("--from-batch", type=int, default=0, help="Only for train batches. Start from this batch.")
+    parser.add_argument("--to-batch", type=int, default=-1, help="Only for train batches. End at this batch.")
+    parser.add_argument("--skip-fm-val-batches", action="store_true", help="Skip the finemath validation batches.")
+    parser.add_argument("--skip-fw-val-batches", action="store_true", help="Skip the fineweb validation batches.")
+    parser.add_argument("--no-fm", action="store_true", help="Don't create finemath data.")
+    parser.add_argument("--no-fw", action="store_true", help="Don't create fineweb data.")
+    parser.add_argument("--nproc", type=int, default=-1, help="Number of processes to use for data creation.")
+    parser.add_argument("--count-batches", action="store_true", help="Count the number of batches in the data. Do nothing else")
     args = parser.parse_args()
 
     B = 1024
