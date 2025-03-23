@@ -510,7 +510,6 @@ def create_fineweb_data(
     num_fw_tokens_train = 0
     num_fw_tokens_val = 0
 
-    # Now, turn the rest of the fineweb-edu-100BT tokens into their own batches with create_batch
     for new_tokens in dl:
         tokens_fw = torch.cat([tokens_fw, new_tokens])
         if len(tokens_fw) < B*T:
@@ -673,12 +672,19 @@ def main():
         nproc = (psutil.cpu_count(logical=True) - 2)
         nproc = min(args.nproc, nproc) if args.nproc > 1 else nproc  # Set nproc to -1 to get the maximum out
 
-        # TODO: treat val-batches independently
+        # from-batch and to-batch only refer to training batches.
+        # This will be dealt with in the finemath & fineweb data creation.
+        # Users just have to make sure to set the correct values.
         interval, remainder = divmod(abs(args.from_batch - args.to_batch), nproc)
         from_to  = [(args.from_batch + i*interval, args.from_batch + (i+1)*interval) for i in range(nproc)]
 
         if not args.no_fm:
             # Split the data into chunks & save it -> can be used in different threads
+            # Start with the validation chunk (hardcoded single validation chunk)
+            val_texts, texts = texts[:B], texts[B:]
+            with open("finemath-4plus-val.txt", "w") as f:
+                f.write(json.dumps(val_texts))
+            # Split the rest into chunks
             text_chunks = [texts[B*from_to[i][0]:B*from_to[i][1]] for i in range(nproc)]
             text_chunk_names = [f"finemath-4plus-{i}.txt" for i in range(nproc)]
             for i, text in enumerate(text_chunks):
@@ -687,15 +693,21 @@ def main():
                     with open(filename, "w") as f:
                         f.write(json.dumps(text))
 
+            # Work on the training chunks in parallel
             # datafile, skip_val_batches, count_batches, verbose
             args = [(text_chunk_names[i], args.skip_fm_val_batches, False, (i==0)) for i in range(nproc)]
             with mp.Pool(nproc) as pool:
                 pool.starmap(create_finemath_data, args)
 
+            # Handle the remainder
             if remainder > 0:
                 remainder_start = args.from_batch + nproc*interval
                 remainder_end = remainder_start + remainder
                 create_finemath_data(remainder_start, remainder_end, args.skip_fm_val_batches, args.count_batches)
+            
+            # Handle the validation chunk
+            if not args.skip_fm_val_batches:
+                create_finemath_data("finemath-4plus-val.txt")
         if not args.no_fw:
             # from_batch, to_batch, skip_val_batches, count_batches, verbose
             args = [(from_to[i][0], from_to[i][1], True, False, (i==0)) for i in range(nproc)]
@@ -705,7 +717,11 @@ def main():
             if remainder > 0:
                 remainder_start = args.from_batch + nproc*interval
                 remainder_end = remainder_start + remainder
-                create_fineweb_data(remainder_start, remainder_end, True, args.count_batches)
+                create_fineweb_data(remainder_start, remainder_end, skip_val_batches=True, count_batches=False)
+            
+            # Handle the validation chunk
+            if not args.skip_fw_val_batches:
+                create_fineweb_data(0, -1, skip_val_batches=False, count_batches=False)
 
 
 if __name__ == "__main__":
