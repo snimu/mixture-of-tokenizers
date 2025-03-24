@@ -651,6 +651,9 @@ def main():
 
     # Prepare finemath data
     if not args.no_fm:
+        # TODO: cache these texts; load them again below & split them then, that saves the sorting & shuffling
+        # TODO: measure time & compare
+        t0 = perf_counter()
         print("Downloading finemath data...")
         data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
         print("Sorting finemath data...")
@@ -664,6 +667,7 @@ def main():
         random.seed(123456)
         random.shuffle(texts)
         args.to_batch = args.to_batch if args.to_batch > 0 else len(texts)
+        print(f"Finemath data prepared in {perf_counter() - t0:.2f}s")
         # TODO: pre-tokenize here, and upload to HF so that I don't have to do it every damn time
         # TODO: if len(tokens) > T, then split them into multiple rows with overlap of 128
         # TODO: then measure the number of batches again
