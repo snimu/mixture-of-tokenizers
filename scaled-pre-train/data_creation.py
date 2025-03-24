@@ -651,8 +651,11 @@ def main():
 
     # Prepare finemath data
     if not args.no_fm:
+        print("Downloading finemath data...")
         data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
+        print("Sorting finemath data...")
         data.sort("text")
+        print("Extracting & sorting texts...")
         texts = list(data["text"])
         # I will split the texts into batches.
         # I don't want them to be alphabetical,
@@ -661,6 +664,9 @@ def main():
         random.seed(123456)
         random.shuffle(texts)
         args.to_batch = args.to_batch if args.to_batch > 0 else len(texts)
+        # TODO: pre-tokenize here, and upload to HF so that I don't have to do it every damn time
+        # TODO: if len(tokens) > T, then split them into multiple rows with overlap of 128
+        # TODO: then measure the number of batches again
 
     # Don't fuck with multiprocessing if I don't have to.
     if args.nproc == 1:
@@ -685,6 +691,7 @@ def main():
         if not args.no_fm:
             # Split the data into chunks & save it -> can be used in different threads
             # Start with the validation chunk (hardcoded single validation chunk)
+            print("Splitting finemath data into chunks...")
             val_texts, texts = texts[:B], texts[B:]
             with open("finemath-4plus-val.txt", "w") as f:
                 f.write(json.dumps(val_texts))
