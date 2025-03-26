@@ -353,7 +353,7 @@ def create_and_upload_data(
     print("Setting up HF API...")
     api = HfApi(token=token)
     api.create_repo(repo_id=repo_id, token=token, repo_type="dataset", exist_ok=True)
-    batch = []
+    buffer = []
     idx = 0
     num_fm_tokens_train = 0
     num_fw_tokens_train = 0
@@ -388,8 +388,11 @@ def create_and_upload_data(
         tokens_fm = torch.tensor(encoding.encode(text, disallowed_special=()), dtype=torch.int32)
 
         # Don't use incomplete finemath samples
-        if len(tokens_fm) > T:
-            continue
+        overlap = 128
+        while len(tokens_fm) > T:
+            sample, tokens_fm = tokens_fm[:T], tokens_fm[T-overlap:]
+            buffer.append(sample.tolist())
+            num_fm_tokens_train += len(sample)
 
         # The sample will be filled to T with a random fineweb slice;
         # There has to be an EOT token between them.
@@ -397,7 +400,7 @@ def create_and_upload_data(
         if is_val_batch:
             tokens = torch.empty((T,), dtype=torch.int32).fill_(eot_token)
             tokens[:len(tokens_fm)] = tokens_fm
-            batch.append(tokens.tolist())
+            buffer.append(tokens.tolist())
             num_fm_tokens_val += len(torch.where(tokens != eot_token))
         else:
             num_fm_tokens_train += len(tokens_fm)
@@ -411,10 +414,11 @@ def create_and_upload_data(
                 fillup_tokens, tokens_fw = tokens_fw[:num_tokens_missing], tokens_fw[num_tokens_missing:]
                 tokens_fm = torch.cat([tokens_fm, fillup_tokens.to(tokens_fm.dtype)])
                 num_fw_tokens_train += len(fillup_tokens)
-            batch.append(tokens_fm.tolist())
+            buffer.append(tokens_fm.tolist())
 
         # Save every B samples; a.k.a. every batch
-        if len(batch) == B:
+        if len(buffer) >= B:
+            batch, buffer = buffer[:B], buffer[B:]
             if len(futures) == 5:
                 for future in futures:
                     future.result()
@@ -434,7 +438,6 @@ def create_and_upload_data(
             time_taken_global = perf_counter() - t0_global
             t0 = perf_counter()
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
-            batch = []
             is_batch_start = True
             batch_num += 1
         else:
@@ -459,9 +462,9 @@ def create_and_upload_data(
                 for future in futures:
                     future.result()
                 futures = []
-            batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
-            batch = create_batch(
-                tokens=batch,
+            buffer = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
+            buffer = create_batch(
+                tokens=buffer,
                 bytes_per_token=bytes_per_token,
                 pad_byte=pad_byte,
                 eot_byte=eot_byte,
@@ -469,8 +472,8 @@ def create_and_upload_data(
                 tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
             )
             if batch_num % 100 == 0:
-                verify_data(f"data/{filename}", batch, B, T, bytes_per_token)
-            futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
+                verify_data(f"data/{filename}", buffer, B, T, bytes_per_token)
+            futures.append(executor.submit(upload_with_backoff, api, buffer, filename, repo_id))
             time_taken_step = perf_counter() - t0
             time_taken_global = perf_counter() - t0_global
             t0 = perf_counter()
@@ -494,9 +497,9 @@ def create_and_upload_data(
                     for future in futures:
                         future.result()
                     futures = []
-                batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
-                batch = create_batch(
-                    tokens=batch,
+                buffer = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
+                buffer = create_batch(
+                    tokens=buffer,
                     bytes_per_token=bytes_per_token,
                     pad_byte=pad_byte,
                     eot_byte=eot_byte,
@@ -505,8 +508,8 @@ def create_and_upload_data(
                 )
                 filename = f"val_batch_fineweb_{batch_num}.bin"
                 if batch_num % 100 == 0:
-                    verify_data(f"data/{filename}", batch, B, T, bytes_per_token)
-                futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
+                    verify_data(f"data/{filename}", buffer, B, T, bytes_per_token)
+                futures.append(executor.submit(upload_with_backoff, api, buffer, filename, repo_id))
                 num_fw_tokens_val += B*T
                 batch_num += 1
     # Wait for all uploads to finish
