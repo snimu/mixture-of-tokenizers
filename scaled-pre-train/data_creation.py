@@ -1,28 +1,14 @@
-# /// script
-# requires-python = "==3.12"
-# dependencies = [
-#   "torch",
-#   "transformers",
-#   "huggingface_hub[cli]",
-#   "tiktoken",
-#   "datasets",
-#   "psutil",
-# ]
-# ///
+
 import time
 import argparse
 import json
-import random
-import functools
 import os
-import multiprocessing as mp
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError
 from time import perf_counter
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
-import psutil
 import numpy as np
 import torch
 from torch import nn
@@ -282,16 +268,11 @@ def _load_data_shard(file: Path):
     return tokens
 
 
-def distributed_data_generator(filename_pattern: str, shuffle: bool = False):
+def distributed_data_generator(filename_pattern: str):
     files = sorted(Path.cwd().glob(filename_pattern))
-    if shuffle:
-        random.shuffle(files)
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
     while True:
-        try:
-            yield _load_data_shard(next(file_iter))
-        except (RuntimeError, StopIteration):
-            break
+        yield _load_data_shard(next(file_iter))
 
 
 def upload_with_backoff(api: HfApi, batch: torch.Tensor, filename: str, repo_id: str):
@@ -338,118 +319,10 @@ def verify_data(path: str, data: torch.Tensor, B, T, bytes_per_token):
     os.remove(path)
 
 
-def optional_print(s: str, verbose: bool = True, **kwargs):
-    if verbose:
-        print(s, **kwargs)
-
-
-def create_finemath_tokens(
-        B: int = 1024,
-        T: int = 1024,
-        vocab_size: int = 50257,
-        num_fm_val_batches: int = 1,
-        repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
-):
-    token=os.getenv("HF_TOKEN")
-    assert token is not None, "Please set the HF_TOKEN environment variable."
-    os.makedirs("data", exist_ok=True)
-    encoding = tiktoken.encoding_for_model("gpt-2")
-    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin", shuffle=True)
-    tokens_fm = next(dl)
-
-    upload_pool = ThreadPoolExecutor(max_workers=1)
-
-    api = HfApi(token=token)
-    api.create_repo(repo_id=repo_id, token=token, repo_type="dataset", exist_ok=True)
-    texts = []
-    num_fm_tokens_train = 0
-    num_fw_tokens_train = 0
-    num_fm_tokens_val = 0
-    data: arrow_dataset.Dataset = load_dataset(
-        "HuggingFaceTB/finemath", "finemath-4plus",
-        split="train",
-        num_proc=psutil.cpu_count(True) - 2,
-    )
-    pad_tok = vocab_size - 1
-    futures = []
-    batch_prep = []
-    num_batches = len(data) // B
-
-    for batch_num in range(num_batches + 1):
-        texts = list(data[batch_num*B : (batch_num+1)*B]["text"])
-        if not texts or len(texts) < B:
-            break
-
-        tokens = encoding.encode_batch(texts)
-        for i in range(len(tokens)):
-            # Split ones that are too long
-            if len(tokens[i]) > T:
-                overlap = 128
-                toks = tokens[i]
-                while len(toks) > T:
-                    batch_prep.append(toks[:T])
-                    toks = toks[T - overlap:]
-
-                # Need to fill up the remainder with fineweb data, so just replace the previous toks
-                if toks:
-                    tokens[i] = toks
-
-            if batch_num < num_fm_val_batches:
-                num_fm_tokens_val += len(tokens[i])
-            else:
-                num_fm_tokens_train += len(tokens[i])
-
-            # tokens[i] (which might be the remainder of toks from before)
-            # can just be appended if it doesn't have to be padded with fineweb
-            if len(tokens[i]) == T:
-                batch_prep.append(tokens[i])
-                continue
-
-            if len(tokens[i]) < T:
-                missing = T - len(tokens[i])
-
-                # Fill val batches up with padding
-                if batch_num < num_fm_val_batches:
-                    tokens[i].extend([pad_tok] * missing)
-                    batch_prep.append(tokens[i])
-                # Fill train batches up with fineweb
-                else:
-                    while len(tokens_fm) < T:
-                        tokens_fm = torch.cat([tokens_fm, next(dl)])
-                        tokens_fm = tokens_fm[torch.randperm(len(tokens_fm))]  # shuffle
-                    
-                    tokens_fm, fillup = tokens_fm[missing:], tokens_fm[:missing].tolist()
-                    tokens[i].extend(fillup)
-                    batch_prep.append(tokens[i])
-                    num_fw_tokens_train += len(fillup)
-
-        # Await all uploads to finish
-        for future in futures:
-            future.result()
-            futures = []
-        # Save
-        batch, batch_prep = batch_prep[:B], batch_prep[B:]
-        filename = (
-            f"finemath_tokens_val_{batch_num}.bin"
-            if batch_num < num_fm_val_batches
-            else f"finemath_tokens_train_{batch_num - num_fm_val_batches}.bin"
-        )
-        save_file(f"data/{filename}", batch)
-        futures.append(upload_pool.submit(upload_with_backoff, api, batch, filename, repo_id))
-
-    # Wait for all uploads to finish
-    for future in futures:
-        future.result()
-    futures = []
-    upload_pool.shutdown()
-
-
-def create_finemath_data(
-        datafile: str,
-        skip_val_batches: bool = False,
-        count_batches: bool = False,
-        verbose: bool = True,
-        start_batch: int = 0,
+def create_and_upload_data(
+        from_batch: int = 0,
+        skip_fm_val_batches: bool = False,
+        skip_fw_val_batches: bool = False,
         B: int = 1024,
         T: int = 1024,
         bytes_per_token: int = 16,
@@ -462,60 +335,61 @@ def create_finemath_data(
     token=os.getenv("HF_TOKEN")
     assert token is not None, "Please set the HF_TOKEN environment variable."
 
-    optional_print(f"\n{B=} {T=} {bytes_per_token=} {pad_byte=} {eot_byte=} {vocab_size=} {num_fm_val_batches=}\n", verbose)
+    print(f"\n{B=} {T=} {bytes_per_token=} {pad_byte=} {eot_byte=} {vocab_size=} {num_fm_val_batches=}\n")
 
     os.makedirs("data", exist_ok=True)
 
     eot_token = vocab_size - 1
-    optional_print("Creating tokens-to-bytes-embeddings...", verbose)
+    print("Creating tokens-to-bytes-embeddings...")
     tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
     tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
-    optional_print("Setting up tiktoken encoding...", verbose)
+    print("Setting up tiktoken encoding...")
     encoding = tiktoken.encoding_for_model("gpt-2")
-    optional_print("Setting up fineweb dataloader...", verbose)
-    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin", shuffle=True)  # shuffle so that different threads still use different data (at least random data, possibly with overlap)
+    print("Setting up fineweb dataloader...")
+    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin")
     tokens_fw = next(dl)
 
     # Download, tokenize, and save the finemath data, and fill it up to T with random fineweb samples
-    optional_print("Setting up HF API...", verbose)
+    print("Setting up HF API...")
     api = HfApi(token=token)
     api.create_repo(repo_id=repo_id, token=token, repo_type="dataset", exist_ok=True)
     batch = []
+    idx = 0
     num_fm_tokens_train = 0
     num_fw_tokens_train = 0
     num_fm_tokens_val = 0
-
-    with open(datafile, "r") as f:
-        texts = json.loads(f.read())
-
-    if count_batches:
-        optional_print("Counting batches...", verbose)
-        num_batches = len(texts) // B  # One entry in the batch per line
-        optional_print(f"Number of batches: {num_batches}", verbose)
-        return
-
-    optional_print("Starting data creation...", verbose)
+    num_fw_tokens_val = 0
+    print("Downloading finemath data...")
+    data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
+    data.sort("text")
+    print("Starting data creation...")
     is_batch_start = True
-    batch_num = start_batch
-    executor = ThreadPoolExecutor(max_workers=1)
+    batch_num = 0
+    executor = ThreadPoolExecutor(max_workers=5)
     futures = []
     t0 = perf_counter()
     t0_global = perf_counter()
-    for text in texts:
+    for idx in (range(len(data))):
         is_val_batch = batch_num < num_fm_val_batches
-        if is_val_batch and skip_val_batches:
+        if is_val_batch and skip_fm_val_batches:
+            continue
+        if (not is_val_batch) and (batch_num - num_fm_val_batches < from_batch):  # Skip non-val-batches before the from_batch
             continue
         if is_batch_start and is_val_batch:
-            optional_print(f"finemath val batch {batch_num}...", verbose, end="", flush=True)
+            print(f"finemath val batch {batch_num}...", end="", flush=True)
         elif is_batch_start:
-            optional_print(f"finemath train batch {batch_num - num_fm_val_batches}...", verbose, end="", flush=True)
+            print(f"finemath train batch {batch_num - num_fm_val_batches}...", end="", flush=True)
         if is_val_batch:
             filename = f"val_batch_finemath_{batch_num}.bin"
         else:
-            filename = f"train_batch_fm_{batch_num - num_fm_val_batches}.bin"
+            filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
 
+        text = data[idx]["text"]
         tokens_fm = torch.tensor(encoding.encode(text, disallowed_special=()), dtype=torch.int32)
-        tokens_fm = tokens_fm[:T]
+
+        # Don't use incomplete finemath samples
+        if len(tokens_fm) > T:
+            continue
 
         # The sample will be filled to T with a random fineweb slice;
         # There has to be an EOT token between them.
@@ -541,9 +415,10 @@ def create_finemath_data(
 
         # Save every B samples; a.k.a. every batch
         if len(batch) == B:
-            for future in futures:
-                future.result()
-            futures = []
+            if len(futures) == 5:
+                for future in futures:
+                    future.result()
+                futures = []
             batch = create_batch(
                 tokens=torch.tensor(batch, dtype=torch.int32),
                 bytes_per_token=bytes_per_token,
@@ -558,61 +433,14 @@ def create_finemath_data(
             time_taken_step = perf_counter() - t0
             time_taken_global = perf_counter() - t0_global
             t0 = perf_counter()
-            optional_print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)", verbose)
+            print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
             batch = []
             is_batch_start = True
             batch_num += 1
         else:
             is_batch_start = False
     
-
-def create_fineweb_data(
-        from_batch: int = 0,
-        to_batch: int = -1,
-        skip_val_batches: bool = False,
-        count_batches: bool = False,
-        verbose: bool = True,
-        B: int = 1024,
-        T: int = 1024,
-        bytes_per_token: int = 16,
-        pad_byte: int = 456,
-        eot_byte: int = 457,
-        vocab_size: int = 50257,
-        repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
-):
-    token=os.getenv("HF_TOKEN")
-    assert token is not None, "Please set the HF_TOKEN environment variable."
-
-    optional_print("FINEWEB DATA CREATION", verbose)
-    optional_print(f"\n{B=} {T=} {bytes_per_token=} {pad_byte=} {eot_byte=} {vocab_size=}\n", verbose)
-    os.makedirs("data", exist_ok=True)
-
-    optional_print("Creating tokens-to-bytes-embeddings...", verbose)
-    tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
-    tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
-    optional_print("Setting up fineweb dataloader...", verbose)
-    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin", shuffle=False)
-    if count_batches:
-        optional_print("Counting batches...", verbose)
-        num_tokens = 0
-        for tokens in dl:
-            num_tokens += len(tokens)
-        num_batches = num_tokens // (B*T)
-        optional_print(f"Number of batches: {num_batches}", verbose)
-        return
-            
-    tokens_fw = next(dl)
-
-    batch_num = 0
-    futures = []
-    executor = ThreadPoolExecutor(max_workers=1)
-    t0 = perf_counter()
-    t0_global = perf_counter()
-    api = HfApi(token=token)
-    api.create_repo(repo_id=repo_id, token=token, repo_type="dataset", exist_ok=True)
-    num_fw_tokens_train = 0
-    num_fw_tokens_val = 0
-
+    # Now, turn the rest of the fineweb-edu-100BT tokens into their own batches with create_batch
     for new_tokens in dl:
         tokens_fw = torch.cat([tokens_fw, new_tokens])
         if len(tokens_fw) < B*T:
@@ -621,17 +449,16 @@ def create_fineweb_data(
             if len(tokens_fw[i:]) < B*T:
                 break
             batch_num += 1
-            if batch_num < from_batch:  # Skip non-val-batches before the from_batch
+            if batch_num - num_fm_val_batches < from_batch:  # Skip non-val-batches before the from_batch
                 continue
-            if batch_num > to_batch:  # Skip non-val-batches after the to_batch
-                break
-            filename = f"train_batch_fw_{batch_num}.bin"
+            filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             if os.path.exists(f"data/{filename}"):
-                optional_print(f"Skipping {filename} because it already exists...", verbose)
+                print(f"Skipping {filename} because it already exists...")
                 continue
-            for future in futures:
-                future.result()
-            futures = []
+            if len(futures) == 5:
+                for future in futures:
+                    future.result()
+                futures = []
             batch = tokens_fw[i:i+B*T].view(B, T).to(torch.int32)
             batch = create_batch(
                 tokens=batch,
@@ -647,11 +474,12 @@ def create_fineweb_data(
             time_taken_step = perf_counter() - t0
             time_taken_global = perf_counter() - t0_global
             t0 = perf_counter()
-            optional_print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)", verbose)
+            print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
             num_fw_tokens_train += B*T
 
+    # For finemath, the validation data is created above
     # For fineweb, just use the validation set by karpathy
-    if not skip_val_batches:
+    if not skip_fw_val_batches:
         dl = distributed_data_generator("fineweb100B/fineweb_val_*.bin")
         tokens_fw = None
         batch_num = 0
@@ -687,8 +515,12 @@ def create_fineweb_data(
     futures = []
     executor.shutdown()
 
-    optional_print(f"fineweb: {num_fw_tokens_train=}", verbose)
-    optional_print(f"fineweb: {num_fw_tokens_val=}", verbose)
+    # Print stats
+    print(f"finemath: {num_fm_tokens_train=}")
+    print(f"finemath: {num_fm_tokens_val=}")
+    print(f"fineweb: {num_fw_tokens_train=}")
+    print(f"fineweb: {num_fw_tokens_val=}")
+        
 
 
 #####################
@@ -729,140 +561,13 @@ def _print_batch():
     print("\n\n")
 
 
-class Plan:
-    """
-    First, try how many parallel processes are possible with fineweb.
-    The plan below is only valid if we can get to a decent number of processes.
-
-    The fineweb-data is already available in tokenized form; I should have the same for finemath.
-
-    So:
-
-    - Tokenize
-    - Fill up with fineweb
-    - Save as batches
-    - Upload to HF (same repo, special file-names)
-
-    Only do this if the data doesn't yet exist on HF.
-
-    Then:
-    
-    - Use this in a dataloader that takes as input a bunch of files, like with fineweb
-    - Do all byte-level operations in parallel
-    """
-
-
 def main():
-    # Finemath: 6542 batches (at B=1024, T=1024 --> 6,859,784,192 tokens) (I was dumb -> includes val batch -> 6541 train batches)
-    # Fineweb: 85067 batches (at B=1024, T=1024 --> 89,199,214,592 tokens) (This only includes train batches)
-
-    # Note: this interface was grown over time in Sunday-night sessions, so it sucks.
-    # But if I can create the data, then that's enough for me.
     parser = argparse.ArgumentParser()
-    parser.add_argument("--from-batch", type=int, default=0, help="Only for train batches. Start from this batch.")
-    parser.add_argument("--to-batch", type=int, default=-1, help="Only for train batches. End at this batch.")
-    parser.add_argument("--skip-fm-val-batches", action="store_true", help="Skip the finemath validation batches.")
-    parser.add_argument("--skip-fw-val-batches", action="store_true", help="Skip the fineweb validation batches.")
-    parser.add_argument("--no-fm", action="store_true", help="Don't create finemath data.")
-    parser.add_argument("--no-fw", action="store_true", help="Don't create fineweb data.")
-    parser.add_argument("--nproc", type=int, default=-1, help="Number of processes to use for data creation.")
-    parser.add_argument("--count-batches", action="store_true", help="Count the number of batches in the data. Do nothing else")
+    parser.add_argument("--from-batch", type=int, default=0)
+    parser.add_argument("--skip-fm-val-batches", action="store_true")
+    parser.add_argument("--skip-fw-val-batches", action="store_true")
     args = parser.parse_args()
-
-    B = 1024
-
-    if args.count_batches:
-        assert args.nproc == 1, "--count-batches only works with --nproc=1"
-
-    # Prepare finemath data
-    if not args.no_fm:
-        # TODO: cache these texts; load them again below & split them then, that saves the sorting & shuffling
-        # TODO: measure time & compare
-        t0 = perf_counter()
-        print("Downloading finemath data...")
-        data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=8)
-        print("Sorting finemath data...")
-        data.sort("text")
-        print("Extracting & sorting texts...")
-        texts = list(data["text"])
-        # I will split the texts into batches.
-        # I don't want them to be alphabetical,
-        # but they must be repeatable (from-batch & to-batch should always do the same thing).
-        # So shuffle them with a given seed.
-        random.seed(123456)
-        random.shuffle(texts)
-        args.to_batch = args.to_batch if args.to_batch > 0 else len(texts)
-        print(f"Finemath data prepared in {perf_counter() - t0:.2f}s")
-        # TODO: pre-tokenize here, and upload to HF so that I don't have to do it every damn time
-        # TODO: if len(tokens) > T, then split them into multiple rows with overlap of 128
-        # TODO: then measure the number of batches again
-
-    # Don't fuck with multiprocessing if I don't have to.
-    if args.nproc == 1:
-        if not args.no_fm:
-            filename = "finemath-4plus.txt"
-            with open(filename, "w") as f:
-                f.write(json.dumps(texts[B*args.from_batch:B*args.to_batch]))
-            create_finemath_data(filename, args.skip_fm_val_batches, args.count_batches, start_batch=args.from_batch)
-        if not args.no_fw:
-            create_fineweb_data(args.from_batch, args.to_batch, args.skip_fw_val_batches, args.count_batches)
-    else:
-        assert args.to_batch > 0  # TODO: just set this to the correct value for fineweb & finemath
-        nproc = (psutil.cpu_count(logical=True) - 2)
-        nproc = min(args.nproc, nproc) if args.nproc > 1 else nproc  # Set nproc to -1 to get the maximum out
-        print(f"Using {nproc} processes")
-
-        # from-batch and to-batch only refer to training batches.
-        # This will be dealt with in the finemath & fineweb data creation.
-        # Users just have to make sure to set the correct values.
-        interval, remainder = divmod(abs(args.from_batch - args.to_batch), nproc)
-        from_to  = [(args.from_batch + i*interval, args.from_batch + (i+1)*interval) for i in range(nproc)]
-
-        if not args.no_fm:
-            # Split the data into chunks & save it -> can be used in different threads
-            # Start with the validation chunk (hardcoded single validation chunk)
-            print("Splitting finemath data into chunks...")
-            val_texts, texts = texts[:B], texts[B:]
-            with open("finemath-4plus-val.txt", "w") as f:
-                f.write(json.dumps(val_texts))
-            # Split the rest into chunks
-            text_chunks = [texts[B*from_to[i][0]:B*from_to[i][1]] for i in range(nproc)]
-            text_chunk_names = [f"finemath-4plus-{i}.txt" for i in range(nproc)]
-            for i, text in enumerate(text_chunks):
-                filename = f"finemath-4plus-{i}.txt"
-                if not Path(filename).exists():
-                    with open(filename, "w") as f:
-                        f.write(json.dumps(text))
-
-            # Work on the training chunks in parallel
-            # datafile, skip_val_batches, count_batches, verbose, start_batch
-            args = [(text_chunk_names[i], args.skip_fm_val_batches, False, (i==0), from_to[i][0]) for i in range(nproc)]
-            with mp.Pool(nproc) as pool:
-                pool.starmap(create_finemath_data, args)
-
-            # Handle the remainder
-            if remainder > 0:
-                remainder_start = args.from_batch + nproc*interval
-                remainder_end = remainder_start + remainder
-                create_finemath_data(remainder_start, remainder_end, args.skip_fm_val_batches, args.count_batches)
-            
-            # Handle the validation chunk
-            if not args.skip_fm_val_batches:
-                create_finemath_data("finemath-4plus-val.txt")
-        if not args.no_fw:
-            # from_batch, to_batch, skip_val_batches, count_batches, verbose
-            args = [(from_to[i][0], from_to[i][1], True, False, (i==0)) for i in range(nproc)]
-            with mp.Pool(nproc) as pool:
-                pool.starmap(create_fineweb_data, args)
-
-            if remainder > 0:
-                remainder_start = args.from_batch + nproc*interval
-                remainder_end = remainder_start + remainder
-                create_fineweb_data(remainder_start, remainder_end, skip_val_batches=True, count_batches=False)
-            
-            # Handle the validation chunk
-            if not args.skip_fw_val_batches:
-                create_fineweb_data(0, -1, skip_val_batches=False, count_batches=False)
+    create_and_upload_data(args.from_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
 
 
 if __name__ == "__main__":
