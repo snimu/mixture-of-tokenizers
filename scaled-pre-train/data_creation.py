@@ -810,6 +810,7 @@ def main():
         assert args.to_batch > 0  # TODO: just set this to the correct value for fineweb & finemath
         nproc = (psutil.cpu_count(logical=True) - 2)
         nproc = min(args.nproc, nproc) if args.nproc > 1 else nproc  # Set nproc to -1 to get the maximum out
+        print(f"Using {nproc} processes")
 
         # from-batch and to-batch only refer to training batches.
         # This will be dealt with in the finemath & fineweb data creation.
