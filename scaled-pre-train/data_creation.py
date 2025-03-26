@@ -321,6 +321,7 @@ def verify_data(path: str, data: torch.Tensor, B, T, bytes_per_token):
 
 def create_and_upload_data(
         from_batch: int = 0,
+        to_batch: int = -1,
         skip_fm_val_batches: bool = False,
         skip_fw_val_batches: bool = False,
         B: int = 1024,
@@ -368,9 +369,12 @@ def create_and_upload_data(
     futures = []
     t0 = perf_counter()
     t0_global = perf_counter()
+    batch_num = 0
     for idx in (range(len(data))):
         batch_num = idx // B
         is_val_batch = batch_num < num_fm_val_batches
+        if to_batch >= 0 and batch_num - num_fm_val_batches > to_batch:
+            break
         if is_val_batch and skip_fm_val_batches:
             continue
         if (not is_val_batch) and (batch_num - num_fm_val_batches < from_batch):  # Skip non-val-batches before the from_batch
@@ -450,6 +454,8 @@ def create_and_upload_data(
             batch_num += 1
             if batch_num - num_fm_val_batches < from_batch:  # Skip non-val-batches before the from_batch
                 continue
+            if to_batch >= 0 and batch_num - num_fm_val_batches > to_batch:
+                break
             filename = f"train_batch_{batch_num - num_fm_val_batches}.bin"
             if os.path.exists(f"data/{filename}"):
                 print(f"Skipping {filename} because it already exists...")
@@ -565,10 +571,11 @@ def main():
     # Fineweb: 85067 batches (at B=1024, T=1024 --> 89,199,214,592 tokens) (This only includes train batches)
     parser = argparse.ArgumentParser()
     parser.add_argument("--from-batch", type=int, default=0)
+    parser.add_argument("--to-batch", type=int, default=-1)
     parser.add_argument("--skip-fm-val-batches", action="store_true")
     parser.add_argument("--skip-fw-val-batches", action="store_true")
     args = parser.parse_args()
-    create_and_upload_data(args.from_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
+    create_and_upload_data(args.from_batch, args.to_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
 
 
 if __name__ == "__main__":
