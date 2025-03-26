@@ -364,12 +364,12 @@ def create_and_upload_data(
     data.sort("text")
     print("Starting data creation...")
     is_batch_start = True
-    batch_num = 0
     executor = ThreadPoolExecutor(max_workers=5)
     futures = []
     t0 = perf_counter()
     t0_global = perf_counter()
     for idx in (range(len(data))):
+        batch_num = idx // B
         is_val_batch = batch_num < num_fm_val_batches
         if is_val_batch and skip_fm_val_batches:
             continue
@@ -387,12 +387,9 @@ def create_and_upload_data(
         text = data[idx]["text"]
         tokens_fm = torch.tensor(encoding.encode(text, disallowed_special=()), dtype=torch.int32)
 
-        # Don't use incomplete finemath samples
-        overlap = 128
-        while len(tokens_fm) > T:
-            sample, tokens_fm = tokens_fm[:T], tokens_fm[T-overlap:]
-            buffer.append(sample.tolist())
-            num_fm_tokens_train += len(sample)
+        # Slice incomplete samples
+        if len(tokens_fm) > T:
+            tokens_fm = tokens_fm[:T]
 
         # The sample will be filled to T with a random fineweb slice;
         # There has to be an EOT token between them.
@@ -439,7 +436,6 @@ def create_and_upload_data(
             t0 = perf_counter()
             print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
             is_batch_start = True
-            batch_num += 1
         else:
             is_batch_start = False
     
