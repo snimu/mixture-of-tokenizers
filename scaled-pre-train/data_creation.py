@@ -562,6 +562,8 @@ def _print_batch():
 
 
 def main():
+    # Finemath: 6542 batches (at B=1024, T=1024 --> 6,859,784,192 tokens) (I was dumb -> includes val batch -> 6541 train batches)
+    # Fineweb: 85067 batches (at B=1024, T=1024 --> 89,199,214,592 tokens) (This only includes train batches)
     parser = argparse.ArgumentParser()
     parser.add_argument("--from-batch", type=int, default=0)
     parser.add_argument("--skip-fm-val-batches", action="store_true")
