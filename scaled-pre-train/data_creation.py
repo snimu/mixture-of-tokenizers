@@ -13,6 +13,7 @@ import time
 import argparse
 import json
 import random
+import functools
 import os
 import multiprocessing as mp
 from requests.exceptions import ConnectionError
@@ -342,6 +343,107 @@ def optional_print(s: str, verbose: bool = True, **kwargs):
         print(s, **kwargs)
 
 
+def create_finemath_tokens(
+        B: int = 1024,
+        T: int = 1024,
+        vocab_size: int = 50257,
+        num_fm_val_batches: int = 1,
+        repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
+):
+    token=os.getenv("HF_TOKEN")
+    assert token is not None, "Please set the HF_TOKEN environment variable."
+    os.makedirs("data", exist_ok=True)
+    encoding = tiktoken.encoding_for_model("gpt-2")
+    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin", shuffle=True)
+    tokens_fm = next(dl)
+
+    upload_pool = ThreadPoolExecutor(max_workers=1)
+
+    api = HfApi(token=token)
+    api.create_repo(repo_id=repo_id, token=token, repo_type="dataset", exist_ok=True)
+    texts = []
+    num_fm_tokens_train = 0
+    num_fw_tokens_train = 0
+    num_fm_tokens_val = 0
+    data: arrow_dataset.Dataset = load_dataset(
+        "HuggingFaceTB/finemath", "finemath-4plus",
+        split="train",
+        num_proc=psutil.cpu_count(True) - 2,
+    )
+    pad_tok = vocab_size - 1
+    futures = []
+    batch_prep = []
+    num_batches = len(data) // B
+
+    for batch_num in range(num_batches + 1):
+        texts = list(data[batch_num*B : (batch_num+1)*B]["text"])
+        if not texts or len(texts) < B:
+            break
+
+        tokens = encoding.encode_batch(texts)
+        for i in range(len(tokens)):
+            # Split ones that are too long
+            if len(tokens[i]) > T:
+                overlap = 128
+                toks = tokens[i]
+                while len(toks) > T:
+                    batch_prep.append(toks[:T])
+                    toks = toks[T - overlap:]
+
+                # Need to fill up the remainder with fineweb data, so just replace the previous toks
+                if toks:
+                    tokens[i] = toks
+
+            if batch_num < num_fm_val_batches:
+                num_fm_tokens_val += len(tokens[i])
+            else:
+                num_fm_tokens_train += len(tokens[i])
+
+            # tokens[i] (which might be the remainder of toks from before)
+            # can just be appended if it doesn't have to be padded with fineweb
+            if len(tokens[i]) == T:
+                batch_prep.append(tokens[i])
+                continue
+
+            if len(tokens[i]) < T:
+                missing = T - len(tokens[i])
+
+                # Fill val batches up with padding
+                if batch_num < num_fm_val_batches:
+                    tokens[i].extend([pad_tok] * missing)
+                    batch_prep.append(tokens[i])
+                # Fill train batches up with fineweb
+                else:
+                    while len(tokens_fm) < T:
+                        tokens_fm = torch.cat([tokens_fm, next(dl)])
+                        tokens_fm = tokens_fm[torch.randperm(len(tokens_fm))]  # shuffle
+                    
+                    tokens_fm, fillup = tokens_fm[missing:], tokens_fm[:missing].tolist()
+                    tokens[i].extend(fillup)
+                    batch_prep.append(tokens[i])
+                    num_fw_tokens_train += len(fillup)
+
+        # Await all uploads to finish
+        for future in futures:
+            future.result()
+            futures = []
+        # Save
+        batch, batch_prep = batch_prep[:B], batch_prep[B:]
+        filename = (
+            f"finemath_tokens_val_{batch_num}.bin"
+            if batch_num < num_fm_val_batches
+            else f"finemath_tokens_train_{batch_num - num_fm_val_batches}.bin"
+        )
+        save_file(f"data/{filename}", batch)
+        futures.append(upload_pool.submit(upload_with_backoff, api, batch, filename, repo_id))
+
+    # Wait for all uploads to finish
+    for future in futures:
+        future.result()
+    futures = []
+    upload_pool.shutdown()
+
+
 def create_finemath_data(
         datafile: str,
         skip_val_batches: bool = False,
@@ -625,6 +727,29 @@ def _print_batch():
     print("\n\nBATCH-BYTES RIGHT PULLED")
     print(batch[:, :, 49:65])
     print("\n\n")
+
+
+class Plan:
+    """
+    First, try how many parallel processes are possible with fineweb.
+    The plan below is only valid if we can get to a decent number of processes.
+
+    The fineweb-data is already available in tokenized form; I should have the same for finemath.
+
+    So:
+
+    - Tokenize
+    - Fill up with fineweb
+    - Save as batches
+    - Upload to HF (same repo, special file-names)
+
+    Only do this if the data doesn't yet exist on HF.
+
+    Then:
+    
+    - Use this in a dataloader that takes as input a bunch of files, like with fineweb
+    - Do all byte-level operations in parallel
+    """
 
 
 def main():
