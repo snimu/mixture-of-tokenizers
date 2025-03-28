@@ -272,7 +272,7 @@ def create_batch(
 
 
 def _load_data_shard(file: Path):
-    header = torch.from_file(str(file), False, 256, dtype=torch.int32) # header is 256 int32
+    header = torch.from_file(str(file), False, 3, dtype=torch.int32) # header is 3 numbers of int32
     assert header[0] == 20240520, "magic number mismatch in the data .bin file"
     assert header[1] == 1, "unsupported version"
     num_tokens = int(header[2]) # number of tokens (claimed)
@@ -287,11 +287,16 @@ def _load_data_shard(file: Path):
 def distributed_data_generator(filename_pattern: str, shuffle: bool = False):
     files = sorted(Path.cwd().glob(filename_pattern))
     if shuffle:
-        random.seed(42)
+        random.seed(12345)
         random.shuffle(files)
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
     while True:
-        yield _load_data_shard(next(file_iter))
+        try:
+            yield _load_data_shard(next(file_iter))
+        except AssertionError:
+            continue
+        except StopIteration:
+            break
 
 
 def upload_with_backoff(api: HfApi, batch: torch.Tensor, filename: str, repo_id: str, path_in_repo: str = "bytes"):
@@ -371,7 +376,7 @@ def download_tokens(repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT"):
         subpath = 'train' if train else 'val'
         while not do_break:
             filename = f"fm_toks_{subpath}_batch_{batch_num}.bin"
-            if not api.file_exists(repo_id=repo_id, path_or_fileobj=f"tokens/{subpath}/{filename}", repo_type="dataset"):
+            if not api.file_exists(repo_id=repo_id, filename=f"tokens/{subpath}/{filename}", repo_type="dataset"):
                 do_break = True
             
             files.append(f"tokens/{subpath}/{filename}")
@@ -383,9 +388,7 @@ def download_tokens(repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT"):
     
     _download_loop(train=True)
     _download_loop(train=False)
-    
 
-        
 
 def tokenize_finemath(
         B: int = 1024,
@@ -405,11 +408,11 @@ def tokenize_finemath(
     os.makedirs("data", exist_ok=True)
 
     print("Checking for existing finemath train batches...")
-    existing = Path.cwd().glob("data/fm_toks_train_batch*.bin")
+    existing = list(Path.cwd().glob("data/fm_toks_train_batch*.bin"))
     if len(existing) > 0:
         return len(existing)
 
-    if api.file_exists(repo_id=repo_id, path_or_fileobj="tokens/fm_toks_train_batch_0.bin", repo_type="dataset"):
+    if api.file_exists(repo_id=repo_id, filename="tokens/fm_toks_train_batch_0.bin", repo_type="dataset"):
         download_tokens()
 
     eot_token = vocab_size - 1
@@ -466,7 +469,7 @@ def tokenize_finemath(
             else:
                 filename = f"fm_toks_train_batch_{batch_num - num_fm_val_batches}.bin"
                 path_in_repo = "tokens/train"
-            batch, buffer = buffer[:B], buffer[B:]
+            batch, buffer = torch.tensor(buffer[:B], dtype=torch.int32), buffer[B:]
             futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id, path_in_repo))
             batch_num += 1
 
@@ -669,7 +672,6 @@ def _print_batch():
     print("\n\n")
 
 
-# TODO: tokens/train/... and tokens/val/..., as well as bytes/train/... and bytes/val/...
 def main():
     # Finemath: 6542 batches (at B=1024, T=1024 --> 6,859,784,192 tokens) (I was dumb -> includes val batch -> 6541 train batches)
     # Fineweb: 85067 batches (at B=1024, T=1024 --> 89,199,214,592 tokens) (This only includes train batches)
