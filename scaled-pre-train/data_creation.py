@@ -362,32 +362,42 @@ def verify_data(path: str, data: torch.Tensor, B, T, bytes_per_token):
     os.remove(path)
 
 
-def download_tokens(repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT"):
+def download_tokens(
+        B: int = 1024,
+        T: int = 1024,
+        repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
+):
     hf_token=os.getenv("HF_TOKEN")
     assert hf_token is not None, "Please set the HF_TOKEN environment variable."
     api = HfApi(token=hf_token)
     api.create_repo(repo_id=repo_id, token=hf_token, repo_type="dataset", exist_ok=True)
     download = functools.partial(hf_hub_download, repo_id=repo_id, local_dir="data", repo_type="dataset", token=hf_token)
-
-    def _download_loop(train: bool):
-        batch_num = 0
-        files = []
-        do_break = False
-        subpath = 'train' if train else 'val'
-        while not do_break:
-            filename = f"fm_toks_{subpath}_batch_{batch_num}.bin"
-            if not api.file_exists(repo_id=repo_id, filename=f"tokens/{subpath}/{filename}", repo_type="dataset"):
-                do_break = True
-            
-            files.append(f"tokens/{subpath}/{filename}")
-            batch_num += 1
-            if do_break or len(files) >= 100:
-                with mp.Pool(processes=min(len(files), psutil.cpu_count()-2)) as pool:
-                    pool.map(download, files)
-                files = []
     
-    _download_loop(train=True)
-    _download_loop(train=False)
+    allfiles = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
+    trainfiles = [f for f in allfiles if f["filename"].startswith("tokens/train/")]
+    valfiles = [f for f in allfiles if f["filename"].startswith("tokens/val/")]
+
+    assert trainfiles and valfiles, "No train or val files found in the repo. Did you run create_and_upload_data()?"
+
+    # Download train batches
+    with mp.Pool(processes=min(len(trainfiles), psutil.cpu_count()-2)) as pool:
+        pool.map(download, trainfiles)
+
+    # Now, split them into individual batches
+    for filename in trainfiles:
+        filename = filename.split("/")[-1]
+        start = int(filename.split("batch_")[-1].split(".")[0].split("-")[0])
+        end = int(filename.split("batch_")[-1].split(".")[0].split("-")[1])
+        group = load_file(f"data/{filename}")
+        for i in range(start, end+1):
+            batch = group[start + i*B : start + (i+1)*B]
+            save_file(f"data/fm_toks_train_batch_{i}.bin", batch)
+        os.remove(f"data/{filename}")
+    
+    # Download the single val batch
+    download(valfiles[0])
+    
+    return len(trainfiles)
 
 
 def tokenize_finemath(
@@ -397,7 +407,7 @@ def tokenize_finemath(
         num_fm_val_batches: int = 1,
         overlap: int = 128,
         repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
-) -> int:
+) -> tuple[int, bool]:  # (num_train_batches, pre_existed)
     hf_token=os.getenv("HF_TOKEN")
     assert hf_token is not None, "Please set the HF_TOKEN environment variable."
     api = HfApi(token=hf_token)
@@ -407,14 +417,18 @@ def tokenize_finemath(
     t0 = perf_counter()
     os.makedirs("data", exist_ok=True)
 
-    print("Checking for existing finemath train batches...")
+    print("Checking for existing finemath train batches on device...")
     existing = list(Path.cwd().glob("data/fm_toks_train_batch*.bin"))
     if len(existing) > 0:
-        return len(existing)
+        return len(existing), True
 
-    if api.file_exists(repo_id=repo_id, filename="tokens/fm_toks_train_batch_0.bin", repo_type="dataset"):
-        download_tokens()
+    print("Checking for existing finemath train batches on HF...")
+    allfiles = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
+    trainfiles = [f for f in allfiles if f["filename"].startswith("tokens/train/")]
+    if trainfiles:
+        return download_tokens(), True
 
+    print("Nothing found. Creating new finemath train batches...")
     eot_token = vocab_size - 1
     encoding = tiktoken.encoding_for_model("gpt-2")
     dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin", shuffle=True)
@@ -425,7 +439,6 @@ def tokenize_finemath(
     num_fm_tokens_train = 0
     num_fm_tokens_val = 0
     batch_num = 0
-    executor = ThreadPoolExecutor(max_workers=5)
     futures = []
 
     for _ in range(len(data) // B):
@@ -465,25 +478,57 @@ def tokenize_finemath(
                 futures = []
             if batch_num < num_fm_val_batches:
                 filename = f"fm_toks_val_batch_{batch_num}.bin"
-                path_in_repo = "tokens/val"
             else:
                 filename = f"fm_toks_train_batch_{batch_num - num_fm_val_batches}.bin"
-                path_in_repo = "tokens/train"
             batch, buffer = torch.tensor(buffer[:B], dtype=torch.int32), buffer[B:]
-            futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id, path_in_repo))
+            save_file(f"data/{filename}", batch)
             batch_num += 1
-
-    for future in futures:
-        future.result()
-    futures = []
-    executor.shutdown()
 
     num_train_batches = len(Path.cwd().glob("data/fm_toks_train_batch*.bin"))
     print(f"{num_train_batches} train batches created")
     print(f"{num_fm_val_batches} val batches created")
     print(f"{num_fw_tokens_train=}\n{num_fm_tokens_train=}\n{num_fm_tokens_val=}")
     print(f"Took {perf_counter() - t0:.2f} seconds")
-    return num_train_batches
+    return num_train_batches, False
+
+
+def group_and_upload_tokens(
+        num_train_batches: int,
+        num_batches_per_group: int = 100,
+        repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
+):
+    hf_token=os.getenv("HF_TOKEN")
+    assert hf_token is not None, "Please set the HF_TOKEN environment variable."
+    print(f"Uploading {num_train_batches} train batches in groups of {num_batches_per_group} to {repo_id}...")
+    api = HfApi(token=hf_token)
+    api.create_repo(repo_id=repo_id, token=hf_token, repo_type="dataset", exist_ok=True)
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = None
+
+    # Upload train batches in groups of 100 batches
+    min_groups, remainder = divmod(num_train_batches, num_batches_per_group)
+    num_groups = min_groups + 1 if remainder > 0 else min_groups
+    for i in range(num_groups):
+        start = i * num_batches_per_group
+        end = start + num_batches_per_group
+        files = [f"fm_toks_train_batch_{batch_num}.bin" for batch_num in range(start, end)]
+        group = load_file(files.pop(0))
+        for file in files:
+            group = torch.cat([group, load_file(file)])
+        
+        if future is not None:
+            future.result()
+        future = executor.submit(
+            upload_with_backoff, api, group, f"fm_toks_train_batches_{start}-{end}.bin", repo_id, "tokens/train"
+        )
+    
+    if future is not None:
+        future.result()
+    executor.shutdown()
+    
+    # Upload val batches (it's only going to be one, just upload that)
+    batch = load_file("data/fm_toks_val_batch_0.bin")
+    upload_with_backoff(api, batch, "fm_toks_val_batch_0.bin", repo_id, "tokens/val")
 
 
 def create_and_upload_data(
@@ -688,7 +733,9 @@ def main():
     parser.add_argument("--tokenize", action="store_true")
     args = parser.parse_args()
     if args.tokenize:
-        tokenize_finemath(B=1024, T=1024, vocab_size=50257, num_fm_val_batches=1, overlap=128)
+        num_train_batches, pre_existed = tokenize_finemath(B=1024, T=1024, vocab_size=50257, num_fm_val_batches=1, overlap=128)
+        if not pre_existed:
+            group_and_upload_tokens(num_train_batches)
     create_and_upload_data(args.from_batch, args.to_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
 
 
