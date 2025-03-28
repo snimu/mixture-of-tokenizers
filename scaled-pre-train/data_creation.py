@@ -473,6 +473,11 @@ def tokenize_finemath(
             futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id, path_in_repo))
             batch_num += 1
 
+    for future in futures:
+        future.result()
+    futures = []
+    executor.shutdown()
+
     num_train_batches = len(Path.cwd().glob("data/fm_toks_train_batch*.bin"))
     print(f"{num_train_batches} train batches created")
     print(f"{num_fm_val_batches} val batches created")
