@@ -357,12 +357,13 @@ def download_tokens(repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT"):
         batch_num = 0
         files = []
         do_break = False
+        subpath = 'train' if train else 'val'
         while not do_break:
-            filename = f"fm_toks_{'train' if train else 'val'}_batch_{batch_num}.bin"
-            if not api.file_exists(repo_id=repo_id, path_or_fileobj=f"tokens/{filename}", repo_type="dataset"):
+            filename = f"fm_toks_{subpath}_batch_{batch_num}.bin"
+            if not api.file_exists(repo_id=repo_id, path_or_fileobj=f"tokens/{subpath}/{filename}", repo_type="dataset"):
                 do_break = True
             
-            files.append(f"tokens/{filename}")
+            files.append(f"tokens/{subpath}/{filename}")
             batch_num += 1
             if do_break or len(files) >= 100:
                 with mp.Pool(processes=min(len(files), psutil.cpu_count()-2)) as pool:
@@ -450,10 +451,12 @@ def tokenize_finemath(
                 futures = []
             if batch_num < num_fm_val_batches:
                 filename = f"fm_toks_val_batch_{batch_num}.bin"
+                path_in_repo = "tokens/val"
             else:
                 filename = f"fm_toks_train_batch_{batch_num - num_fm_val_batches}.bin"
+                path_in_repo = "tokens/train"
             batch, buffer = buffer[:B], buffer[B:]
-            futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id, "tokens"))
+            futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id, path_in_repo))
             batch_num += 1
 
     num_train_batches = len(Path.cwd().glob("data/fm_toks_train_batch*.bin"))
@@ -506,6 +509,7 @@ def create_and_upload_data(
             filename: str,
             t_start: float,
             t_global_start: float,
+            path_in_repo: str,
     ):
         if len(futures) == 5:
             for future in futures:
@@ -524,7 +528,7 @@ def create_and_upload_data(
         )
         if batch_num % 100 == 0:
             verify_data(f"data/{filename}", batch, B, T, bytes_per_token)
-        futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id))
+        futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id, path_in_repo))
         time_taken_step = perf_counter() - t_start
         time_taken_global = perf_counter() - t_global_start
         print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
@@ -538,9 +542,10 @@ def create_and_upload_data(
     if not skip_fm_val_batches:
         print("Creating finemath val batches...")
         for batch_num_val in range(len(fm_files_val)):
-            filename = fm_files_val[batch_num_val]
-            batch = load_file(filename)
-            create_and_upload_batch(futures, batch_num_val, batch, filename, t0, t0_global)
+            filename_toks = fm_files_val[batch_num_val]
+            batch = load_file(filename_toks)
+            filename = f"fm_val_batch_{batch_num_val}.bin"
+            create_and_upload_batch(futures, batch_num_val, batch, filename, t0, t0_global, "bytes/val")
             t0 = perf_counter()
     
     if not skip_fw_val_batches:
@@ -563,6 +568,7 @@ def create_and_upload_data(
                     filename=filename,
                     t_start=t0,
                     t_global_start=t0_global,
+                    path_in_repo="bytes/val",
                 )
                 t0 = perf_counter()
     
@@ -576,7 +582,7 @@ def create_and_upload_data(
         filename_toks = fm_files_train[idx]
         batch = load_file(filename_toks)
         filename = f"fm_toks_train_batch_{batch_num_train}.bin"
-        create_and_upload_batch(futures, batch_num_train, batch, filename, t0, t0_global)
+        create_and_upload_batch(futures, batch_num_train, batch, filename, t0, t0_global, "bytes/train")
         batch_num_train += 1
         t0 = perf_counter()
 
@@ -603,6 +609,7 @@ def create_and_upload_data(
                 filename=filename,
                 t_start=t0,
                 t_global_start=t0_global,
+                path_in_repo="bytes/train",
             )
             t0 = perf_counter()
 
@@ -651,6 +658,7 @@ def _print_batch():
     print("\n\n")
 
 
+# TODO: tokens/train/... and tokens/val/..., as well as bytes/train/... and bytes/val/...
 def main():
     # Finemath: 6542 batches (at B=1024, T=1024 --> 6,859,784,192 tokens) (I was dumb -> includes val batch -> 6541 train batches)
     # Fineweb: 85067 batches (at B=1024, T=1024 --> 89,199,214,592 tokens) (This only includes train batches)
