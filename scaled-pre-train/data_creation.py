@@ -1,3 +1,14 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "torch",
+#   "tiktoken",
+#   "datasets",
+#   "huggingface_hub[cli]",
+#   "transformers",
+#   "psutil",
+# ]
+# ///
 
 import time
 import argparse
