@@ -3,7 +3,8 @@
 
 # There are 91,608 total training batches -> go in steps of 1000
 
-uv run data_creation.py --from-batch 0 --to-batch 1000 --skip-fw-val-batches
+# Machine 1
+uv run data_creation.py --from-batch 0 --to-batch 1000 --skip-fw-val-batches --tokenize
 uv run data_creation.py --from-batch 1000 --to-batch 2000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 2000 --to-batch 3000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 3000 --to-batch 4000 --skip-fm-val-batches --skip-fw-val-batches
@@ -25,7 +26,8 @@ uv run data_creation.py --from-batch 17000 --to-batch 18000 --skip-fm-val-batche
 uv run data_creation.py --from-batch 18000 --to-batch 19000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 19000 --to-batch 20000 --skip-fm-val-batches --skip-fw-val-batches
 
-uv run data_creation.py --from-batch 20000 --to-batch 21000 --skip-fm-val-batches --skip-fw-val-batches
+# Machine 2
+uv run data_creation.py --from-batch 20000 --to-batch 21000 --skip-fm-val-batches --skip-fw-val-batches --tokenize
 uv run data_creation.py --from-batch 21000 --to-batch 22000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 22000 --to-batch 23000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 23000 --to-batch 24000 --skip-fm-val-batches --skip-fw-val-batches
@@ -47,7 +49,8 @@ uv run data_creation.py --from-batch 37000 --to-batch 38000 --skip-fm-val-batche
 uv run data_creation.py --from-batch 38000 --to-batch 39000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 39000 --to-batch 40000 --skip-fm-val-batches --skip-fw-val-batches
 
-uv run data_creation.py --from-batch 40000 --to-batch 41000 --skip-fm-val-batches --skip-fw-val-batches
+# Machine 3
+uv run data_creation.py --from-batch 40000 --to-batch 41000 --skip-fm-val-batches --skip-fw-val-batches --tokenize
 uv run data_creation.py --from-batch 41000 --to-batch 42000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 42000 --to-batch 43000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 43000 --to-batch 44000 --skip-fm-val-batches --skip-fw-val-batches
@@ -69,7 +72,8 @@ uv run data_creation.py --from-batch 57000 --to-batch 58000 --skip-fm-val-batche
 uv run data_creation.py --from-batch 58000 --to-batch 59000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 59000 --to-batch 60000 --skip-fm-val-batches --skip-fw-val-batches
 
-uv run data_creation.py --from-batch 60000 --to-batch 61000 --skip-fm-val-batches --skip-fw-val-batches
+# Machine 4
+uv run data_creation.py --from-batch 60000 --to-batch 61000 --skip-fm-val-batches --skip-fw-val-batches --tokenize
 uv run data_creation.py --from-batch 61000 --to-batch 62000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 62000 --to-batch 63000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 63000 --to-batch 64000 --skip-fm-val-batches --skip-fw-val-batches
@@ -91,7 +95,8 @@ uv run data_creation.py --from-batch 77000 --to-batch 78000 --skip-fm-val-batche
 uv run data_creation.py --from-batch 78000 --to-batch 79000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 79000 --to-batch 80000 --skip-fm-val-batches --skip-fw-val-batches
 
-uv run data_creation.py --from-batch 80000 --to-batch 81000 --skip-fm-val-batches --skip-fw-val-batches
+# Machine 5
+uv run data_creation.py --from-batch 80000 --to-batch 81000 --skip-fm-val-batches --skip-fw-val-batches --tokenize
 uv run data_creation.py --from-batch 81000 --to-batch 82000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 82000 --to-batch 83000 --skip-fm-val-batches --skip-fw-val-batches
 uv run data_creation.py --from-batch 83000 --to-batch 84000 --skip-fm-val-batches --skip-fw-val-batches
