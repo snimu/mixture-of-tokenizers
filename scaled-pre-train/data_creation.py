@@ -7,6 +7,7 @@
 #   "huggingface_hub[cli]",
 #   "transformers",
 #   "psutil",
+#   "tqdm",
 # ]
 # ///
 
@@ -25,6 +26,7 @@ from time import perf_counter
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
+from tqdm import tqdm
 import numpy as np
 import torch
 from torch import nn
@@ -336,18 +338,46 @@ def save_file(path: str, data: torch.Tensor):
             f.write(toks_np.tobytes())
 
 
-def load_file(path: str) -> torch.Tensor:
-    with Path(path).open("rb", buffering=0) as f:
-        header = torch.from_file(str(f), False, 256, dtype=torch.int32) # header is 256 int32
-        assert header[0] == 20240520, "magic number mismatch in the data .bin file"
-        assert header[1] == 1, "unsupported version"
-        num_tokens = int(header[2]) # number of tokens (claimed)
-        with f.open("rb", buffering=0) as f:
-            tokens = torch.empty(num_tokens, dtype=torch.uint16, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
-            f.seek(256 * 4)
-            nbytes = f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
-            assert nbytes == 2 * num_tokens, "number of tokens read does not match header"
-    return tokens
+def load_file(path: str) -> torch.Tensor:  # Thank you Gemini Pro 2.5 :)
+    file_path = Path(path) # Use Path object for robustness
+
+    # Read header using torch.from_file on the path
+    try:
+        # Reads first 256 * 4 bytes = 1024 bytes
+        header = torch.from_file(str(file_path), shared=False, size=256, dtype=torch.int32)
+    except RuntimeError as e:
+        print(f"Error reading header from {file_path}: {e}")
+        raise e
+
+    # Verify header (use constants or variables for clarity if preferred)
+    magic_number = 20240520
+    version = 1
+    assert header[0] == magic_number, f"magic number mismatch in data file {file_path} (expected {magic_number}, got {header[0]})"
+    assert header[1] == version, f"unsupported version in data file {file_path} (expected {version}, got {header[1]})"
+
+    # Get number of elements (saved as int32)
+    num_elements = int(header[2])
+
+    # Open file handle to read the data part
+    with file_path.open("rb") as f:
+        # Seek past the header (256 int32 values * 4 bytes/int32)
+        f.seek(256 * 4)
+
+        # Create tensor with the correct dtype used during saving (int32)
+        # pin_memory=True is optional, depends if you move to GPU immediately
+        data_tensor = torch.empty(num_elements, dtype=torch.int32, pin_memory=True)
+
+        # Use readinto for efficiency - read directly into the tensor's buffer
+        # We need to view the numpy array as bytes for readinto
+        buffer = data_tensor.numpy().view(np.byte)
+        nbytes_read = f.readinto(buffer)
+
+        # Verify number of bytes read
+        expected_bytes = num_elements * data_tensor.element_size() # element_size for int32 is 4
+        assert nbytes_read == expected_bytes, \
+            f"number of bytes read ({nbytes_read}) does not match header claim ({expected_bytes} bytes for {num_elements} int32 elements) in {file_path}"
+
+    return data_tensor
 
 
 def verify_data(path: str, data: torch.Tensor, B, T, bytes_per_token):
@@ -371,31 +401,32 @@ def download_tokens(
     assert hf_token is not None, "Please set the HF_TOKEN environment variable."
     api = HfApi(token=hf_token)
     api.create_repo(repo_id=repo_id, token=hf_token, repo_type="dataset", exist_ok=True)
-    download = functools.partial(hf_hub_download, repo_id=repo_id, local_dir="data", repo_type="dataset", token=hf_token)
+    download = functools.partial(hf_hub_download, local_dir="data", repo_type="dataset", token=hf_token)
     
     allfiles = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
-    trainfiles = [f for f in allfiles if f["filename"].startswith("tokens/train/")]
-    valfiles = [f for f in allfiles if f["filename"].startswith("tokens/val/")]
+    trainfiles = [f for f in allfiles if f.startswith("tokens/train/")]
+    valfiles = [f for f in allfiles if f.startswith("tokens/val/")]
 
     assert trainfiles and valfiles, "No train or val files found in the repo. Did you run create_and_upload_data()?"
 
     # Download train batches
     with mp.Pool(processes=min(len(trainfiles), psutil.cpu_count()-2)) as pool:
-        pool.map(download, trainfiles)
+        pool.starmap(download, [(repo_id, f) for f in trainfiles])
 
     # Now, split them into individual batches
     for filename in trainfiles:
         filename = filename.split("/")[-1]
-        start = int(filename.split("batch_")[-1].split(".")[0].split("-")[0])
-        end = int(filename.split("batch_")[-1].split(".")[0].split("-")[1])
-        group = load_file(f"data/{filename}")
+        start = int(filename.split("batches_")[-1].split(".")[0].split("-")[0])
+        end = int(filename.split("batches_")[-1].split(".")[0].split("-")[1])
+        group = load_file(f"data/tokens/train/{filename}")
         for i in range(start, end+1):
             batch = group[start + i*B : start + (i+1)*B]
             save_file(f"data/fm_toks_train_batch_{i}.bin", batch)
-        os.remove(f"data/{filename}")
+        os.remove(f"data/tokens/train/{filename}")
     
-    # Download the single val batch
-    download(valfiles[0])
+    # Download the single val batch & move it to the right place
+    download(repo_id, valfiles[0])
+    os.rename(f"data/{valfiles[0]}", f"data/{valfiles[0].split('/')[-1]}")
     
     return len(trainfiles)
 
@@ -417,16 +448,18 @@ def tokenize_finemath(
     t0 = perf_counter()
     os.makedirs("data", exist_ok=True)
 
-    print("Checking for existing finemath train batches on device...")
-    existing = list(Path.cwd().glob("data/fm_toks_train_batch*.bin"))
-    if len(existing) > 0:
-        return len(existing), True
-
     print("Checking for existing finemath train batches on HF...")
     allfiles = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
-    trainfiles = [f for f in allfiles if f["filename"].startswith("tokens/train/")]
-    if trainfiles:
-        return download_tokens(), True
+    trainfiles = [f for f in allfiles if f.startswith("tokens/train/")]
+    on_hf = len(trainfiles) > 0
+    print("Checking for existing finemath train batches on device...")
+    existing = list(Path.cwd().glob("data/fm_toks_train_batch*.bin"))
+    on_device = len(existing) > 0
+    if on_hf and not on_device:
+        print("Found finemath train batches on HF. Downloading them to device...")
+        download_tokens(repo_id=repo_id)
+    if on_hf or on_device:
+        return len(existing), on_hf
 
     print("Nothing found. Creating new finemath train batches...")
     eot_token = vocab_size - 1
@@ -434,6 +467,7 @@ def tokenize_finemath(
     dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin", shuffle=True)
     tokens_fw = next(dl)
     buffer = []
+    print("Loading finemath train batches from HF...")
     data: arrow_dataset.Dataset = load_dataset("HuggingFaceTB/finemath", "finemath-4plus", split="train", num_proc=psutil.cpu_count())
     num_fw_tokens_train = 0
     num_fm_tokens_train = 0
@@ -441,7 +475,8 @@ def tokenize_finemath(
     batch_num = 0
     futures = []
 
-    for _ in range(len(data) // B):
+    print("Starting loop...")
+    for _ in tqdm(range(len(data) // B), total=len(data) // B):
         texts = data[batch_num * B : (batch_num + 1) * B]["text"]
         tokens = encoding.encode_batch(texts, disallowed_special=())
         if len(tokens) + len(buffer) < B:
@@ -484,7 +519,7 @@ def tokenize_finemath(
             save_file(f"data/{filename}", batch)
             batch_num += 1
 
-    num_train_batches = len(Path.cwd().glob("data/fm_toks_train_batch*.bin"))
+    num_train_batches = len(list(Path.cwd().glob("data/fm_toks_train_batch*.bin")))
     print(f"{num_train_batches} train batches created")
     print(f"{num_fm_val_batches} val batches created")
     print(f"{num_fw_tokens_train=}\n{num_fm_tokens_train=}\n{num_fm_tokens_val=}")
@@ -506,14 +541,16 @@ def group_and_upload_tokens(
     future = None
 
     # Upload train batches in groups of 100 batches
-    min_groups, remainder = divmod(num_train_batches, num_batches_per_group)
+    files = sorted(list(Path.cwd() / "data" / f for f in os.listdir("data") if f.startswith("fm_toks_train")))
+    min_groups, remainder = divmod(len(files), num_batches_per_group)
     num_groups = min_groups + 1 if remainder > 0 else min_groups
-    for i in range(num_groups):
+    print(f"Uploading {num_groups} groups of {num_batches_per_group} train batches...")
+    for i in tqdm(range(num_groups), total=num_groups):
         start = i * num_batches_per_group
         end = start + num_batches_per_group
-        files = [f"fm_toks_train_batch_{batch_num}.bin" for batch_num in range(start, end)]
-        group = load_file(files.pop(0))
-        for file in files:
+        fslice = files[start:end]
+        group = load_file(fslice.pop(0))
+        for file in fslice:
             group = torch.cat([group, load_file(file)])
         
         if future is not None:
@@ -656,7 +693,8 @@ def create_and_upload_data(
         tokens_fw = torch.cat([tokens_fw, new_tokens])
         if len(tokens_fw) < B*T:
             continue
-        for i in range(0, len(tokens_fw) // B*T + 1, B*T):
+        num_batches = len(tokens_fw) // B*T
+        for i in range(0, num_batches * B*T, B*T):
             if len(tokens_fw[i:]) < B*T:
                 break
             batch_num_train += 1  # for tracking from_batch and to_batch
@@ -669,13 +707,15 @@ def create_and_upload_data(
             create_and_upload_batch(
                 futures=futures,
                 batch_num=batch_num_train,
-                tokens=tokens_fw[i:i+B*T].view(B, T).to(torch.int32),
+                tokens=tokens_fw[i*B*T : (i+1)*B*T].view(B, T).to(torch.int32),
                 filename=filename,
                 t_start=t0,
                 t_global_start=t0_global,
                 path_in_repo="bytes/train",
             )
             t0 = perf_counter()
+        
+        tokens_fw = tokens_fw[i*B*T :]
 
     # Wait for all uploads to finish
     for future in futures:
@@ -733,8 +773,8 @@ def main():
     parser.add_argument("--tokenize", action="store_true")
     args = parser.parse_args()
     if args.tokenize:
-        num_train_batches, pre_existed = tokenize_finemath(B=1024, T=1024, vocab_size=50257, num_fm_val_batches=1, overlap=128)
-        if not pre_existed:
+        num_train_batches, on_hf = tokenize_finemath(B=1024, T=1024, vocab_size=50257, num_fm_val_batches=1, overlap=128)
+        if not on_hf:
             group_and_upload_tokens(num_train_batches)
     create_and_upload_data(args.from_batch, args.to_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
 
