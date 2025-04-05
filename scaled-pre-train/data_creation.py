@@ -647,7 +647,8 @@ def create_and_upload_data(
     repofiles = sorted([f.split("/")[-1] for f in repofiles if f.startswith("bytes/")])
 
     print("Starting upload loop...")
-    upload_loop(api, repo_id)
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(upload_loop, api, repo_id)
 
     print("Finding finemath data files...")
     os.makedirs("data", exist_ok=True)
@@ -656,17 +657,12 @@ def create_and_upload_data(
     print(f"Found {len(fm_files_train)} finemath train batches and {len(fm_files_val)} finemath val batches")
 
     def create_and_save_batch(
-            futures: list[concurrent.futures.Future],
             batch_num: int,
             tokens: torch.Tensor,
             filename: str,
             t_start: float,
             t_global_start: float,
     ):
-        if len(futures) == 5:
-            for future in futures:
-                future.result()
-            futures = []
         if os.path.exists(f"data/{filename}"):
             print(f"Skipping {filename} because it already exists...")
             return
@@ -684,8 +680,6 @@ def create_and_upload_data(
         print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
 
     idx = 0
-    executor = ThreadPoolExecutor(max_workers=5)
-    futures = []
     t0 = perf_counter()
     t0_global = perf_counter()
 
@@ -698,7 +692,7 @@ def create_and_upload_data(
             if filename in repofiles:
                 t0 = perf_counter()
                 continue
-            create_and_save_batch(futures, batch_num_val, batch, filename, t0, t0_global)
+            create_and_save_batch(batch_num_val, batch, filename, t0, t0_global)
             t0 = perf_counter()
     
     if not skip_fw_val_batches:
@@ -721,7 +715,6 @@ def create_and_upload_data(
                     t0 = perf_counter()
                     continue
                 create_and_save_batch(
-                    futures=futures,
                     batch_num=batch_num_val,
                     tokens=tokens_fw[i:i+B*T].view(B, T).to(torch.int32),
                     filename=filename,
@@ -746,7 +739,7 @@ def create_and_upload_data(
         if filename in repofiles:
             t0 = perf_counter()
             continue
-        create_and_save_batch(futures, batch_num_train, batch, filename, t0, t0_global)
+        create_and_save_batch(batch_num_train, batch, filename, t0, t0_global)
         batch_num_train += 1
         t0 = perf_counter()
 
@@ -774,7 +767,6 @@ def create_and_upload_data(
                 t0 = perf_counter()
                 continue
             create_and_save_batch(
-                futures=futures,
                 batch_num=batch_num_train,
                 tokens=tokens_fw[i*B*T : (i+1)*B*T].view(B, T).to(torch.int32),
                 filename=filename,
@@ -787,10 +779,8 @@ def create_and_upload_data(
         tokens_fw = tokens_fw[num_batches_processed * B*T:]
 
     # Wait for all uploads to finish
-    for future in futures:
-        future.result()
-    futures = []
-    executor.shutdown()
+    future.result()
+    executor.shutdown(wait=True)
 
 
 #####################
