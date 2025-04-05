@@ -419,9 +419,9 @@ def download_tokens(
         start = int(filename.split("batches_")[-1].split(".")[0].split("-")[0])
         end = int(filename.split("batches_")[-1].split(".")[0].split("-")[1])
         group = load_file(f"data/tokens/train/{filename}")
-        for i in range(start, end+1):
+        for i in range(end - start):
             batch = group[start + i*B : start + (i+1)*B]
-            save_file(f"data/fm_toks_train_batch_{i}.bin", batch)
+            save_file(f"data/fm_toks_train_batch_{i + start}.bin", batch)
         os.remove(f"data/tokens/train/{filename}")
     
     # Download the single val batch & move it to the right place
@@ -589,9 +589,6 @@ def create_and_upload_data(
     print("Creating tokens-to-bytes-embeddings...")
     tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
     tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
-    print("Setting up fineweb dataloader...")
-    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin")
-    tokens_fw = next(dl)
 
     print("Setting up HF API...")
     api = HfApi(token=hf_token)
@@ -650,6 +647,8 @@ def create_and_upload_data(
             t0 = perf_counter()
     
     if not skip_fw_val_batches:
+        dl = distributed_data_generator("fineweb100B/fineweb_val_*.bin")
+        tokens_fw = None
         print("Creating fineweb val batches...")
         dl = distributed_data_generator("fineweb100B/fineweb_val_*.bin")
         batch_num_val = 0
@@ -657,7 +656,8 @@ def create_and_upload_data(
             tokens_fw = torch.cat([tokens_fw, new_tokens]) if tokens_fw else new_tokens
             if len(tokens_fw) < B*T:
                 continue
-            for i in range(0, len(tokens_fw) // B*T + 1, B*T):
+            num_batches = len(tokens_fw) // (B*T)
+            for i in range(0, num_batches * B*T, B*T):
                 if len(tokens_fw[i:]) < B*T:
                     break
                 batch_num_val += 1
@@ -672,13 +672,16 @@ def create_and_upload_data(
                     path_in_repo="bytes/val",
                 )
                 t0 = perf_counter()
+
+            num_batches_processed = len(tokens_fw) // (B*T)
+            tokens_fw = tokens_fw[num_batches_processed * B*T:]
     
     print("Creating finemath train batches...")
     batch_num_train = 0
     for idx in range(len(fm_files_train)):
         if batch_num_train < from_batch:
             continue
-        if to_batch >= 0 and batch_num_train > to_batch:
+        if to_batch >= 0 and batch_num_train >= to_batch:
             break
         filename_toks = fm_files_train[idx]
         batch = load_file(filename_toks)
@@ -688,6 +691,9 @@ def create_and_upload_data(
         t0 = perf_counter()
 
     print("Creating fineweb train batches...")
+    print("Setting up fineweb dataloader...")
+    dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin")
+    tokens_fw = next(dl)
     batch_num_fw = 0  # distinguish between finemath and fineweb batches but count global batch number for parallel workers
     for new_tokens in dl:
         tokens_fw = torch.cat([tokens_fw, new_tokens])
@@ -701,7 +707,7 @@ def create_and_upload_data(
             batch_num_fw += 1  # for naming the fineweb batches
             if batch_num_train < from_batch:
                 continue
-            if to_batch >= 0 and batch_num_train > to_batch:
+            if to_batch >= 0 and batch_num_train >= to_batch:
                 break
             filename = f"fw_train_batch_{batch_num_fw}.bin"
             create_and_upload_batch(
@@ -714,8 +720,9 @@ def create_and_upload_data(
                 path_in_repo="bytes/train",
             )
             t0 = perf_counter()
-        
-        tokens_fw = tokens_fw[i*B*T :]
+
+        num_batches_processed = len(tokens_fw) // (B*T)
+        tokens_fw = tokens_fw[num_batches_processed * B*T:]
 
     # Wait for all uploads to finish
     for future in futures:
