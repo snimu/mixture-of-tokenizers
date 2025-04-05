@@ -597,6 +597,8 @@ def create_and_upload_data(
     print("Setting up HF API...")
     api = HfApi(token=hf_token)
     api.create_repo(repo_id=repo_id, token=hf_token, repo_type="dataset", exist_ok=True)
+    repofiles = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
+    repofiles = sorted([f.split("/")[-1] for f in repofiles if f.startswith("bytes/")])
 
     print("Finding finemath data files...")
     os.makedirs("data", exist_ok=True)
@@ -647,6 +649,10 @@ def create_and_upload_data(
             filename_toks = fm_files_val[batch_num_val]
             batch = load_file(filename_toks).view(B, T)
             filename = f"fm_val_batch_{batch_num_val}.bin"
+            if filename in repofiles:
+                print(f"Skipping {filename} because it already exists...")
+                t0 = perf_counter()
+                continue
             create_and_upload_batch(futures, batch_num_val, batch, filename, t0, t0_global, "bytes/val")
             t0 = perf_counter()
     
@@ -666,6 +672,10 @@ def create_and_upload_data(
                     break
                 batch_num_val += 1
                 filename = f"fw_val_batch_{batch_num_val}.bin"
+                if filename in repofiles:
+                    print(f"Skipping {filename} because it already exists...")
+                    t0 = perf_counter()
+                    continue
                 create_and_upload_batch(
                     futures=futures,
                     batch_num=batch_num_val,
@@ -690,6 +700,10 @@ def create_and_upload_data(
         filename_toks = fm_files_train[idx]
         batch = load_file(filename_toks).view(B, T)
         filename = f"fm_train_batch_{batch_num_train}.bin"
+        if filename in repofiles:
+            print(f"Skipping {filename} because it already exists...")
+            t0 = perf_counter()
+            continue
         create_and_upload_batch(futures, batch_num_train, batch, filename, t0, t0_global, "bytes/train")
         batch_num_train += 1
         t0 = perf_counter()
@@ -714,6 +728,10 @@ def create_and_upload_data(
             if to_batch >= 0 and batch_num_train >= to_batch:
                 break
             filename = f"fw_train_batch_{batch_num_fw}.bin"
+            if filename in repofiles:
+                print(f"Skipping {filename} because it already exists...")
+                t0 = perf_counter()
+                continue
             create_and_upload_batch(
                 futures=futures,
                 batch_num=batch_num_train,
