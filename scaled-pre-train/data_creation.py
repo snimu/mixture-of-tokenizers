@@ -704,8 +704,8 @@ def create_and_upload_data(
         if len(tokens_fw) < B*T:
             continue
         num_batches = len(tokens_fw) // B*T
-        for i in range(0, num_batches * B*T, B*T):
-            if len(tokens_fw[i:]) < B*T:
+        for i in range(num_batches):
+            if len(tokens_fw[i*B*T:]) < B*T:
                 break
             batch_num_train += 1  # for tracking from_batch and to_batch
             batch_num_fw += 1  # for naming the fineweb batches
