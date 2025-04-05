@@ -689,7 +689,7 @@ def create_and_upload_data(
             break
         filename_toks = fm_files_train[idx]
         batch = load_file(filename_toks).view(B, T)
-        filename = f"fm_toks_train_batch_{batch_num_train}.bin"
+        filename = f"fm_train_batch_{batch_num_train}.bin"
         create_and_upload_batch(futures, batch_num_train, batch, filename, t0, t0_global, "bytes/train")
         batch_num_train += 1
         t0 = perf_counter()
