@@ -603,10 +603,8 @@ def upload_loop(api: HfApi, repo_id: str, min_timediff: float = 0.1):
         files = getfiles()
         while True:
             t0 = perf_counter()
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                futures = [executor.submit(_upload, filename) for filename in files]
-                for future in futures:
-                    future.result()
+            for filename in files:
+                _upload(filename)
             files = getfiles()
             time_taken = perf_counter() - t0
             if time_taken < min_timediff:
