@@ -301,8 +301,17 @@ def distributed_data_generator(filename_pattern: str, shuffle: bool = False):
             break
 
 
-def upload_with_backoff(api: HfApi, batch: torch.Tensor, filename: str, repo_id: str, path_in_repo: str = "bytes"):
-    save_file(f"data/{filename}", batch)
+def upload_with_backoff(
+        api: HfApi,
+        batch: torch.Tensor,
+        filename: str,
+        repo_id: str,
+        path_in_repo: str = "bytes",
+        save_first=True,
+        delete_after=True,
+):
+    if save_first:
+        save_file(f"data/{filename}", batch)
     sleep_time = 10
     for i in range(5):
         try:
@@ -320,7 +329,8 @@ def upload_with_backoff(api: HfApi, batch: torch.Tensor, filename: str, repo_id:
                 sleep_time *= 2
             else:
                 raise e
-    os.remove(f"data/{filename}")  # Delete the file after uploading it
+    if delete_after:
+        os.remove(f"data/{filename}")  # Delete the file after uploading it
 
 
 def save_file(path: str, data: torch.Tensor):
@@ -572,6 +582,42 @@ def group_and_upload_tokens(
     upload_with_backoff(api, batch, "fm_toks_val_batch_0.bin", repo_id, "tokens/val")
 
 
+def upload_loop(api: HfApi, repo_id: str, min_timediff: float = 0.1):
+    # Prevent multiple upload loops from running at the same time
+    if os.path.exists("upload_loop_running.txt"):
+        return
+    # Signal that the upload loop is running
+    with open("upload_loop_running.txt", "w") as f:
+        f.write("1")
+
+    def getfiles():
+        files = os.listdir("data")
+        files = [f for f in files if f.endswith(".bin") and "toks" not in f]
+        return sorted(files)
+
+    def _upload(filename: str):
+        train_or_val = "train" if "train" in filename else "val"
+        path_in_repo = f"bytes/{train_or_val}"
+        upload_with_backoff(api, load_file(f"data/{filename}"), filename, repo_id, path_in_repo, save_first=False)
+
+    try:
+        files = getfiles()
+        while True:
+            t0 = perf_counter()
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = [executor.submit(_upload, filename) for filename in files]
+                for future in futures:
+                    future.result()
+            files = getfiles()
+            time_taken = perf_counter() - t0
+            if time_taken < min_timediff:
+                time.sleep(min_timediff - time_taken)
+    except Exception as e:
+        print(f"Error in upload loop: {e}")
+        os.remove("upload_loop_running.txt")
+        raise e
+
+
 def create_and_upload_data(
         from_batch: int = 0,
         to_batch: int = -1,
@@ -600,20 +646,22 @@ def create_and_upload_data(
     repofiles = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
     repofiles = sorted([f.split("/")[-1] for f in repofiles if f.startswith("bytes/")])
 
+    print("Starting upload loop...")
+    upload_loop(api, repo_id)
+
     print("Finding finemath data files...")
     os.makedirs("data", exist_ok=True)
     fm_files_train = sorted(Path.cwd().glob("data/fm_toks_train_batch*.bin"))
     fm_files_val = sorted(Path.cwd().glob("data/fm_toks_val_batch*.bin"))
     print(f"Found {len(fm_files_train)} finemath train batches and {len(fm_files_val)} finemath val batches")
 
-    def create_and_upload_batch(
+    def create_and_save_batch(
             futures: list[concurrent.futures.Future],
             batch_num: int,
             tokens: torch.Tensor,
             filename: str,
             t_start: float,
             t_global_start: float,
-            path_in_repo: str,
     ):
         if len(futures) == 5:
             for future in futures:
@@ -630,9 +678,7 @@ def create_and_upload_data(
             tokens_to_bytes_right_pad=tokens_to_bytes_right_pad,
             tokens_to_bytes_left_pad=tokens_to_bytes_left_pad,
         )
-        if batch_num % 100 == 0:
-            verify_data(f"data/{filename}", batch, B, T, bytes_per_token)
-        futures.append(executor.submit(upload_with_backoff, api, batch, filename, repo_id, path_in_repo))
+        save_file(f"data/{filename}", batch)
         time_taken_step = perf_counter() - t_start
         time_taken_global = perf_counter() - t_global_start
         print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
@@ -652,7 +698,7 @@ def create_and_upload_data(
             if filename in repofiles:
                 t0 = perf_counter()
                 continue
-            create_and_upload_batch(futures, batch_num_val, batch, filename, t0, t0_global, "bytes/val")
+            create_and_save_batch(futures, batch_num_val, batch, filename, t0, t0_global)
             t0 = perf_counter()
     
     if not skip_fw_val_batches:
@@ -674,14 +720,13 @@ def create_and_upload_data(
                 if filename in repofiles:
                     t0 = perf_counter()
                     continue
-                create_and_upload_batch(
+                create_and_save_batch(
                     futures=futures,
                     batch_num=batch_num_val,
                     tokens=tokens_fw[i:i+B*T].view(B, T).to(torch.int32),
                     filename=filename,
                     t_start=t0,
                     t_global_start=t0_global,
-                    path_in_repo="bytes/val",
                 )
                 t0 = perf_counter()
 
@@ -701,7 +746,7 @@ def create_and_upload_data(
         if filename in repofiles:
             t0 = perf_counter()
             continue
-        create_and_upload_batch(futures, batch_num_train, batch, filename, t0, t0_global, "bytes/train")
+        create_and_save_batch(futures, batch_num_train, batch, filename, t0, t0_global)
         batch_num_train += 1
         t0 = perf_counter()
 
@@ -728,14 +773,13 @@ def create_and_upload_data(
             if filename in repofiles:
                 t0 = perf_counter()
                 continue
-            create_and_upload_batch(
+            create_and_save_batch(
                 futures=futures,
                 batch_num=batch_num_train,
                 tokens=tokens_fw[i*B*T : (i+1)*B*T].view(B, T).to(torch.int32),
                 filename=filename,
                 t_start=t0,
                 t_global_start=t0_global,
-                path_in_repo="bytes/train",
             )
             t0 = perf_counter()
 
