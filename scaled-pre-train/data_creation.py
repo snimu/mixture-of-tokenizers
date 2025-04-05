@@ -18,7 +18,6 @@ import psutil
 import json
 import os
 import functools
-import concurrent.futures
 import multiprocessing as mp
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError
@@ -631,6 +630,7 @@ def create_and_upload_data(
         vocab_size: int = 50257,
         num_fm_val_batches: int = 1,
         repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
+        start_upload_loop: bool = False,
 ):
     hf_token=os.getenv("HF_TOKEN")
     assert hf_token is not None, "Please set the HF_TOKEN environment variable."
@@ -646,9 +646,10 @@ def create_and_upload_data(
     repofiles = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
     repofiles = sorted([f.split("/")[-1] for f in repofiles if f.startswith("bytes/")])
 
-    print("Starting upload loop...")
-    executor = ThreadPoolExecutor(max_workers=1)
-    future = executor.submit(upload_loop, api, repo_id)
+    if start_upload_loop:
+        print("Starting upload loop...")
+        executor = ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(upload_loop, api, repo_id)
 
     print("Finding finemath data files...")
     os.makedirs("data", exist_ok=True)
@@ -779,8 +780,9 @@ def create_and_upload_data(
         tokens_fw = tokens_fw[num_batches_processed * B*T:]
 
     # Wait for all uploads to finish
-    future.result()
-    executor.shutdown(wait=True)
+    if start_upload_loop:
+        future.result()
+        executor.shutdown(wait=True)
 
 
 #####################
@@ -830,12 +832,16 @@ def main():
     parser.add_argument("--skip-fm-val-batches", action="store_true")
     parser.add_argument("--skip-fw-val-batches", action="store_true")
     parser.add_argument("--tokenize", action="store_true")
+    parser.add_argument("--start-upload-loop", action="store_true")
     args = parser.parse_args()
     if args.tokenize:
         num_train_batches, on_hf = tokenize_finemath(B=1024, T=1024, vocab_size=50257, num_fm_val_batches=1, overlap=128)
         if not on_hf:
             group_and_upload_tokens(num_train_batches)
-    create_and_upload_data(args.from_batch, args.to_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
+    create_and_upload_data(
+        args.from_batch, args.to_batch, args.skip_fm_val_batches, args.skip_fw_val_batches,
+        start_upload_loop=args.start_upload_loop,
+    )
 
 
 if __name__ == "__main__":
