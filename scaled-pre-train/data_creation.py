@@ -404,8 +404,8 @@ def download_tokens(
     download = functools.partial(hf_hub_download, local_dir="data", repo_type="dataset", token=hf_token)
     
     allfiles = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
-    trainfiles = [f for f in allfiles if f.startswith("tokens/train/")]
-    valfiles = [f for f in allfiles if f.startswith("tokens/val/")]
+    trainfiles = sorted([f for f in allfiles if f.startswith("tokens/train/")])
+    valfiles = sorted([f for f in allfiles if f.startswith("tokens/val/")])
 
     assert trainfiles and valfiles, "No train or val files found in the repo. Did you run create_and_upload_data()?"
 
@@ -414,14 +414,18 @@ def download_tokens(
         pool.starmap(download, [(repo_id, f) for f in trainfiles])
 
     # Now, split them into individual batches
+    # Deterministic because the files are sorted
+    batch_num = 0
+    buffer = None
     for filename in trainfiles:
         filename = filename.split("/")[-1]
-        start = int(filename.split("batches_")[-1].split(".")[0].split("-")[0])
-        end = int(filename.split("batches_")[-1].split(".")[0].split("-")[1])
-        group = load_file(f"data/tokens/train/{filename}")
-        for i in range(end - start):
-            batch = group[start + i*B*T : start + (i+1)*B*T].view(B, T)
-            save_file(f"data/fm_toks_train_batch_{i + start}.bin", batch)
+        loaded = load_file(f"data/tokens/train/{filename}").view(-1, T)
+        buffer = loaded if buffer is None else torch.cat([buffer, loaded])
+        while len(buffer) >= B:
+            batch = buffer[:B]
+            buffer = buffer[B:]
+            save_file(f"data/fm_toks_train_batch_{batch_num}.bin", batch)
+            batch_num += 1
         os.remove(f"data/tokens/train/{filename}")
     
     # Download the single val batch & move it to the right place
