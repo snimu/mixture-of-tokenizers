@@ -801,6 +801,10 @@ def main():
     parser.add_argument("-B", "--batch-size", type=int, default=10240)  # 10 batches per file; the number of toks in fm & fw is high enough that we won't throw away too much, even in the worst-case (at most 9 actual batches per datasource)
     parser.add_argument("-T", "--seq-len", type=int, default=1024)
     args = parser.parse_args()
+    assert args.batch_size % 1024 == 0, "Batch size must be a multiple of 1024"
+    assert args.seq_len % 1024 == 0, "Sequence length must be a multiple of 1024"
+    assert args.batch_size >= 1024, "Batch size must be at least 1024"
+    assert args.seq_len >= 1024, "Sequence length must be at least 1024"
     if args.tokenize:
         num_train_batches, on_hf = tokenize_finemath(
             B=args.batch_size,
@@ -810,7 +814,8 @@ def main():
             overlap=128,
         )
         if not on_hf:
-            group_and_upload_tokens(num_train_batches)
+            batch_size_factor = args.batch_size // 1024
+            group_and_upload_tokens(num_train_batches, num_batches_per_group=100 / batch_size_factor)
     create_and_upload_data(
         from_batch=args.from_batch,
         to_batch=args.to_batch,
