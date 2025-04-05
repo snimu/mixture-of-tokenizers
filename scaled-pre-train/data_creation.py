@@ -420,7 +420,7 @@ def download_tokens(
         end = int(filename.split("batches_")[-1].split(".")[0].split("-")[1])
         group = load_file(f"data/tokens/train/{filename}")
         for i in range(end - start):
-            batch = group[start + i*B : start + (i+1)*B]
+            batch = group[start + i*B*T : start + (i+1)*B*T].view(B, T)
             save_file(f"data/fm_toks_train_batch_{i + start}.bin", batch)
         os.remove(f"data/tokens/train/{filename}")
     
