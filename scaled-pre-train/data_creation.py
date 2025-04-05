@@ -424,7 +424,7 @@ def download_tokens(
         while len(buffer) >= B:
             batch = buffer[:B]
             buffer = buffer[B:]
-            save_file(f"data/fm_toks_train_file_{batch_num}.bin", batch)
+            save_file(f"data/fm_toks_train_batch_{batch_num}.bin", batch)
             batch_num += 1
         os.remove(f"data/tokens/train/{filename}")
     
@@ -516,14 +516,12 @@ def tokenize_finemath(
                     future.result()
                 futures = []
             if batch_num < num_fm_val_batches:
-                filename = f"fm_toks_val_file_{batch_num}.bin"
+                filename = f"fm_toks_val_batch_{batch_num}.bin"
             else:
-                filename = f"fm_toks_train_file_{batch_num - num_fm_val_batches}.bin"
+                filename = f"fm_toks_train_batch_{batch_num - num_fm_val_batches}.bin"
             batch, buffer = torch.tensor(buffer[:B], dtype=torch.int32), buffer[B:]
             save_file(f"data/{filename}", batch)
             batch_num += 1
-    
-
 
     num_train_batches = len(list(Path.cwd().glob("data/fm_toks_train_batch*.bin")))
     print(f"{num_train_batches} train batches created")
@@ -650,7 +648,7 @@ def create_and_upload_data(
         for batch_num_val in range(len(fm_files_val)):
             filename_toks = fm_files_val[batch_num_val]
             batch = load_file(filename_toks).view(B, T)
-            filename = f"fm_val_file_{batch_num_val}.bin"
+            filename = f"fm_val_batch_{batch_num_val}.bin"
             if filename in repofiles:
                 t0 = perf_counter()
                 continue
@@ -672,7 +670,7 @@ def create_and_upload_data(
                 if len(tokens_fw[i:]) < B*T:
                     break
                 batch_num_val += 1
-                filename = f"fw_val_file_{batch_num_val}.bin"
+                filename = f"fw_val_batch_{batch_num_val}.bin"
                 if filename in repofiles:
                     t0 = perf_counter()
                     continue
@@ -699,7 +697,7 @@ def create_and_upload_data(
             break
         filename_toks = fm_files_train[idx]
         batch = load_file(filename_toks).view(B, T)
-        filename = f"fm_train_file_{batch_num_train}.bin"
+        filename = f"fm_train_batch_{batch_num_train}.bin"
         if filename in repofiles:
             t0 = perf_counter()
             continue
@@ -726,7 +724,7 @@ def create_and_upload_data(
                 continue
             if to_batch >= 0 and batch_num_train >= to_batch:
                 break
-            filename = f"fw_train_file_{batch_num_fw}.bin"
+            filename = f"fw_train_batch_{batch_num_fw}.bin"
             if filename in repofiles:
                 t0 = perf_counter()
                 continue
@@ -798,32 +796,12 @@ def main():
     parser.add_argument("--skip-fm-val-batches", action="store_true")
     parser.add_argument("--skip-fw-val-batches", action="store_true")
     parser.add_argument("--tokenize", action="store_true")
-    parser.add_argument("-B", "--batch-size", type=int, default=10240)  # 10 batches per file; the number of toks in fm & fw is high enough that we won't throw away too much, even in the worst-case (at most 9 actual batches per datasource)
-    parser.add_argument("-T", "--seq-len", type=int, default=1024)
     args = parser.parse_args()
-    assert args.batch_size % 1024 == 0, "Batch size must be a multiple of 1024"
-    assert args.seq_len % 1024 == 0, "Sequence length must be a multiple of 1024"
-    assert args.batch_size >= 1024, "Batch size must be at least 1024"
-    assert args.seq_len >= 1024, "Sequence length must be at least 1024"
     if args.tokenize:
-        num_train_batches, on_hf = tokenize_finemath(
-            B=args.batch_size,
-            T=args.seq_len,
-            vocab_size=50257,
-            num_fm_val_batches=1,
-            overlap=128,
-        )
+        num_train_batches, on_hf = tokenize_finemath(B=1024, T=1024, vocab_size=50257, num_fm_val_batches=1, overlap=128)
         if not on_hf:
-            batch_size_factor = args.batch_size // 1024
-            group_and_upload_tokens(num_train_batches, num_batches_per_group=100 / batch_size_factor)
-    create_and_upload_data(
-        from_batch=args.from_batch,
-        to_batch=args.to_batch,
-        skip_fm_val_batches=args.skip_fm_val_batches,
-        skip_fw_val_batches=args.skip_fw_val_batches,
-        B=args.batch_size,
-        T=args.seq_len,
-    )
+            group_and_upload_tokens(num_train_batches)
+    create_and_upload_data(args.from_batch, args.to_batch, args.skip_fm_val_batches, args.skip_fw_val_batches)
 
 
 if __name__ == "__main__":
