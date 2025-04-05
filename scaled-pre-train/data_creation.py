@@ -678,7 +678,7 @@ def create_and_upload_data(
         save_file(f"data/{filename}", batch)
         time_taken_step = perf_counter() - t_start
         time_taken_global = perf_counter() - t_global_start
-        print(f"{(batch_num+1)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
+        print(f"{(batch_num+1-from_batch)*B*T:_} tokens done in {round(time_taken_step):_}s ({round(time_taken_global):_}s total)")
 
     idx = 0
     t0 = perf_counter()
