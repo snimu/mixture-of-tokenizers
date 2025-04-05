@@ -650,7 +650,6 @@ def create_and_upload_data(
             batch = load_file(filename_toks).view(B, T)
             filename = f"fm_val_batch_{batch_num_val}.bin"
             if filename in repofiles:
-                print(f"Skipping {filename} because it already exists...")
                 t0 = perf_counter()
                 continue
             create_and_upload_batch(futures, batch_num_val, batch, filename, t0, t0_global, "bytes/val")
@@ -673,7 +672,6 @@ def create_and_upload_data(
                 batch_num_val += 1
                 filename = f"fw_val_batch_{batch_num_val}.bin"
                 if filename in repofiles:
-                    print(f"Skipping {filename} because it already exists...")
                     t0 = perf_counter()
                     continue
                 create_and_upload_batch(
@@ -701,7 +699,6 @@ def create_and_upload_data(
         batch = load_file(filename_toks).view(B, T)
         filename = f"fm_train_batch_{batch_num_train}.bin"
         if filename in repofiles:
-            print(f"Skipping {filename} because it already exists...")
             t0 = perf_counter()
             continue
         create_and_upload_batch(futures, batch_num_train, batch, filename, t0, t0_global, "bytes/train")
@@ -729,7 +726,6 @@ def create_and_upload_data(
                 break
             filename = f"fw_train_batch_{batch_num_fw}.bin"
             if filename in repofiles:
-                print(f"Skipping {filename} because it already exists...")
                 t0 = perf_counter()
                 continue
             create_and_upload_batch(
