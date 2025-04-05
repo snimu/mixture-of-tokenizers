@@ -641,7 +641,7 @@ def create_and_upload_data(
         print("Creating finemath val batches...")
         for batch_num_val in range(len(fm_files_val)):
             filename_toks = fm_files_val[batch_num_val]
-            batch = load_file(filename_toks)
+            batch = load_file(filename_toks).view(B, T)
             filename = f"fm_val_batch_{batch_num_val}.bin"
             create_and_upload_batch(futures, batch_num_val, batch, filename, t0, t0_global, "bytes/val")
             t0 = perf_counter()
@@ -684,7 +684,7 @@ def create_and_upload_data(
         if to_batch >= 0 and batch_num_train >= to_batch:
             break
         filename_toks = fm_files_train[idx]
-        batch = load_file(filename_toks)
+        batch = load_file(filename_toks).view(B, T)
         filename = f"fm_toks_train_batch_{batch_num_train}.bin"
         create_and_upload_batch(futures, batch_num_train, batch, filename, t0, t0_global, "bytes/train")
         batch_num_train += 1
