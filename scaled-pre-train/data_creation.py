@@ -687,6 +687,7 @@ def create_and_upload_data(
     print(f"Found {len(fm_files_train)} finemath train batches and {len(fm_files_val)} finemath val batches")
 
     def group_and_save_batches(files: list[str], filename: str):
+        files = [f"data/{f}" if not f.startswith("data/") else f for f in files]
         files = sorted(files)
         file0 = files.pop(0)
         group = load_file(file0)
