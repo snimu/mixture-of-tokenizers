@@ -664,7 +664,8 @@ def create_and_upload_data(
         vocab_size: int = 50257,
         num_fm_val_batches: int = 1,
         repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
-        num_batches_per_group: int = 25,
+        num_batches_per_group: int = 5,
+        max_workers_upload: int = 5,
 ):
     hf_token=os.getenv("HF_TOKEN")
     assert hf_token is not None, "Please set the HF_TOKEN environment variable."
@@ -728,30 +729,33 @@ def create_and_upload_data(
     t0 = perf_counter()
     t0_global = perf_counter()
 
-    executor = ThreadPoolExecutor(max_workers=1)
+    executor = ThreadPoolExecutor(max_workers=max_workers_upload)
     futures = []
 
     if not skip_fm_val_batches:
         filenames = []
         print("Creating finemath val batches...")
         for batch_num_val in range(len(fm_files_val)):
+            # Uploading
+            if len(filenames) > 0 and len(filenames) % max_workers_upload == 0:
+                for future in futures:
+                    future.result()
+                futures = []
+            if len(filenames) >= num_batches_per_group:
+                min_, max_ = minmax_filename(filenames)
+                group_and_save_batches(filenames, f"fm_val_batches_{min_}-{max_}.bin")
+                filenames = []
+                futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/fm_val_batches_{min_}-{max_}.bin"), f"fm_val_batches_{min_}-{max_}.bin", repo_id, "bytes/val", save_first=False))
+            
+            # Creating
             filename_toks = fm_files_val[batch_num_val]
             batch = load_file(filename_toks).view(B, T)
             filename = f"fm_val_batch_{batch_num_val}.bin"
             filenames.append(filename)
             create_and_save_batch(batch_num_val, batch, filename, t0, t0_global)
-
-            if len(filenames) >= num_batches_per_group:
-                for future in futures:
-                    future.result()
-                futures = []
-                min_, max_ = minmax_filename(filenames)
-                filename = f"fm_val_batches_{min_}-{max_}.bin"
-                group_and_save_batches(filenames, filename)
-                filenames = []
-                futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/val", save_first=False))
             t0 = perf_counter()
-    
+
+        # Uploading remainder
         if len(filenames) > 0:
             for future in futures:
                 future.result()
@@ -775,6 +779,18 @@ def create_and_upload_data(
                 continue
             num_batches = len(tokens_fw) // (B*T)
             for i in range(0, num_batches * B*T, B*T):
+                # Uploading
+                if len(filenames) > 0 and len(filenames) % max_workers_upload == 0:
+                    for future in futures:
+                        future.result()
+                    futures = []
+                if len(filenames) >= num_batches_per_group:
+                    min_, max_ = minmax_filename(filenames)
+                    group_and_save_batches(filenames, f"fw_val_batches_{min_}-{max_}.bin")
+                    filenames = []
+                    futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/fw_val_batches_{min_}-{max_}.bin"), f"fw_val_batches_{min_}-{max_}.bin", repo_id, "bytes/val", save_first=False))
+
+                # Creating
                 if len(tokens_fw[i:]) < B*T:
                     break
                 batch_num_val += 1
@@ -787,20 +803,12 @@ def create_and_upload_data(
                     t_global_start=t0_global,
                 )
                 filenames.append(filename)
-                if len(filenames) >= num_batches_per_group:
-                    for future in futures:
-                        future.result()
-                    futures = []
-                    min_, max_ = minmax_filename(filenames)
-                    filename = f"fw_val_batches_{min_}-{max_}.bin"
-                    group_and_save_batches(filenames, filename)
-                    filenames = []
-                    futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/val", save_first=False))
                 t0 = perf_counter()
 
             num_batches_processed = len(tokens_fw) // (B*T)
             tokens_fw = tokens_fw[num_batches_processed * B*T:]
         
+        # Uploading remainder
         if len(filenames) > 0:
             for future in futures:
                 future.result()
@@ -815,6 +823,18 @@ def create_and_upload_data(
     batch_num_train = 0
     filenames = []
     for idx in range(len(fm_files_train)):
+        # Uploading
+        if len(filenames) > 0 and len(filenames) % max_workers_upload == 0:
+            for future in futures:
+                future.result()
+            futures = []
+        if len(filenames) >= num_batches_per_group:
+            min_, max_ = minmax_filename(filenames)
+            group_and_save_batches(filenames, f"fm_train_batches_{min_}-{max_}.bin")
+            filenames = []
+            futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/fm_train_batches_{min_}-{max_}.bin"), f"fm_train_batches_{min_}-{max_}.bin", repo_id, "bytes/train", save_first=False))
+        
+        # Creating
         if batch_num_train < from_batch:
             continue
         if to_batch >= 0 and batch_num_train >= to_batch:
@@ -824,15 +844,6 @@ def create_and_upload_data(
         filename = f"fm_train_batch_{batch_num_train}.bin"
         create_and_save_batch(batch_num_train, batch, filename, t0, t0_global)
         filenames.append(filename)
-        if len(filenames) >= num_batches_per_group:
-            for future in futures:
-                future.result()
-            futures = []
-            min_, max_ = minmax_filename(filenames)
-            filename = f"fm_train_batches_{min_}-{max_}.bin"
-            group_and_save_batches(filenames, filename)
-            filenames = []
-            futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/train", save_first=False))
         batch_num_train += 1
         t0 = perf_counter()
 
@@ -857,6 +868,18 @@ def create_and_upload_data(
             continue
         num_batches = len(tokens_fw) // B*T
         for i in range(num_batches):
+            # Uploading
+            if len(filenames) > 0 and len(filenames) % max_workers_upload == 0:
+                for future in futures:
+                    future.result()
+                futures = []
+            if len(filenames) >= num_batches_per_group:
+                min_, max_ = minmax_filename(filenames)
+                group_and_save_batches(filenames, f"fw_train_batches_{min_}-{max_}.bin")
+                filenames = []
+                futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/fw_train_batches_{min_}-{max_}.bin"), f"fw_train_batches_{min_}-{max_}.bin", repo_id, "bytes/train", save_first=False))
+
+            # Creating
             if len(tokens_fw[i*B*T:]) < B*T:
                 break
             batch_num_train += 1  # for tracking from_batch and to_batch
@@ -874,20 +897,12 @@ def create_and_upload_data(
                 t_global_start=t0_global,
             )
             filenames.append(filename)
-            if len(filenames) >= num_batches_per_group:
-                for future in futures:
-                    future.result()
-                futures = []
-                min_, max_ = minmax_filename(filenames)
-                filename = f"fw_train_batches_{min_}-{max_}.bin"
-                group_and_save_batches(filenames, filename)
-                filenames = []
-                futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/train", save_first=False))
             t0 = perf_counter()
 
         num_batches_processed = len(tokens_fw) // (B*T)
         tokens_fw = tokens_fw[num_batches_processed * B*T:]
 
+    # Uploading remainder
     if len(filenames) > 0:
         for future in futures:
             future.result()
