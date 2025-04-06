@@ -651,40 +651,6 @@ def group_and_upload_tokens(
     upload_with_backoff(api, batch, "fm_toks_val_batch_0.bin", repo_id, "tokens/val")
 
 
-def upload_loop(api: HfApi, repo_id: str, min_timediff: float = 0.1):
-    # Prevent multiple upload loops from running at the same time
-    if os.path.exists("upload_loop_running.txt"):
-        return
-    # Signal that the upload loop is running
-    with open("upload_loop_running.txt", "w") as f:
-        f.write("1")
-
-    def getfiles():
-        files = os.listdir("data")
-        files = [f for f in files if f.endswith(".bin") and "toks" not in f]
-        return sorted(files)
-
-    def _upload(filename: str):
-        train_or_val = "train" if "train" in filename else "val"
-        path_in_repo = f"bytes/{train_or_val}"
-        upload_with_backoff(api, load_file(f"data/{filename}"), filename, repo_id, path_in_repo, save_first=False)
-
-    try:
-        files = getfiles()
-        while True:
-            t0 = perf_counter()
-            for filename in files:
-                _upload(filename)
-            files = getfiles()
-            time_taken = perf_counter() - t0
-            if time_taken < min_timediff:
-                time.sleep(min_timediff - time_taken)
-    except Exception as e:
-        print(f"Error in upload loop: {e}")
-        os.remove("upload_loop_running.txt")
-        raise e
-
-
 def create_and_upload_data(
         from_batch: int = 0,
         to_batch: int = -1,
@@ -698,7 +664,7 @@ def create_and_upload_data(
         vocab_size: int = 50257,
         num_fm_val_batches: int = 1,
         repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
-        start_upload_loop: bool = False,
+        num_batches_per_group: int = 100,
 ):
     hf_token=os.getenv("HF_TOKEN")
     assert hf_token is not None, "Please set the HF_TOKEN environment variable."
@@ -714,16 +680,25 @@ def create_and_upload_data(
     repofiles = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
     repofiles = sorted([f.split("/")[-1] for f in repofiles if f.startswith("bytes/")])
 
-    if start_upload_loop:
-        print("Starting upload loop...")
-        executor = ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(upload_loop, api, repo_id)
-
     print("Finding finemath data files...")
     os.makedirs("data", exist_ok=True)
     fm_files_train = sorted(Path.cwd().glob("data/fm_toks_train_batch*.bin"))
     fm_files_val = sorted(Path.cwd().glob("data/fm_toks_val_batch*.bin"))
     print(f"Found {len(fm_files_train)} finemath train batches and {len(fm_files_val)} finemath val batches")
+
+    def group_and_save_batches(files: list[str], filename: str):
+        files = sorted(files)
+        file0 = files.pop(0)
+        group = load_file(file0)
+        os.remove(file0)
+        for file in files:
+            group = torch.cat([group, load_file(file)])
+            os.remove(file)
+        save_file(f"data/{filename}", group)
+
+    def minmax_filename(filenames: list[str]) -> tuple[int, int]:
+        filenums = [int(f.split("_")[-1].split(".")[0]) for f in filenames]
+        return min(filenums), max(filenums)
 
     def create_and_save_batch(
             batch_num: int,
@@ -752,17 +727,39 @@ def create_and_upload_data(
     t0 = perf_counter()
     t0_global = perf_counter()
 
+    executor = ThreadPoolExecutor(max_workers=1)
+    futures = []
+
     if not skip_fm_val_batches:
+        filenames = []
         print("Creating finemath val batches...")
         for batch_num_val in range(len(fm_files_val)):
             filename_toks = fm_files_val[batch_num_val]
             batch = load_file(filename_toks).view(B, T)
             filename = f"fm_val_batch_{batch_num_val}.bin"
-            if filename in repofiles:
-                t0 = perf_counter()
-                continue
+            filenames.append(filename)
             create_and_save_batch(batch_num_val, batch, filename, t0, t0_global)
+
+            if len(filenames) >= num_batches_per_group:
+                for future in futures:
+                    future.result()
+                futures = []
+                min_, max_ = minmax_filename(filenames)
+                filename = f"fm_val_batches_{min_}-{max_}.bin"
+                group_and_save_batches(filenames, filename)
+                filenames = []
+                futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/val", save_first=False))
             t0 = perf_counter()
+    
+        if len(filenames) > 0:
+            for future in futures:
+                future.result()
+            futures = []
+            min_, max_ = minmax_filename(filenames)
+            filename = f"fm_val_batches_{min_}-{max_}.bin"
+            group_and_save_batches(filenames, filename)
+            upload_with_backoff(api, load_file(f"data/{filename}"), filename, repo_id, "bytes/val", save_first=False)
+            filenames = []
     
     if not skip_fw_val_batches:
         dl = distributed_data_generator("fineweb100B/fineweb_val_*.bin")
@@ -770,6 +767,7 @@ def create_and_upload_data(
         print("Creating fineweb val batches...")
         dl = distributed_data_generator("fineweb100B/fineweb_val_*.bin")
         batch_num_val = 0
+        filenames = []
         for new_tokens in dl:
             tokens_fw = torch.cat([tokens_fw, new_tokens]) if tokens_fw else new_tokens
             if len(tokens_fw) < B*T:
@@ -780,9 +778,6 @@ def create_and_upload_data(
                     break
                 batch_num_val += 1
                 filename = f"fw_val_batch_{batch_num_val}.bin"
-                if filename in repofiles:
-                    t0 = perf_counter()
-                    continue
                 create_and_save_batch(
                     batch_num=batch_num_val,
                     tokens=tokens_fw[i:i+B*T].view(B, T).to(torch.int32),
@@ -790,13 +785,34 @@ def create_and_upload_data(
                     t_start=t0,
                     t_global_start=t0_global,
                 )
+                filenames.append(filename)
+                if len(filenames) >= num_batches_per_group:
+                    for future in futures:
+                        future.result()
+                    futures = []
+                    min_, max_ = minmax_filename(filenames)
+                    filename = f"fw_val_batches_{min_}-{max_}.bin"
+                    group_and_save_batches(filenames, filename)
+                    filenames = []
+                    futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/val", save_first=False))
                 t0 = perf_counter()
 
             num_batches_processed = len(tokens_fw) // (B*T)
             tokens_fw = tokens_fw[num_batches_processed * B*T:]
+        
+        if len(filenames) > 0:
+            for future in futures:
+                future.result()
+            futures = []
+            min_, max_ = minmax_filename(filenames)
+            filename = f"fw_val_batches_{min_}-{max_}.bin"
+            group_and_save_batches(filenames, filename)
+            upload_with_backoff(api, load_file(f"data/{filename}"), filename, repo_id, "bytes/val", save_first=False)
+            filenames = []
     
     print("Creating finemath train batches...")
     batch_num_train = 0
+    filenames = []
     for idx in range(len(fm_files_train)):
         if batch_num_train < from_batch:
             continue
@@ -805,18 +821,35 @@ def create_and_upload_data(
         filename_toks = fm_files_train[idx]
         batch = load_file(filename_toks).view(B, T)
         filename = f"fm_train_batch_{batch_num_train}.bin"
-        if filename in repofiles:
-            t0 = perf_counter()
-            continue
         create_and_save_batch(batch_num_train, batch, filename, t0, t0_global)
+        filenames.append(filename)
+        if len(filenames) >= num_batches_per_group:
+            for future in futures:
+                future.result()
+            futures = []
+            min_, max_ = minmax_filename(filenames)
+            filename = f"fm_train_batches_{min_}-{max_}.bin"
+            group_and_save_batches(filenames, filename)
+            filenames = []
+            futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/train", save_first=False))
         batch_num_train += 1
         t0 = perf_counter()
+
+    if len(filenames) > 0:
+        for future in futures:
+            future.result()
+        futures = []
+        min_, max_ = minmax_filename(filenames)
+        filename = f"fm_train_batches_{min_}-{max_}.bin"
+        group_and_save_batches(filenames, filename)
+        upload_with_backoff(api, load_file(f"data/{filename}"), filename, repo_id, "bytes/train", save_first=False)
 
     print("Creating fineweb train batches...")
     print("Setting up fineweb dataloader...")
     dl = distributed_data_generator("fineweb100B/fineweb_train_*.bin")
     tokens_fw = next(dl)
     batch_num_fw = 0  # distinguish between finemath and fineweb batches but count global batch number for parallel workers
+    filenames = []
     for new_tokens in dl:
         tokens_fw = torch.cat([tokens_fw, new_tokens])
         if len(tokens_fw) < B*T:
@@ -832,9 +865,6 @@ def create_and_upload_data(
             if to_batch >= 0 and batch_num_train >= to_batch:
                 break
             filename = f"fw_train_batch_{batch_num_fw}.bin"
-            if filename in repofiles:
-                t0 = perf_counter()
-                continue
             create_and_save_batch(
                 batch_num=batch_num_train,
                 tokens=tokens_fw[i*B*T : (i+1)*B*T].view(B, T).to(torch.int32),
@@ -842,15 +872,32 @@ def create_and_upload_data(
                 t_start=t0,
                 t_global_start=t0_global,
             )
+            filenames.append(filename)
+            if len(filenames) >= num_batches_per_group:
+                for future in futures:
+                    future.result()
+                futures = []
+                min_, max_ = minmax_filename(filenames)
+                filename = f"fw_train_batches_{min_}-{max_}.bin"
+                group_and_save_batches(filenames, filename)
+                filenames = []
+                futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/train", save_first=False))
             t0 = perf_counter()
 
         num_batches_processed = len(tokens_fw) // (B*T)
         tokens_fw = tokens_fw[num_batches_processed * B*T:]
 
-    # Wait for all uploads to finish
-    if start_upload_loop:
-        future.result()
-        executor.shutdown(wait=True)
+    if len(filenames) > 0:
+        for future in futures:
+            future.result()
+        futures = []
+        min_, max_ = minmax_filename(filenames)
+        filename = f"fw_train_batches_{min_}-{max_}.bin"
+        group_and_save_batches(filenames, filename)
+        upload_with_backoff(api, load_file(f"data/{filename}"), filename, repo_id, "bytes/train", save_first=False)
+        filenames = []
+
+    executor.shutdown()
 
 
 #####################
@@ -988,7 +1035,6 @@ def main():
             group_and_upload_tokens(num_train_batches)
     create_and_upload_data(
         args.from_batch, args.to_batch, args.skip_fm_val_batches, args.skip_fw_val_batches,
-        start_upload_loop=args.start_upload_loop,
     )
 
 
