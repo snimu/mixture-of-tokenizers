@@ -67,172 +67,242 @@ def tokens_to_bytes(tokens: torch.Tensor, emb: nn.Embedding) -> torch.Tensor:
         return byte_tensor.view(-1).unsqueeze(0)  # einops.rearrange(byte_tensor, "n c -> (n c)")[None]
 
 
-@torch.compile
+# Thanks Google Gemini Pro 2.5 for the 150x speedup!
+@torch.compile(mode="reduce-overhead")
 def pull_from_right(
-        byte_tensor: torch.Tensor, bytes_per_token: int, pad_byte: int, eot_byte: int
+    byte_tensor: torch.Tensor, bytes_per_token: int, pad_byte: int, eot_byte: int
 ) -> torch.Tensor:
+    """
+    Pulls valid bytes towards the left boundary of each token, considering EOT tokens
+    as sequence breaks. Bytes are taken from the current token up to (but not including)
+    the next EOT token. EOT tokens retain their original bytes.
+    Vectorized implementation.
+    """
     B, T = byte_tensor.size()
-    T_reduced = T // bytes_per_token 
-    
-    # Reshape to token-level representation
-    byte_tensor = byte_tensor.view(B, T_reduced, bytes_per_token)
-    
-    # Create masks for non-padding bytes and EOT tokens
-    non_pad_mask = byte_tensor != pad_byte  # Shape: (B, T_reduced, bytes_per_token)
-    is_eot_token = torch.all(byte_tensor == eot_byte, dim=2)  # Shape: (B, T_reduced)
-    
-    # Initialize output tensor
-    pulled_tensor = torch.full_like(byte_tensor, pad_byte)
-    
-    # Process each batch (we still need this loop as batches can have different EOT patterns)
-    for batch_idx in range(B):
-        # Calculate valid bytes per token and their cumulative positions
-        valid_bytes_per_token = non_pad_mask[batch_idx].sum(dim=1)
-        cum_positions = torch.zeros(T_reduced + 1, dtype=torch.long, device=byte_tensor.device)
-        cum_positions[1:] = torch.cumsum(valid_bytes_per_token, dim=0)
-        
-        # Extract all valid bytes at once using a list comprehension and single cat operation
-        valid_bytes_list = [byte_tensor[batch_idx, t][non_pad_mask[batch_idx, t]] 
-                           for t in range(T_reduced) if valid_bytes_per_token[t] > 0]
-        
-        # Skip if no valid bytes in this batch
-        if not valid_bytes_list:
-            continue
-            
-        all_valid_bytes = torch.cat(valid_bytes_list)
-        
-        # Find EOT positions
-        eot_positions = is_eot_token[batch_idx].nonzero(as_tuple=True)[0]
-        
-        # For each token, find its next EOT token using searchsorted (vectorized)
-        if len(eot_positions) > 0:
-            token_indices = torch.arange(T_reduced, device=byte_tensor.device)
-            next_eot_idx = torch.searchsorted(eot_positions, token_indices)
-            
-            # Convert searchsorted indices to actual EOT positions
-            next_eot = torch.full((T_reduced,), T_reduced, device=byte_tensor.device)
-            valid_mask = next_eot_idx < len(eot_positions)
-            if valid_mask.any():
-                next_eot[valid_mask] = eot_positions[next_eot_idx[valid_mask]]
-        else:
-            # No EOT tokens in this batch
-            next_eot = torch.full((T_reduced,), T_reduced, device=byte_tensor.device)
-        
-        # Process each token (minimal operations in this loop now)
-        for token_idx in range(T_reduced):
-            # For EOT tokens, keep original bytes
-            if is_eot_token[batch_idx, token_idx]:
-                start_idx = cum_positions[token_idx].item()
-                end_idx = cum_positions[token_idx + 1].item()
-                if start_idx < end_idx:
-                    token_bytes = all_valid_bytes[start_idx:end_idx]
-                    pulled_tensor[batch_idx, token_idx, :len(token_bytes)] = token_bytes
-                continue
-            
-            # For non-EOT tokens, pull bytes up to the next EOT
-            start_idx = cum_positions[token_idx].item()
-            next_eot_pos = next_eot[token_idx].item()
-            end_idx = cum_positions[next_eot_pos].item()
-            
-            bytes_to_pull = min(bytes_per_token, end_idx - start_idx)
-            
-            if bytes_to_pull > 0 and start_idx < len(all_valid_bytes):
-                pulled_tensor[batch_idx, token_idx, :bytes_to_pull] = all_valid_bytes[start_idx:start_idx + bytes_to_pull]
-    
-    # Reshape back to original dimensions
-    return pulled_tensor.view(B, T)
+    if T == 0: # Handle empty input
+        return byte_tensor
+    T_reduced = T // bytes_per_token
+    assert T % bytes_per_token == 0, "T must be divisible by bytes_per_token"
+    if T_reduced == 0: # Handle case where T < bytes_per_token
+         return torch.full_like(byte_tensor, pad_byte)
+
+    # 1. Preprocessing
+    byte_tensor_view = byte_tensor.view(B, T_reduced, bytes_per_token)
+    device = byte_tensor.device
+
+    non_pad_mask = byte_tensor_view != pad_byte  # (B, Tr, bpt)
+    is_eot_token = torch.all(byte_tensor_view == eot_byte, dim=2) # (B, Tr)
+
+    valid_bytes_per_token = non_pad_mask.sum(dim=2) # (B, Tr)
+
+    # Cumulative count of *valid* bytes up to the start of each token
+    cum_valid_bytes = torch.cumsum(
+        torch.cat([torch.zeros_like(valid_bytes_per_token[:, :1]), valid_bytes_per_token], dim=1),
+        dim=1
+    ) # (B, Tr + 1)
+    start_valid_byte_idx = cum_valid_bytes[:, :-1] # (B, Tr) - Global index of first valid byte for token t
+    end_valid_byte_idx = cum_valid_bytes[:, 1:]   # (B, Tr) - Global index of last valid byte + 1 for token t
+    total_valid_bytes_per_batch = cum_valid_bytes[:, -1] # (B,)
+
+    # 2. Find Next EOT Boundary (using searchsorted loop for now)
+    next_eot_token_indices = torch.full_like(is_eot_token, T_reduced, dtype=torch.long) # (B, Tr)
+    for b in range(B):
+        eot_pos = is_eot_token[b].nonzero(as_tuple=True)[0]
+        if eot_pos.numel() > 0:
+            token_indices = torch.arange(T_reduced, device=device)
+            # Find index in eot_pos for the first EOT >= token_indices
+            next_eot_rel_idx = torch.searchsorted(eot_pos, token_indices, side='left')
+            # Clamp indices to valid range and get actual token positions
+            valid_mask = next_eot_rel_idx < eot_pos.numel()
+            next_eot_token_indices[b, valid_mask] = eot_pos[next_eot_rel_idx[valid_mask]]
+            # Tokens after the last EOT will correctly point to T_reduced (default value)
+
+    # 3. Calculate Byte Ranges to Pull
+    # Global index of the first valid byte in the *next* EOT token (or end of sequence)
+    # Use gather with the corrected indexing (no extra unsqueeze)
+    next_eot_valid_byte_start_idx = cum_valid_bytes.gather(1, next_eot_token_indices) # (B, Tr)
+
+    # Number of valid bytes available from current token up to (not including) next EOT
+    available_bytes = next_eot_valid_byte_start_idx - start_valid_byte_idx # (B, Tr)
+    bytes_to_pull = torch.minimum(available_bytes, torch.tensor(bytes_per_token, device=device)) # (B, Tr)
+    bytes_to_pull = torch.clamp(bytes_to_pull, min=0) # Ensure non-negative
+
+    # 4. Gather Bytes (Using Flattening Approach)
+    flat_indices_b, flat_indices_t, flat_indices_k = non_pad_mask.nonzero(as_tuple=True)
+    flat_valid_bytes = byte_tensor_view[flat_indices_b, flat_indices_t, flat_indices_k] # (total_valid_bytes,)
+
+    # Mapping from batch item to its range in flat_valid_bytes
+    batch_offsets = torch.cat([torch.zeros(1, device=device, dtype=torch.long), total_valid_bytes_per_batch.cumsum(0)[:-1]]) # (B,)
+
+    # Create indices for the output tensor (B, Tr, bpt)
+    k_indices = torch.arange(bytes_per_token, device=device).view(1, 1, bytes_per_token).expand(B, T_reduced, -1)
+
+    # Calculate the global valid byte index we want for each output slot (b, t, k)
+    # target_global_valid_idx = start_valid_byte_idx[b, t] + k
+    target_global_valid_idx = start_valid_byte_idx.unsqueeze(2) + k_indices # (B, Tr, bpt)
+
+    # Create a mask for indices we actually need to gather (k < bytes_to_pull)
+    gather_mask = k_indices < bytes_to_pull.unsqueeze(2) # (B, Tr, bpt)
+
+    # Adjust target global indices to be relative to the flattened array
+    absolute_gather_idx = target_global_valid_idx + batch_offsets.view(B, 1, 1) # (B, Tr, bpt)
+
+    # Pad flat_valid_bytes to handle potential out-of-bounds gathers safely
+    total_flat_size = batch_offsets[-1] + total_valid_bytes_per_batch[-1] if B > 0 else 0
+    # Use a large index for invalid gathers and replace later
+    safe_indices = torch.where(gather_mask, absolute_gather_idx, total_flat_size) # Use index outside valid range
+
+    # Add a padding value at the end of flat_valid_bytes
+    # Ensure dtype matches byte_tensor
+    padded_flat_valid_bytes = torch.cat([flat_valid_bytes, torch.tensor([pad_byte], device=device, dtype=byte_tensor.dtype)])
+
+    # Perform the gather
+    # Clamp indices just in case, although safe_indices should handle it
+    clamped_indices = torch.clamp(safe_indices, max=total_flat_size)
+    gathered_bytes_flat = padded_flat_valid_bytes[clamped_indices] # (B, Tr, bpt)
+
+    # Reshape gathered bytes and apply padding where gather_mask was false
+    pulled_non_eot = torch.where(gather_mask, gathered_bytes_flat, torch.tensor(pad_byte, device=device, dtype=byte_tensor.dtype)) # (B, Tr, bpt)
+
+    # 5. Handle EOT Tokens
+    # EOT tokens keep their original bytes, exactly as they were.
+    final_pulled_tensor = torch.where(
+        is_eot_token.unsqueeze(-1),
+        byte_tensor_view, # Keep original bytes exactly as they were for EOTs
+        pulled_non_eot      # Use the pulled bytes for non-EOTs
+    )
+
+    # 6. Reshape back
+    return final_pulled_tensor.view(B, T)
 
 
-@torch.compile
+@torch.compile(mode="reduce-overhead")
 def pull_from_left(
-        byte_tensor: torch.Tensor, bytes_per_token: int, pad_byte: int, eot_byte: int
+    byte_tensor: torch.Tensor, bytes_per_token: int, pad_byte: int, eot_byte: int
 ) -> torch.Tensor:
+    """
+    Pulls valid bytes towards the right boundary of each token, considering EOT tokens
+    as sequence breaks. Bytes are taken from the token after the previous EOT up to
+    the current token. The rightmost available bytes are kept if capacity is exceeded.
+    EOT tokens retain their original bytes. Vectorized implementation.
+    """
     B, T = byte_tensor.size()
-    T_reduced = T // bytes_per_token 
-    
-    # Reshape to token-level representation
-    byte_tensor = byte_tensor.view(B, T_reduced, bytes_per_token)
-    
-    # Create masks for non-padding bytes and EOT tokens
-    non_pad_mask = byte_tensor != pad_byte  # Shape: (B, T_reduced, bytes_per_token)
-    is_eot_token = torch.all(byte_tensor == eot_byte, dim=2)  # Shape: (B, T_reduced)
-    
-    # Initialize output tensor
-    pulled_tensor = torch.full_like(byte_tensor, pad_byte)
-    
-    # Process each batch
-    for batch_idx in range(B):
-        # Calculate valid bytes per token and their cumulative positions
-        valid_bytes_per_token = non_pad_mask[batch_idx].sum(dim=1)
-        cum_positions = torch.zeros(T_reduced + 1, dtype=torch.long, device=byte_tensor.device)
-        cum_positions[1:] = torch.cumsum(valid_bytes_per_token, dim=0)
-        
-        # Extract all valid bytes at once using a list comprehension and single cat operation
-        valid_bytes_list = [byte_tensor[batch_idx, t][non_pad_mask[batch_idx, t]] 
-                           for t in range(T_reduced) if valid_bytes_per_token[t] > 0]
-        
-        # Skip if no valid bytes in this batch
-        if not valid_bytes_list:
-            continue
-            
-        all_valid_bytes = torch.cat(valid_bytes_list)
-        
-        # Find EOT positions
-        eot_positions = is_eot_token[batch_idx].nonzero(as_tuple=True)[0]
-        
-        # Pre-compute previous EOT indices for all token positions
-        token_indices = torch.arange(T_reduced, device=byte_tensor.device)
-        if len(eot_positions) > 0:
-            # Use a trick with searchsorted to find the previous EOT
-            prev_eot_idx = torch.searchsorted(eot_positions, token_indices, right=True) - 1
-            
-            # Convert to actual positions and handle no-previous-EOT case
-            prev_eot = torch.full((T_reduced,), -1, device=byte_tensor.device)
-            valid_mask = prev_eot_idx >= 0
-            if valid_mask.any():
-                prev_eot[valid_mask] = eot_positions[prev_eot_idx[valid_mask]]
-        else:
-            # No EOT tokens in this batch
-            prev_eot = torch.full((T_reduced,), -1, device=byte_tensor.device)
-        
-        # Process each token
-        for token_idx in range(T_reduced):
-            current_start = cum_positions[token_idx].item()
-            current_end = cum_positions[token_idx + 1].item()
-            
-            # If this is an EOT token, only use its own bytes
-            if is_eot_token[batch_idx, token_idx]:
-                valid_bytes = current_end - current_start
-                if valid_bytes > 0:
-                    # Place bytes right-aligned (left-padded)
-                    pulled_tensor[batch_idx, token_idx, -valid_bytes:] = all_valid_bytes[current_start:current_end]
-                continue
-            
-            # Determine where to start pulling bytes from
-            prev_eot_pos = prev_eot[token_idx].item()
-            if prev_eot_pos >= 0:
-                # Start from token after the previous EOT
-                pull_start = cum_positions[prev_eot_pos + 1].item()
-            else:
-                # No previous EOT, start from beginning
-                pull_start = 0
-            
-            # Determine the byte range to pull
-            total_bytes = current_end - pull_start
-            
-            if total_bytes <= bytes_per_token:
-                # If we have fewer bytes than capacity, use all of them
-                bytes_to_use = all_valid_bytes[pull_start:current_end]
-                # Place bytes right-aligned (left-padded)
-                pulled_tensor[batch_idx, token_idx, -len(bytes_to_use):] = bytes_to_use
-            else:
-                # If we have more bytes than capacity, take the rightmost bytes
-                bytes_to_use = all_valid_bytes[current_end - bytes_per_token:current_end]
-                # Place all bytes (fills the token completely)
-                pulled_tensor[batch_idx, token_idx, -bytes_per_token:] = bytes_to_use
-    
-    # Reshape back to original dimensions
-    return pulled_tensor.view(B, T)
+    if T == 0: return byte_tensor
+    T_reduced = T // bytes_per_token
+    assert T % bytes_per_token == 0, "T must be divisible by bytes_per_token"
+    if T_reduced == 0: return torch.full_like(byte_tensor, pad_byte)
+
+    # 1. Preprocessing (Identical to pull_from_right)
+    byte_tensor_view = byte_tensor.view(B, T_reduced, bytes_per_token)
+    device = byte_tensor.device
+
+    non_pad_mask = byte_tensor_view != pad_byte
+    is_eot_token = torch.all(byte_tensor_view == eot_byte, dim=2)
+
+    valid_bytes_per_token = non_pad_mask.sum(dim=2)
+
+    cum_valid_bytes = torch.cumsum(
+        torch.cat([torch.zeros_like(valid_bytes_per_token[:, :1]), valid_bytes_per_token], dim=1),
+        dim=1
+    )
+    # start_valid_byte_idx = cum_valid_bytes[:, :-1] # Not directly needed here
+    end_valid_byte_idx = cum_valid_bytes[:, 1:]   # (B, Tr) - Global index of last valid byte + 1 for token t
+    total_valid_bytes_per_batch = cum_valid_bytes[:, -1] # (B,)
+
+    # 2. Find Previous EOT Boundary (using searchsorted loop for now)
+    prev_eot_token_indices = torch.full_like(is_eot_token, -1, dtype=torch.long) # (B, Tr)
+    for b in range(B):
+        eot_pos = is_eot_token[b].nonzero(as_tuple=True)[0]
+        if eot_pos.numel() > 0:
+            token_indices = torch.arange(T_reduced, device=device)
+            # Find index in eot_pos for the last EOT <= token_indices
+            prev_eot_rel_idx = torch.searchsorted(eot_pos, token_indices, side='right') - 1
+            # Get actual token positions for valid indices
+            valid_mask = prev_eot_rel_idx >= 0
+            prev_eot_token_indices[b, valid_mask] = eot_pos[prev_eot_rel_idx[valid_mask]]
+            # Tokens before the first EOT correctly have -1
+
+    # 3. Calculate Byte Ranges to Pull
+    # Global index of the first valid byte *after* the previous EOT token
+    # Need to handle prev_eot_token_indices == -1
+    prev_eot_plus_1 = (prev_eot_token_indices + 1).clamp(min=0) # Clamp to handle -1 -> 0
+    # Use gather with the corrected indexing (no extra unsqueeze)
+    pull_range_start_idx = cum_valid_bytes.gather(1, prev_eot_plus_1) # (B, Tr)
+    # Use mask for tokens before first EOT (where prev_eot == -1) to ensure start is 0
+    pull_range_start_idx = torch.where(prev_eot_token_indices == -1, torch.tensor(0, device=device, dtype=torch.long), pull_range_start_idx)
+
+    # Global index of the last valid byte + 1 for the *current* token `t`
+    pull_range_end_idx = end_valid_byte_idx # (B, Tr)
+
+    # Number of valid bytes available from (prev EOT + 1) up to current token `t`
+    available_bytes = pull_range_end_idx - pull_range_start_idx # (B, Tr)
+    available_bytes = torch.clamp(available_bytes, min=0)
+
+    # We need to take the *rightmost* `bytes_per_token` of these available bytes
+    bytes_to_use = torch.minimum(available_bytes, torch.tensor(bytes_per_token, device=device)) # (B, Tr)
+
+    # Calculate the starting global index for the bytes we actually want to gather
+    gather_start_global_idx = pull_range_end_idx - bytes_to_use # (B, Tr)
+
+    # 4. Gather Bytes (Using Flattening Approach)
+    flat_indices_b, flat_indices_t, flat_indices_k = non_pad_mask.nonzero(as_tuple=True)
+    flat_valid_bytes = byte_tensor_view[flat_indices_b, flat_indices_t, flat_indices_k]
+
+    batch_offsets = torch.cat([torch.zeros(1, device=device, dtype=torch.long), total_valid_bytes_per_batch.cumsum(0)[:-1]])
+
+    # Indices for the output tensor relative to the gather operation (0 to bytes_to_use - 1)
+    k_indices_relative = torch.arange(bytes_per_token, device=device).view(1, 1, -1) # (1, 1, bpt)
+
+    # Calculate the absolute global valid byte index we want for each relative k
+    # target_global_valid_idx = gather_start_global_idx[b, t] + k_relative
+    target_global_valid_idx = gather_start_global_idx.unsqueeze(2) + k_indices_relative # (B, Tr, bpt)
+
+    # Create mask for indices we need (k_relative < bytes_to_use)
+    gather_mask = k_indices_relative < bytes_to_use.unsqueeze(2) # (B, Tr, bpt)
+
+    # Adjust target global indices for the flattened array
+    absolute_gather_idx = target_global_valid_idx + batch_offsets.view(B, 1, 1) # (B, Tr, bpt)
+
+    # Pad flat_valid_bytes and gather safely
+    total_flat_size = batch_offsets[-1] + total_valid_bytes_per_batch[-1] if B > 0 else 0
+    safe_indices = torch.where(gather_mask, absolute_gather_idx, total_flat_size)
+    # Ensure dtype matches byte_tensor
+    padded_flat_valid_bytes = torch.cat([flat_valid_bytes, torch.tensor([pad_byte], device=device, dtype=byte_tensor.dtype)])
+    clamped_indices = torch.clamp(safe_indices, max=total_flat_size)
+    gathered_bytes_flat = padded_flat_valid_bytes[clamped_indices] # (B, Tr, bpt) - These are the desired bytes, but left-aligned in this tensor
+
+    # 5. Place Bytes Right-Aligned and Handle EOTs
+    # Create the output tensor, initially padded
+    pulled_non_eot = torch.full_like(byte_tensor_view, pad_byte)
+
+    # Calculate the destination k index for placing the gathered bytes
+    # The k_th gathered byte (0 <= k < bytes_to_use) should go to slot (bpt - bytes_to_use + k)
+    dest_k_indices = bytes_per_token - bytes_to_use.unsqueeze(2) + k_indices_relative # (B, Tr, bpt)
+
+    # We only place where gather_mask is true
+    # Create full B, Tr indices for scatter/advanced indexing
+    b_indices = torch.arange(B, device=device).view(B, 1, 1).expand_as(dest_k_indices)
+    t_indices = torch.arange(T_reduced, device=device).view(1, T_reduced, 1).expand_as(dest_k_indices)
+
+    # Use advanced indexing to place the bytes
+    # Only update positions where gather_mask is true
+    valid_dest_k = dest_k_indices[gather_mask]
+    valid_b = b_indices[gather_mask]
+    valid_t = t_indices[gather_mask]
+    valid_gathered_bytes = gathered_bytes_flat[gather_mask]
+
+    if valid_b.numel() > 0: # Check if there's anything to place
+        pulled_non_eot[valid_b, valid_t, valid_dest_k] = valid_gathered_bytes
+
+    # Handle EOT Tokens: Keep original bytes, exactly as they were.
+    final_pulled_tensor = torch.where(
+        is_eot_token.unsqueeze(-1),
+        byte_tensor_view, # Keep original bytes exactly as they were for EOTs
+        pulled_non_eot      # Use the pulled bytes for non-EOTs
+    )
+
+    # 6. Reshape back
+    return final_pulled_tensor.view(B, T)
 
 
 def create_batch(
@@ -786,6 +856,86 @@ def create_and_upload_data(
 #####################
 ###### TESTING ######
 #####################
+
+
+def pfr(byte_tensor: torch.Tensor, bytes_per_token: int, pad_byte: int, eot_byte: int):  # for trying out more efficient verstions of pull_from_right
+    pass
+
+
+def _time_pfr():
+    num_iter_orig = 5
+    num_iter_new = 100
+    bytes_per_token = 16
+    pad_byte = 456
+    eot_byte = 457
+    vocab_size = 50257
+
+    pfr_orig_times = []
+    pfr_times = []
+
+    def make_example_tensor(B: int, T: int):
+        tokens = torch.randint(0, 50256, (B, T), dtype=torch.int32)
+        eot_positions = torch.rand(B, T)
+        tokens = torch.where(eot_positions > 0.8, 50256, tokens)
+        bytes_to_tokens_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
+        byte_tensor_right_pad = tokens_to_bytes(tokens, bytes_to_tokens_right_pad)
+        return byte_tensor_right_pad
+    
+    print("Original...")
+    B, T = 1024, 1024
+    for i in tqdm(range(num_iter_orig)):
+        byte_tensor_right_pad = make_example_tensor(B, T)
+        t0 = perf_counter()
+        _ = pull_from_right(byte_tensor_right_pad, bytes_per_token, pad_byte, eot_byte)
+        pfr_orig_times.append(perf_counter() - t0)
+    
+    print("Modified...")
+    B, T = 1024, 1024
+    for i in tqdm(range(num_iter_new)):
+        byte_tensor_right_pad = make_example_tensor(B, T)
+        t0 = perf_counter()
+        _ = pfr(byte_tensor_right_pad, bytes_per_token, pad_byte, eot_byte)
+        pfr_times.append(perf_counter() - t0)
+    
+    t_orig = np.mean(pfr_orig_times)
+    t = np.mean(pfr_times)
+    print(f"pfr_orig: {t_orig:.2f}s")
+    print(f"pfr: {t:.2f}s")
+
+
+def _print_pfr():
+    bytes_per_token = 16
+    pad_byte = 456
+    eot_byte = 457
+    vocab_size = 50257
+
+    def make_example_tensor(B, T):
+        tokens = torch.randint(0, 50256, (B, T), dtype=torch.int32)
+        eot_positions = torch.rand(B, T)
+        tokens = torch.where(eot_positions > 0.8, 50256, tokens)
+        bytes_to_tokens_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
+        byte_tensor_right_pad = tokens_to_bytes(tokens, bytes_to_tokens_right_pad)
+        return tokens, byte_tensor_right_pad
+
+    B, T = 1024, 1024
+    tokens, byte_tensor_right_pad = make_example_tensor(B, T)
+    byte_tensor_pull_from_right = pull_from_right(byte_tensor_right_pad, bytes_per_token, pad_byte, eot_byte)
+    byte_tensor_pfr = pfr(byte_tensor_right_pad, bytes_per_token, pad_byte, eot_byte)
+    print(f"{torch.allclose(byte_tensor_pull_from_right, byte_tensor_pfr)=}")
+
+    B, T = 1, 16
+    tokens, byte_tensor_right_pad = make_example_tensor(B, T)
+    byte_tensor_pull_from_right = pull_from_right(byte_tensor_right_pad, bytes_per_token, pad_byte, eot_byte)
+    byte_tensor_pfr = pfr(byte_tensor_right_pad, bytes_per_token, pad_byte, eot_byte)
+    print(f"{tokens.shape=}\n{byte_tensor_right_pad.shape=}\n\nTOKENS")
+    print(tokens)
+    print("\n\nBYTES RIGHT PAD")
+    print(byte_tensor_right_pad.view(B, T, bytes_per_token))
+    print("\n\nBYTES RIGHT PULLED")
+    print(byte_tensor_pull_from_right)
+    print("\n\nBYTES RIGHT PULLED (pfr)")
+    print(byte_tensor_pfr)
+    print("\n\n")
 
 
 def _print_batch():
