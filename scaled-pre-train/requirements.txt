@@ -1,0 +1,7 @@
+torch
+tiktoken
+datasets
+huggingface_hub[cli]
+transformers
+psutil
+tqdm
