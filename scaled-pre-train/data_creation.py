@@ -671,8 +671,8 @@ def create_and_upload_data(
 
     print(f"\n{B=} {T=} {bytes_per_token=} {pad_byte=} {eot_byte=} {vocab_size=} {num_fm_val_batches=}\n")
     print("Creating tokens-to-bytes-embeddings...")
-    tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size).cuda()
-    tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size).cuda()
+    tokens_to_bytes_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size)
+    tokens_to_bytes_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size)
 
     print("Setting up HF API...")
     api = HfApi(token=hf_token)
@@ -711,7 +711,7 @@ def create_and_upload_data(
             print(f"Skipping {filename} because it already exists...")
             return
         batch = create_batch(
-            tokens=tokens.cuda(),
+            tokens=tokens,
             bytes_per_token=bytes_per_token,
             pad_byte=pad_byte,
             eot_byte=eot_byte,
