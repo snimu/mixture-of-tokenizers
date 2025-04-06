@@ -664,7 +664,7 @@ def create_and_upload_data(
         vocab_size: int = 50257,
         num_fm_val_batches: int = 1,
         repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
-        num_batches_per_group: int = 100,
+        num_batches_per_group: int = 25,
 ):
     hf_token=os.getenv("HF_TOKEN")
     assert hf_token is not None, "Please set the HF_TOKEN environment variable."
