@@ -737,7 +737,7 @@ def create_and_upload_data(
         print("Creating finemath val batches...")
         for batch_num_val in range(len(fm_files_val)):
             # Uploading
-            if len(filenames) > 0 and len(filenames) % max_workers_upload == 0:
+            if len(futures) >= max_workers_upload:
                 for future in futures:
                     future.result()
                 futures = []
@@ -780,7 +780,7 @@ def create_and_upload_data(
             num_batches = len(tokens_fw) // (B*T)
             for i in range(0, num_batches * B*T, B*T):
                 # Uploading
-                if len(filenames) > 0 and len(filenames) % max_workers_upload == 0:
+                if len(futures) >= max_workers_upload:
                     for future in futures:
                         future.result()
                     futures = []
@@ -824,7 +824,7 @@ def create_and_upload_data(
     filenames = []
     for idx in range(len(fm_files_train)):
         # Uploading
-        if len(filenames) > 0 and len(filenames) % max_workers_upload == 0:
+        if len(futures) >= max_workers_upload:
             for future in futures:
                 future.result()
             futures = []
@@ -869,7 +869,7 @@ def create_and_upload_data(
         num_batches = len(tokens_fw) // B*T
         for i in range(num_batches):
             # Uploading
-            if len(filenames) > 0 and len(filenames) % max_workers_upload == 0:
+            if len(futures) >= max_workers_upload:
                 for future in futures:
                     future.result()
                 futures = []
