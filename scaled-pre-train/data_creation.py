@@ -743,9 +743,10 @@ def create_and_upload_data(
                 futures = []
             if len(filenames) >= num_batches_per_group:
                 min_, max_ = minmax_filename(filenames)
-                group_and_save_batches(filenames, f"fm_val_batches_{min_}-{max_}.bin")
+                filename = f"fm_val_batches_{min_}-{max_}.bin"
+                group_and_save_batches(filenames, filename)
                 filenames = []
-                futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/fm_val_batches_{min_}-{max_}.bin"), f"fm_val_batches_{min_}-{max_}.bin", repo_id, "bytes/val", save_first=False))
+                futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/val", save_first=False))
             
             # Creating
             filename_toks = fm_files_val[batch_num_val]
@@ -786,9 +787,10 @@ def create_and_upload_data(
                     futures = []
                 if len(filenames) >= num_batches_per_group:
                     min_, max_ = minmax_filename(filenames)
-                    group_and_save_batches(filenames, f"fw_val_batches_{min_}-{max_}.bin")
+                    filename = f"fw_val_batches_{min_}-{max_}.bin"
+                    group_and_save_batches(filenames, filename)
                     filenames = []
-                    futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/fw_val_batches_{min_}-{max_}.bin"), f"fw_val_batches_{min_}-{max_}.bin", repo_id, "bytes/val", save_first=False))
+                    futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/val", save_first=False))
 
                 # Creating
                 if len(tokens_fw[i:]) < B*T:
@@ -830,9 +832,10 @@ def create_and_upload_data(
             futures = []
         if len(filenames) >= num_batches_per_group:
             min_, max_ = minmax_filename(filenames)
-            group_and_save_batches(filenames, f"fm_train_batches_{min_}-{max_}.bin")
+            filename = f"fm_train_batches_{min_}-{max_}.bin"
+            group_and_save_batches(filenames, filename)
             filenames = []
-            futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/fm_train_batches_{min_}-{max_}.bin"), f"fm_train_batches_{min_}-{max_}.bin", repo_id, "bytes/train", save_first=False))
+            futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/train", save_first=False))
         
         # Creating
         if batch_num_train < from_batch:
@@ -875,9 +878,10 @@ def create_and_upload_data(
                 futures = []
             if len(filenames) >= num_batches_per_group:
                 min_, max_ = minmax_filename(filenames)
-                group_and_save_batches(filenames, f"fw_train_batches_{min_}-{max_}.bin")
+                filename = f"fw_train_batches_{min_}-{max_}.bin"
+                group_and_save_batches(filenames, filename)
                 filenames = []
-                futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/fw_train_batches_{min_}-{max_}.bin"), f"fw_train_batches_{min_}-{max_}.bin", repo_id, "bytes/train", save_first=False))
+                futures.append(executor.submit(upload_with_backoff, api, load_file(f"data/{filename}"), filename, repo_id, "bytes/train", save_first=False))
 
             # Creating
             if len(tokens_fw[i*B*T:]) < B*T:
