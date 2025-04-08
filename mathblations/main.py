@@ -39,7 +39,7 @@ def _to_list(item: Any, dtype: type | None) -> list:
     raise ValueError(f"Expected {dtype} or list of {dtype}, got {item}")
 
 
-def get_args():  # TODO
+def get_args():
     parser = argparse.ArgumentParser()
 
     # General parameters
@@ -80,6 +80,7 @@ def get_args():  # TODO
     parser.add_argument("--n-embd", type=int, default=768, help="type=int, default=768")
     parser.add_argument("--n-layer-output", type=int, default=0, help="type=int, default=0")
     parser.add_argument("--output-type", choices=("sequential", "cross_attention"), default="sequential", help="type=str, choices=('sequential', 'cross_attention'), default='sequential'")
+    parser.add_argument("--digit_mixin_method", choices=("cross_attn", "concat"), default="cross_attn")
 
     
     args = parser.parse_args()
@@ -397,10 +398,13 @@ def make_run_name(
         use_digits: bool,
         n_layer_output: int,
         output_type: Literal["sequential", "cross_attention"],
+        digit_mixin_method: Literal["cross_attn", "concat"],
+        
 ) -> str:
     op_to_word = {"+": "addition", "-": "substraction", "*": "multiplication", "/": "division"}
     name = f"{format_num_params(num_params, 0)}_{'digits' if use_digits else 'tokens'}"
     name += f"_nlo{n_layer_output}_{output_type}"
+    name += f"_dmi-{'ca' if digit_mixin_method == 'cross_attn' else 'cc'}" if use_digits else ""
     name += f"_{max_digits_per_token}dpt_{max_tokens_per_num}tpn_{op_to_word[op]}_mod{mod}"
     name += f"_{vocab_size}vocab_{n_layer}layers_{n_head}heads_{n_embd}embdim"
     name += f"_{seed}seed_{batchsize}bs_{num_steps}steps_{num_epochs}epochs"
@@ -452,6 +456,7 @@ def train_and_save(
         use_digits=config.use_digits,
         n_layer_output=config.n_layer_output,
         output_type=config.output_type,
+        digit_mixin_method=config.digit_mixin_method,
     )
     if args.use_wandb:
         wandb.finish(quiet=True)
@@ -465,6 +470,8 @@ def train_and_save(
             use_digits=[config.use_digits],
             max_digits_per_token=[max_digits_per_token],
             max_tokens_per_num=[max_tokens_per_num],
+            n_layer_output=[config.n_layer_output],
+            digit_mixin_method=[config.digit_mixin_method],
             op=[op],
             mod=[mod],
             final_train_loss=[train_losses[-1]],
@@ -522,6 +529,7 @@ def main():
             length_factor=max_digits_per_token,
             n_layer_output=args.n_layer_output,
             output_type=args.output_type,
+            digit_mixin_method=args.digit_mixin_method,
         )
         config_with_digits = model.GPTConfig(use_digits=True, **common_config)
         config_no_digits = model.GPTConfig(use_digits=False, **common_config)

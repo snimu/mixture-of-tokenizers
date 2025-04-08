@@ -25,6 +25,7 @@ class GPTConfig:
     k_gt_q: bool = True  # at input: digits to tokens -> k>q; at output: tokens to digits -> q>k
     n_layer_output: int = 0  # extra layers for moving from tokens to digits at output
     output_type: Literal["sequential", "cross_attention"] = "sequential"
+    digit_mixin_method: Literal["cross_attn", "concat"] = "cross_attn"
 
 
 class Rotary(torch.nn.Module):
@@ -229,6 +230,56 @@ class TokensToDigitsCrossAttention(nn.Module):
         return xd
 
 
+class DigitMixinCrossAttention(nn.Module):
+    def __init__(self, config: GPTConfig):
+        super().__init__()
+        self.digit_attn = CausalSelfAttention(config)
+        self.cross_attn = CrossAttention(config)
+    
+    def forward(self, we: torch.Tensor, de: torch.Tensor):
+            de = de + self.transformer.digit_attn(F.rms_norm(de, (de.size(-1),)))
+            return self.transformer.cross_attn(
+                x_q=F.rms_norm(we, (we.size(-1),)),
+                x_kv=F.rms_norm(de, (de.size(-1),)),
+            )
+
+
+class DigitMixinConcat(nn.Module):
+    def __init__(self, config: GPTConfig):
+        super().__init__()
+        self.fc = nn.Linear(config.n_embd * (1 + config.length_factor), config.n_embd)
+        self.config = config
+    
+    def forward(self, we: torch.Tensor, de: torch.Tensor):
+        B_toks, S_toks = de.shape
+        B_digits, S_digits = we.shape
+        assert B_toks == B_digits
+        assert S_digits // S_toks == self.config.length_factor
+        de = de.view(B_toks, S_toks, 1)
+        we = we.view(B_toks, S_toks, -1)
+        x = torch.cat([de, we], dim=-1)
+        return self.fc(x)
+
+
+class DigitMixinNoMixin(nn.Module):
+    def __init__(self, config: GPTConfig):
+        super().__init__()
+        self.block = Block(config)
+    
+    def forward(self, x, *args):
+        return self.block(x)
+
+
+def make_digit_mixin(config: GPTConfig) -> DigitMixinCrossAttention | DigitMixinConcat | DigitMixinNoMixin:
+    if not config.use_digits:
+        return DigitMixinNoMixin(config)
+    
+    if config.digit_mixin_method == "cross_attn":
+        return DigitMixinCrossAttention(config)
+    
+    return DigitMixinConcat(config)
+
+
 # -----------------------------------------------------------------------------
 # The main GPT-2 model
 
@@ -240,9 +291,7 @@ class GPT(nn.Module):
 
         self.transformer = nn.ModuleDict(dict(
             dte = nn.Embedding(14, config.n_embd) if config.use_digits else nn.Identity(),  # 10 digits + pad & op & eq
-            digit_attn = CausalSelfAttention(config) if config.use_digits else nn.Identity(),
-            cross_attn = CrossAttention(config) if config.use_digits else nn.Identity(),
-            alternative_block = nn.Identity() if config.use_digits else Block(config),
+            digit_mixin = make_digit_mixin(config),
             wte = nn.Embedding(config.vocab_size, config.n_embd),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
         ))
@@ -272,24 +321,15 @@ class GPT(nn.Module):
         we = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
 
         # Digit embeddings
-        if self.config.use_digits:
-            de = self.transformer.dte(digits)
-            de = de + self.transformer.digit_attn(F.rms_norm(de, (de.size(-1),)))
-            x = self.transformer.cross_attn(
-                x_q=F.rms_norm(we, (we.size(-1),)),
-                x_kv=F.rms_norm(de, (de.size(-1),)),
-            )  # TODO: residual here?
-        # Otherwise, make up for layers with attention layer
-        else:
-            x = self.transformer.alternative_block(we)
+        de = self.transformer.dte(digits)
+        x = self.transformer.digit_mixin(we, de)
 
         # Model backend
         for block in self.transformer.h:
             x = block(x)
         
         # Output layer
-        if not isinstance(self.out_layer, nn.Identity):
-            x = self.out_layer(x)
+        x = self.out_layer(x)
 
         # Decode logits
         x = F.rms_norm(x, (x.size(-1),))
