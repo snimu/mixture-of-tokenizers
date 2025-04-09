@@ -80,7 +80,7 @@ def get_args():
     parser.add_argument("--n-embd", type=int, default=768, help="type=int, default=768")
     parser.add_argument("--n-layer-output", type=int, default=0, help="type=int, default=0")
     parser.add_argument("--output-type", choices=("sequential", "cross_attention"), default="sequential", help="type=str, choices=('sequential', 'cross_attention'), default='sequential'")
-    parser.add_argument("--digit_mixin_method", choices=("cross_attn", "concat"), default="cross_attn")
+    parser.add_argument("--digit-mixin-method", choices=("cross_attn", "concat"), default="cross_attn")
 
     
     args = parser.parse_args()
