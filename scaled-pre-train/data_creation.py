@@ -678,8 +678,25 @@ def create_and_upload_data(
     print("Setting up HF API...")
     api = HfApi(token=hf_token)
     api.create_repo(repo_id=repo_id, token=hf_token, repo_type="dataset", exist_ok=True)
+
+    print("Finding currently existing files...")
     repofiles = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
     repofiles = sorted([f.split("/")[-1] for f in repofiles if f.startswith("bytes/")])
+
+    def known_batchnums(files: list[str], prefix: str) -> list[int]:
+        files = [f for f in repofiles if f.startswith(prefix)]
+        ranges = [f.split("_")[-1].split(".")[0] for f in files]
+        nums = []
+        for r in ranges:
+            rstart = int(r.split("-")[0])
+            rend = int(r.split("-")[1])
+            nums.extend(list(range(rstart, rend+1)))
+        return sorted((list(set(nums))))
+    known_batchnums_fm_val = known_batchnums(repofiles, "fm_val_batch")
+    known_batchnums_fw_val = known_batchnums(repofiles, "fw_val_batch")
+    known_batchnums_fm_train = known_batchnums(repofiles, "fm_train_batch")
+    known_batchnums_fw_train = known_batchnums(repofiles, "fw_train_batch")
+
 
     print("Finding finemath data files...")
     os.makedirs("data", exist_ok=True)
@@ -736,6 +753,8 @@ def create_and_upload_data(
         filenames = []
         print("Creating finemath val batches...")
         for batch_num_val in range(len(fm_files_val)):
+            if batch_num_val in known_batchnums_fm_val:
+                continue
             # Uploading
             if len(futures) >= max_workers_upload:
                 for future in futures:
@@ -795,7 +814,12 @@ def create_and_upload_data(
                 # Creating
                 if len(tokens_fw[i:]) < B*T:
                     break
+
                 batch_num_val += 1
+
+                if batch_num_val in known_batchnums_fw_val:
+                    continue
+
                 filename = f"fw_val_batch_{batch_num_val}.bin"
                 create_and_save_batch(
                     batch_num=batch_num_val,
@@ -825,6 +849,9 @@ def create_and_upload_data(
     batch_num_train = 0
     filenames = []
     for idx in range(len(fm_files_train)):
+        if batch_num_train in known_batchnums_fm_train:
+            batch_num_train += 1
+            continue
         # Uploading
         if len(futures) >= max_workers_upload:
             for future in futures:
@@ -839,6 +866,7 @@ def create_and_upload_data(
         
         # Creating
         if batch_num_train < from_batch:
+            batch_num_train += 1
             continue
         if to_batch >= 0 and batch_num_train >= to_batch:
             break
@@ -888,6 +916,8 @@ def create_and_upload_data(
                 break
             batch_num_train += 1  # for tracking from_batch and to_batch
             batch_num_fw += 1  # for naming the fineweb batches
+            if batch_num_fw in known_batchnums_fw_train:
+                continue
             if batch_num_train < from_batch:
                 continue
             if to_batch >= 0 and batch_num_train >= to_batch:
