@@ -321,9 +321,9 @@ class Block(nn.Module):
 
 
 class CharMixinConcat(nn.Module):
-    def __init__(self, model_dim: int, chars_per_token: int):
+    def __init__(self, model_dim_toks: int, model_dim_chars: int, chars_per_token: int):
         super().__init__()
-        self.fc = nn.Linear(model_dim * (1 + chars_per_token), model_dim, bias=False)
+        self.fc = nn.Linear(model_dim_toks + chars_per_token * model_dim_chars, model_dim_toks, bias=False)
         self.chars_per_token = chars_per_token
     
     def forward(self, xt: torch.Tensor, xc: torch.Tensor):  # tokens, chars
@@ -374,7 +374,7 @@ class GPT(nn.Module):
         # Handle byte / character inputs ("Mixture of Tokenizers" @omouamoua)
         self.char_embed = nn.Embedding(458, model_dim_chars)  # including pad & eos, there are 458 unique chars
         self.token_embed = nn.Embedding(vocab_size, model_dim_toks)
-        self.char_mixin = CharMixinConcat(model_dim_toks, chars_per_token)
+        self.char_mixin = CharMixinConcat(model_dim_toks, model_dim_chars, chars_per_token)
         # token value embeddings by @KoszarskyB - inspired by @Grad62304977's value residual implementation following https://arxiv.org/abs/2410.17897
         # value embedding code simplification inspired by @ragulpr https://github.com/KellerJordan/modded-nanogpt/pull/78
         self.value_embeds = nn.ModuleList([nn.Embedding(vocab_size, model_dim_toks) for _ in range(3)])
