@@ -504,9 +504,7 @@ def distributed_data_generator(filename_pattern: str, batch_size: int, rank : in
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--chars_per_token", "-c", type=int, choices=[16, 18, 20], default=16)
-parser.add_argument("--alignment", "-a", type=str, choices=["left", "right"], default="right")
-parser.add_argument("--skip_mot_self_attn", "-s", action="store_true")
-parser.add_argument("--sliding_window_tokens", "-w", type=int, default=16)
+parser.add_argument("--alignment", "-a", type=str, choices=["left", "right"], default="left")
 cli_args = parser.parse_args()
 
 @dataclass
@@ -528,13 +526,10 @@ class Hyperparameters:
     save_checkpoint = False
     chars_per_token = 16 # number of tokens per character
     alignment = "right" # left or right
-    use_mot_self_attn = True
     sliding_window_tokens = 16
 args = Hyperparameters()
 args.chars_per_token = cli_args.chars_per_token
 args.alignment = cli_args.alignment
-args.use_mot_self_attn = not cli_args.skip_mot_self_attn
-args.sliding_window_tokens = cli_args.sliding_window_tokens
 
 # torchrun sets these env variables
 rank = int(os.environ["RANK"])
