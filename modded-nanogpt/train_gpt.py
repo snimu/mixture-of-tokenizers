@@ -290,59 +290,6 @@ class CausalSelfAttention(nn.Module):
         return y
 
 
-class CrossAttention(nn.Module):
-    """
-    Only project bytes_per_token bytes into their one corresponding token
-    --> causality or blocks are irrelevant
-
-    But do add rotary embeddings
-    """
-    def __init__(self, dim: int, num_heads: int, max_seq_len_q: int, max_seq_len_kv: int, head_dim=128):
-        super().__init__()
-        self.num_heads = num_heads
-        self.head_dim = head_dim
-        hdim = num_heads * head_dim
-        std = 0.5 * (dim ** -0.5)
-        bound = (3 ** 0.5) * std # improved init scale by @YouJiacheng
-        # merged QKV weights: suggested by many, implemented by @fernbear.bsky.social, and further improved by @YouJiacheng
-        # https://x.com/hi_tysam/status/1879699187107033311
-        self.q_w = nn.Parameter(torch.empty(hdim, dim).uniform_(-bound, bound))
-        self.kv_w = nn.Parameter(torch.empty(2, hdim, dim).uniform_(-bound, bound))
-        self.lambda_factor = nn.Parameter(torch.tensor(0.5))
-        self.rotary_q = Rotary(head_dim, max_seq_len_q)
-        self.rotary_k = Rotary(head_dim, max_seq_len_kv)
-        self.c_proj = CastedLinear(hdim, dim)  # No zero init because there won't be a residual!!! TODO: check if a residaul makes sense
-        # scale the attention logits by given constant, instead of the default head_dim**-0.5, by @leloykun
-        # inspired by learnable scalars used by @brendanh0gan https://x.com/hi_tysam/status/1879693583898591283
-        self.attn_scale = 0.12
-
-    def forward(self, xq: Tensor, xkv: Tensor):
-        Bq, Tq = xq.size(0), xq.size(1)
-        Bkv, Tkv = xkv.size(0), xkv.size(1)
-        assert Bq == Bkv == 1, "Must use batch size = 1 for FlexAttention"
-        k, v = F.linear(xkv, self.kv_w.flatten(end_dim=1).type_as(xkv)).view(Bq, Tkv, 2 * self.num_heads, self.head_dim).chunk(2, dim=-2)
-        q = F.linear(xq, self.q_w.type_as(xq)).view(Bq, Tq, self.num_heads, self.head_dim)
-        q, k = norm(q), norm(k) # QK norm @Grad62304977
-        q, k = self.rotary_q(q), self.rotary_k(k)
-        v = self.lambda_factor * v
-
-        # Because we always attend from n chars to 1 token, we can re-shape, use BMM, and save use the attention mask
-        chars_per_token = Tkv // Tq
-        q = q.transpose(1, 2).unsqueeze(3)  # einops.rearrange(q, "b tq h d -> b h tq 1 d")
-        k = k.view(k.shape[0], k.shape[2], -1, chars_per_token, k.shape[3])  # einops.rearrange(k, "b (t c) h d -> b h t c d", c=chars_per_token)
-        v = v.view(v.shape[0], v.shape[2], -1, chars_per_token, v.shape[3])
-
-        attn_scores = torch.matmul(q, k.transpose(-1, -2)) / (q.size(-1) ** 0.5)
-        attn_weights = torch.softmax(attn_scores, dim=-1)
-
-        y = torch.matmul(attn_weights, v)
-        y = y.squeeze(3).transpose(1, 2)  # einops.rearrange(y, "b h tq 1 d -> b tq h d")
-
-        y = y.contiguous().view(Bq, Tq, self.num_heads * self.head_dim) # re-assemble all head outputs side by side
-        y = self.c_proj(y)
-        return y
-
-
 class MLP(nn.Module):
     def __init__(self, dim: int):
         super().__init__()
@@ -371,6 +318,23 @@ class Block(nn.Module):
             x = x + self.attn(norm(x), ve, block_mask)
         x = x + self.mlp(norm(x))
         return x
+
+
+class CharMixinConcat(nn.Module):
+    def __init__(self, model_dim: int, chars_per_token: int):
+        super().__init__()
+        self.fc = nn.Linear(model_dim * (1 + chars_per_token), model_dim, bias=False)
+        self.chars_per_token = chars_per_token
+    
+    def forward(self, xt: torch.Tensor, xc: torch.Tensor):  # tokens, chars
+        B_toks, S_toks = xc.shape
+        B_digits, S_digits = xt.shape
+        assert B_toks == B_digits
+        assert S_digits // S_toks == self.chars_per_token
+        xc = xc.view(B_toks, S_toks, 1)
+        xt = xt.view(B_toks, S_toks, -1)
+        x = torch.cat([xc, xt], dim=-1)
+        return self.fc(x)
     
 # -----------------------------------------------------------------------------
 # Token to char helpers
@@ -408,25 +372,21 @@ def next_multiple_of_n(v: float | int, *, n: int):
 
 class GPT(nn.Module):
     def __init__(
-            self, vocab_size: int, num_layers: int, num_heads: int, model_dim: int,
-            max_seq_len: int, chars_per_token: int, use_mot_self_attn: bool, sliding_window_tokens: int = 16):
+            self, vocab_size: int, num_layers: int, num_heads: int, model_dim_toks: int, model_dim_chars: int,
+            max_seq_len: int, chars_per_token: int):
         super().__init__()
         self.num_heads = num_heads
-        self.sliding_window_tokens = sliding_window_tokens
         # Handle byte / character inputs ("Mixture of Tokenizers" @omouamoua)
-        self.chars_per_token = chars_per_token
-        self.use_mot_self_attn = use_mot_self_attn
-        self.char_embed = nn.Embedding(458, model_dim)  # including pad & eos, there are 458 unique chars
-        self.token_embed = nn.Embedding(vocab_size, model_dim)
-        self.mot_cross_attn = CrossAttention(model_dim, num_heads, max_seq_len_q=max_seq_len, max_seq_len_kv=max_seq_len*chars_per_token, head_dim=128)
-        self.char_self_attn = CausalSelfAttention(model_dim, num_heads, max_seq_len*chars_per_token, head_dim=128) if use_mot_self_attn else nn.Identity()
+        self.char_embed = nn.Embedding(458, model_dim_chars)  # including pad & eos, there are 458 unique chars
+        self.token_embed = nn.Embedding(vocab_size, model_dim_toks)
+        self.char_mixin = CharMixinConcat(model_dim_toks, chars_per_token)
         # token value embeddings by @KoszarskyB - inspired by @Grad62304977's value residual implementation following https://arxiv.org/abs/2410.17897
         # value embedding code simplification inspired by @ragulpr https://github.com/KellerJordan/modded-nanogpt/pull/78
-        self.value_embeds = nn.ModuleList([nn.Embedding(vocab_size, model_dim) for _ in range(3)])
-        self.blocks = nn.ModuleList([Block(model_dim, num_heads, max_seq_len, i) for i in range(num_layers)])
+        self.value_embeds = nn.ModuleList([nn.Embedding(vocab_size, model_dim_toks) for _ in range(3)])
+        self.blocks = nn.ModuleList([Block(model_dim_toks, num_heads, max_seq_len, i) for i in range(num_layers)])
         # there are only 50257 unique GPT-2 tokens; we extend to nearest multiple of 128 for efficiency.
         # suggested to me by @Grad62304977. this originates from Karpathy's experiments.
-        self.lm_head = CastedLinear(model_dim, next_multiple_of_n(vocab_size, n=128), use_fp8=True, x_s=2.0, w_s=2.0**9, grad_s=2.0**19)
+        self.lm_head = CastedLinear(model_dim_toks, next_multiple_of_n(vocab_size, n=128), use_fp8=True, x_s=2.0, w_s=2.0**9, grad_s=2.0**19)
         self.lm_head.weight.detach().zero_() # @Grad62304977
         # Add learnable skip connection weights for decoder layers
         assert num_layers % 2 == 0
@@ -474,26 +434,6 @@ class GPT(nn.Module):
         # Long-short SWA block masks by @leloykun & @YouJiacheng, adapated from suggestion by @Grad62304977, following Gemma 2 paper
         return build_bm(sliding_window_num_blocks), build_bm(sliding_window_num_blocks // 2)
 
-    def create_mot_self_attn_mask(self, input_seq: Tensor, chars_per_token: int, sliding_window_tokens: int = 16):
-        T = input_seq.size(-1)
-        if self.sa_bm and T == self.T:
-            return self.sa_bm
-        sliding_window_size = sliding_window_tokens * chars_per_token
-
-        def mask_mod(b, h, q_idx, kv_idx):
-            causal = q_idx >= kv_idx
-            sliding = q_idx <= (kv_idx + sliding_window_size)
-            return causal & sliding
-
-        sa_bm = create_block_mask(
-            mask_mod=mask_mod,
-            B=None,
-            H=None,
-            Q_LEN=T,
-            KV_LEN=T,
-        )
-        return sa_bm
-
     def forward(self, input_seq: Tensor, input_char_seq: Tensor, target_seq: Tensor, sliding_window_num_blocks: Tensor):
         assert input_seq.ndim == 1
 
@@ -506,16 +446,10 @@ class GPT(nn.Module):
         block_masks = [long_bm, short_bm, short_bm, short_bm, long_bm, short_bm, short_bm, long_bm, short_bm, short_bm, short_bm, long_bm]
         assert len(block_masks) == len(self.blocks)
 
-        x = x0 = norm(self.token_embed(input_seq)[None]) # use of norm here by @Grad62304977
-
-        # Incorporate byte-level info into tokens
+        # Embedding & mixing of bytes and tokens
         xc = norm(self.char_embed(input_char_seq))
-        if self.use_mot_self_attn:
-            char_bm = self.create_mot_self_attn_mask(
-                input_char_seq, chars_per_token=self.chars_per_token, sliding_window_tokens=self.sliding_window_tokens
-            )
-            xc = xc + self.char_self_attn(xc, None, char_bm)
-        x = self.mot_cross_attn(xq=x, xkv=xc)
+        xt = norm(self.token_embed(input_seq)[None]) # use of norm here by @Grad62304977
+        x = x0 = norm(self.char_mixin(xt, xc))
 
         # U-net design by @brendanh0gan
         skip_connections = []
@@ -643,13 +577,19 @@ print0("="*100)
 #    Construct model and optimizer     #
 ########################################
 
-model: nn.Module = GPT(vocab_size=args.vocab_size, num_layers=12, num_heads=6, model_dim=768,
-                       max_seq_len=max(args.train_seq_len, args.val_seq_len),
-                       chars_per_token=args.chars_per_token, use_mot_self_attn=args.use_mot_self_attn,
-                       sliding_window_tokens=args.sliding_window_tokens).cuda()
+model_dim_toks = 768
+model_dim_chars = 48
+"""768/48=16 -> 16 chars per token, model_dim_toks/model_dim_toks=16 -> half of FC input is toks, half is chars"""
+
+model: nn.Module = GPT(
+    vocab_size=args.vocab_size, num_layers=12, num_heads=6,
+    model_dim_toks=768, model_dim_chars=48,
+    max_seq_len=max(args.train_seq_len, args.val_seq_len), chars_per_token=args.chars_per_token,
+).cuda()
 for m in model.modules():
     if isinstance(m, nn.Embedding):
         m.bfloat16()
+model.char_mixin.fc.bfloat16()
 for param in model.parameters():
     dist.broadcast(param.detach(), 0)
 
@@ -657,11 +597,9 @@ for param in model.parameters():
 chars_to_tokens = make_embedding(f"ttb_{args.chars_per_token}_{args.alignment}.json", args.vocab_size).cuda()
 
 # collect the parameters to optimize
-hidden_matrix_params = [p for n, p in model.blocks.named_parameters() if p.ndim >= 2 and "embed" not in n]
-hidden_matrix_params.extend([p for p in model.char_self_attn.parameters() if p.ndim >= 2])
-hidden_matrix_params.extend([p for p in model.mot_cross_attn.parameters() if p.ndim >= 2])
+hidden_matrix_params = [p for n, p in model.blocks.named_parameters() if p.ndim >= 2 and "embed" not in n and "char_mixin" not in n]
 scalar_params = [p for p in model.parameters() if p.ndim < 2]
-embed_params = [p for n, p in model.named_parameters() if "embed" in n]
+embed_params = [p for n, p in model.named_parameters() if "embed" in n] + [p for p in model.char_mixin.parameters()]
 head_params = [model.lm_head.weight]
 
 # init the optimizer(s)
