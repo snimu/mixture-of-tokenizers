@@ -25,7 +25,7 @@ import torch.distributed as dist
 # use of FlexAttention contributed by @KoszarskyB
 from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_block_mask
 #torch._inductor.config.coordinate_descent_tuning = True # we have banned this flag for new records because it causes compilation to take 30min
-
+import einops
 # -----------------------------------------------------------------------------
 # Custom operators: FP8 matmul by @YouJiacheng
 
@@ -327,12 +327,7 @@ class CharMixinConcat(nn.Module):
         self.chars_per_token = chars_per_token
     
     def forward(self, xt: torch.Tensor, xc: torch.Tensor):  # tokens, chars
-        B_toks, S_toks = xc.shape
-        B_digits, S_digits = xt.shape
-        assert B_toks == B_digits
-        assert S_digits // S_toks == self.chars_per_token
-        xc = xc.view(B_toks, S_toks, 1)
-        xt = xt.view(B_toks, S_toks, -1)
+        xc = einops.rearrange(xc, "b (s cpt) d -> b s (d cpt)", cpt=self.chars_per_token)
         x = torch.cat([xc, xt], dim=-1)
         return self.fc(x)
     
