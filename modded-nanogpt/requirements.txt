@@ -3,4 +3,3 @@ tqdm
 torch
 huggingface-hub
 einops
-mamba-ssm[causal-conv1d]
