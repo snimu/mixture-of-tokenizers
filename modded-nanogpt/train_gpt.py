@@ -327,7 +327,7 @@ class CharMixinConcat(nn.Module):
         self.chars_per_token = chars_per_token
     
     def forward(self, xt: torch.Tensor, xc: torch.Tensor):  # tokens, chars
-        xc = einops.rearrange(xc, "b (s cpt) d -> b s (d cpt)", cpt=self.chars_per_token)
+        xc = einops.rearrange(xc, "b s cpt d -> b s (d cpt)", cpt=self.chars_per_token)
         x = torch.cat([xc, xt], dim=-1)
         return self.fc(x)
     
@@ -351,13 +351,9 @@ def make_embedding(filename: str, vocab_size: int) -> nn.Embedding:
     return emb
 
 
+@torch.no_grad()
 def tokens_to_chars(tokens: torch.Tensor, emb: nn.Embedding) -> torch.Tensor:
-    with torch.no_grad():
-        chars = emb(tokens).to(torch.int64)
-    if tokens.ndim == 2:
-        return chars.view(chars.shape[0], -1)  # einops.rearrange(chars, "b n c -> b (n c)")
-    else:
-        return chars.view(-1).unsqueeze(0)  # einops.rearrange(chars, "n c -> (n c)")[None]
+    return emb(tokens).to(torch.int32)
 
 # -----------------------------------------------------------------------------
 # The main model
