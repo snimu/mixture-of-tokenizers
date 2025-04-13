@@ -6,6 +6,8 @@ Modified from https://github.com/KellerJordan/modded-nanogpt/blob/master/train_g
 
 import os
 import sys
+
+import einops.layers
 with open(sys.argv[0]) as f:
     code = f.read() # read the code of this file ASAP, for logging
 import uuid
@@ -324,10 +326,10 @@ class CharMixinConcat(nn.Module):
     def __init__(self, model_dim_toks: int, model_dim_chars: int, chars_per_token: int):
         super().__init__()
         self.fc = nn.Linear(model_dim_toks + chars_per_token * model_dim_chars, model_dim_toks, bias=False)
-        self.chars_per_token = chars_per_token
+        self.rearrange = einops.layers.Rearrange("b s cpt d -> b s (d cpt)", cpt=chars_per_token)
     
     def forward(self, xt: torch.Tensor, xc: torch.Tensor):  # tokens, chars
-        xc = einops.rearrange(xc, "b s cpt d -> b s (d cpt)", cpt=self.chars_per_token)
+        xc = self.rearrange(xc)
         x = torch.cat([xc, xt], dim=-1)
         return self.fc(x)
     
@@ -438,7 +440,7 @@ class GPT(nn.Module):
         assert len(block_masks) == len(self.blocks)
 
         # Embedding & mixing of bytes and tokens
-        xc = norm(self.char_embed(input_char_seq))
+        xc = norm(self.char_embed(input_char_seq)[None])
         xt = norm(self.token_embed(input_seq)[None]) # use of norm here by @Grad62304977
         x = x0 = norm(self.char_mixin(xt, xc))
 
