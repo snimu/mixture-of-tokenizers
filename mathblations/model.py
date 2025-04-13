@@ -254,7 +254,7 @@ class DigitMixinCrossAttention(nn.Module):
 class DigitMixinConcat(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
-        self.fc = nn.Linear(config.n_embd_tok * (1 + config.length_factor), config.n_embd_tok)
+        self.fc = nn.Linear(config.n_embd_tok + config.n_embd_digit * config.length_factor, config.n_embd_tok)
         self.config = config
     
     def forward(self, we: torch.Tensor, de: torch.Tensor):
