@@ -528,7 +528,6 @@ def main():
             T=gen.max_possible_num_tokens,
             length_factor=max_digits_per_token,
             n_layer_output=args.n_layer_output,
-            output_type=args.output_type,
             digit_mixin_method=args.digit_mixin_method,
             digit_mixout_method=args.digit_mixout_method,
         )
