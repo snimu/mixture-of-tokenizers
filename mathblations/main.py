@@ -78,7 +78,7 @@ def get_args():
     parser.add_argument("--n-head", type=int, default=6, help="type=int, default=6")
     parser.add_argument("--n-embd-tok", type=int, default=768, help="type=int, default=768")
     parser.add_argument("--n-embd-digit", type=int, default=768, help="type=int, default=768")
-    parser.add_argument("--n-layer-output", type=int, default=0, help="type=int, default=0")
+    parser.add_argument("--n-layer-output", type=int, default=1, help="type=int, default=0")
     parser.add_argument("--digit-mixout-method", choices=("self_attn", "cross_attn", "noop"), default="noop", help="default='noop'")
     parser.add_argument("--digit-mixin-method", choices=("cross_attn", "concat", "noop"), default="noop", help="default='noop'")
 
