@@ -24,12 +24,11 @@ class GPTConfig:
     length_factor: int = 3  # for cross attention between digits and embeddings; == max_digits_per_token
     k_gt_q: bool = True  # at input: digits to tokens -> k>q; at output: tokens to digits -> q>k
     n_layer_output: int = 1  # extra layers for moving from tokens to digits at output
-    digit_mixout_method: Literal["self_attention", "cross_attention", "noop"] = "noop"
+    digit_mixout_method: Literal["self_attn", "cross_attn", "noop"] = "noop"
     digit_mixin_method: Literal["cross_attn", "concat", "noop"] = "noop"
 
 
 class Rotary(torch.nn.Module):
-
     def __init__(self, dim, base=10000):
         super().__init__()
         self.inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
@@ -58,7 +57,6 @@ def apply_rotary_emb(x, cos, sin):
 
 
 class CausalSelfAttention(nn.Module):
-
     def __init__(self, config):
         super().__init__()
         self.n_head = config.n_head
@@ -155,7 +153,6 @@ class CrossAttention(nn.Module):
         return y
 
 class MLP(nn.Module):
-
     def __init__(self, config):
         super().__init__()
         self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd, bias=False)
@@ -169,7 +166,6 @@ class MLP(nn.Module):
         return x
 
 class Block(nn.Module):
-
     def __init__(self, config):
         super().__init__()
         self.attn = CausalSelfAttention(config)
@@ -286,8 +282,8 @@ def make_digit_mixin(config: GPTConfig) -> DigitMixinCrossAttention | DigitMixin
 def make_digit_mixout(config: GPTConfig) -> DigitMixoutSelfAttention | DigitMixoutCrossAttention | DigitMixoutNoOp:
     return {
         "noop": DigitMixoutNoOp,
-        "sequential": DigitMixoutSelfAttention,
-        "cross_attention": DigitMixoutCrossAttention,
+        "cross_attn": DigitMixoutCrossAttention,
+        "self_attn": DigitMixoutSelfAttention,
     }[config.digit_mixout_method](config)
 
 
