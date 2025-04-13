@@ -312,7 +312,8 @@ class GPT(nn.Module):
         # LM head with tied weights
         if config.digit_mixout_method != "noop":
             self.lm_head = nn.Linear(config.n_embd_tok, 14, bias=False)  # model dim is n_embd_tok
-            self.dte.weight = self.lm_head.weight
+            if config.n_embd_digit == config.n_embd_tok:
+                self.dte.weight = self.lm_head.weight
         else:
             self.lm_head = nn.Linear(config.n_embd_tok, config.vocab_size, bias=False)
             self.wte.weight = self.lm_head.weight # https://paperswithcode.com/method/weight-tying
