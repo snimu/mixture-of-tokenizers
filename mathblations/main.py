@@ -464,7 +464,7 @@ def train_and_save(
     )
     if args.use_wandb:
         wandb.finish(quiet=True)
-        wandb.init(name=run_name, project="mathblations", config=vars(args))
+        wandb.init(name=run_name, project="mathblations.new", config=vars(args))
     train_losses, val_losses, val_accuracies, val_full_accuracies, val_l1s, val_l2s, timings, total_time = train(
         net, trainset, valset, args, gen=gen, config=config, loop=loop,
     )
