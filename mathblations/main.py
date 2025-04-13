@@ -17,6 +17,7 @@ import random
 from typing import Any, Literal
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 
 import wandb
 import torch
@@ -279,7 +280,9 @@ def train(
     val_full_accuracies = []
     val_l1s = []
     val_l2s = []
+    timings = []
     epoch = 0
+    t0 = t0_global = perf_counter()
     for step in range(args.num_steps * args.num_epochs):
         if step % args.num_steps == 0:
             epoch += 1
@@ -306,15 +309,16 @@ def train(
             train_l1_grad_norms.append(grad_norm)
 
         # Logging
+        timings.append(perf_counter() - t0)
         if args.use_wandb:
             wandb.log({
                 "train/loss": loss.item(), 
                 "train/step": step, 
                 "train/epoch": epoch, 
                 "train/l1_grad_norm": grad_norm,
+                "train/timing": timings[-1],
             })
         train_losses.append(loss.item())
-
 
         if step % args.eval_every == 0 or step == args.num_steps - 1:
             val_result = evaluate(net, valset, args, config=config)
@@ -328,6 +332,7 @@ def train(
                 f"val_l1={val_result.l1:.4f} "
                 f"val_loss={val_result.loss:.4f} val_acc={val_result.accuracy:.4f} "
                 f"val_full_acc={val_result.full_accuracy:.4f} "
+                f"t_step={int(timings[-1])} t_total={int(perf_counter() - t0_global)}"
             )
             if step % args.print_every == 0:
                 print_sample(
@@ -349,8 +354,9 @@ def train(
                     "val/epoch": epoch,
                     "val/step": step,
                 })
+        t0 = perf_counter()
 
-    return train_losses, val_losses, val_accuracies, val_full_accuracies, val_l1s, val_l2s
+    return train_losses, val_losses, val_accuracies, val_full_accuracies, val_l1s, val_l2s, timings, perf_counter() - t0_global
 
 
 def format_num_params(num_params: int, round_to_digits: int = 1) -> str:
@@ -459,7 +465,7 @@ def train_and_save(
     if args.use_wandb:
         wandb.finish(quiet=True)
         wandb.init(name=run_name, project="mathblations", config=vars(args))
-    train_losses, val_losses, val_accuracies, val_full_accuracies, val_l1s, val_l2s = train(
+    train_losses, val_losses, val_accuracies, val_full_accuracies, val_l1s, val_l2s, timings, total_time = train(
         net, trainset, valset, args, gen=gen, config=config, loop=loop,
     )
 
@@ -491,6 +497,8 @@ def train_and_save(
             val_full_accuracies=[str(val_full_accuracies)],
             val_l1s=[str(val_l1s)],
             val_l2s=[str(val_l2s)],
+            timings=[str(timings)],
+            total_time=[total_time],
         ),
         savefile=args.savefile,
     )
@@ -569,7 +577,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# TODO:
-# - save timing
-# - make emb dims adjustable
