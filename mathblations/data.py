@@ -16,6 +16,8 @@ from typing import Literal, Generator
 import torch
 from tqdm import tqdm
 
+from model import GPTConfig
+
 
 class GenerateEquations:
     """
@@ -235,7 +237,7 @@ def iterate_dataset(
             list
         ],
         args: argparse.Namespace,
-        config,
+        config: GPTConfig,
 ) -> Generator[
         tuple[
             torch.Tensor, torch.Tensor | None,
@@ -249,11 +251,11 @@ def iterate_dataset(
         batch_slice = slice(i, i + args.batchsize)
         yield (
             torch.stack(dataset["x_tokens"][batch_slice]).to(args.device),
-            torch.stack(dataset["x_digit_tokens"][batch_slice]).to(args.device) if config.use_digits else None,
+            torch.stack(dataset["x_digit_tokens"][batch_slice]).to(args.device) if config.digit_mixin_method != "noop" else None,
             torch.stack(dataset["y_tokens"][batch_slice]).to(args.device),
-            torch.stack(dataset["y_digit_tokens"][batch_slice]).to(args.device) if config.use_digits else None,
+            torch.stack(dataset["y_digit_tokens"][batch_slice]).to(args.device) if config.digit_mixout_method != "noop" else None,
             torch.stack(dataset["y_indices"][batch_slice]).to(args.device),
-            torch.stack(dataset["y_digit_indices"][batch_slice]).to(args.device) if config.use_digits else None,
+            torch.stack(dataset["y_digit_indices"][batch_slice]).to(args.device) if config.digit_mixout_method != "noop" else None,
         )
 
 
