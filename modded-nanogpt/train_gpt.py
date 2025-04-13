@@ -27,7 +27,6 @@ import torch.distributed as dist
 # use of FlexAttention contributed by @KoszarskyB
 from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_block_mask
 #torch._inductor.config.coordinate_descent_tuning = True # we have banned this flag for new records because it causes compilation to take 30min
-import einops
 # -----------------------------------------------------------------------------
 # Custom operators: FP8 matmul by @YouJiacheng
 
@@ -326,7 +325,7 @@ class CharMixinConcat(nn.Module):
     def __init__(self, model_dim_toks: int, model_dim_chars: int, chars_per_token: int):
         super().__init__()
         self.fc = nn.Linear(model_dim_toks + chars_per_token * model_dim_chars, model_dim_toks, bias=False)
-        self.rearrange = einops.layers.Rearrange("b s cpt d -> b s (d cpt)", cpt=chars_per_token)
+        self.rearrange = einops.layers.RearrangeMixin("b s cpt d -> b s (d cpt)", cpt=chars_per_token)
     
     def forward(self, xt: torch.Tensor, xc: torch.Tensor):  # tokens, chars
         xc = self.rearrange(xc)
