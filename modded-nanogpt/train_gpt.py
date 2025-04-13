@@ -7,7 +7,7 @@ Modified from https://github.com/KellerJordan/modded-nanogpt/blob/master/train_g
 import os
 import sys
 
-import einops.layers
+import einops.layers.torch
 with open(sys.argv[0]) as f:
     code = f.read() # read the code of this file ASAP, for logging
 import uuid
@@ -325,7 +325,7 @@ class CharMixinConcat(nn.Module):
     def __init__(self, model_dim_toks: int, model_dim_chars: int, chars_per_token: int):
         super().__init__()
         self.fc = nn.Linear(model_dim_toks + chars_per_token * model_dim_chars, model_dim_toks, bias=False)
-        self.rearrange = einops.layers.RearrangeMixin("b s cpt d -> b s (d cpt)", cpt=chars_per_token)
+        self.rearrange = einops.layers.torch.Rearrange("b s cpt d -> b s (d cpt)", cpt=chars_per_token)
     
     def forward(self, xt: torch.Tensor, xc: torch.Tensor):  # tokens, chars
         xc = self.rearrange(xc)
