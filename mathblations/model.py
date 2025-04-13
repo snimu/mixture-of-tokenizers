@@ -57,10 +57,10 @@ def apply_rotary_emb(x, cos, sin):
 
 
 class CausalSelfAttention(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config: GPTConfig):
         super().__init__()
         self.n_head = config.n_head
-        self.n_embd = config.n_embd
+        self.n_embd = config.n_embd_tok
         self.head_dim = self.n_embd // self.n_head
         assert self.n_embd % self.n_head == 0
         self.c_q = nn.Linear(self.n_embd, self.n_embd, bias=False)
