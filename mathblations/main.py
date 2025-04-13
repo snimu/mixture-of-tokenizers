@@ -524,7 +524,7 @@ def main():
             n_layer=args.n_layer,
             n_head=args.n_head,
             n_embd_tok=args.n_embd_tok,
-            n_embb_digit=args.n_embd_digit,
+            n_embd_digit=args.n_embd_digit,
             T=gen.max_possible_num_tokens,
             length_factor=max_digits_per_token,
             n_layer_output=args.n_layer_output,
