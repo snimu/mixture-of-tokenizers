@@ -155,8 +155,8 @@ class CrossAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd, bias=False)
-        self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd, bias=False)
+        self.c_fc    = nn.Linear(config.n_embd_tok, 4 * config.n_embd_tok, bias=False)
+        self.c_proj  = nn.Linear(4 * config.n_embd_tok, config.n_embd_tok, bias=False)
         self.c_proj.weight.data.zero_() # zero init suggested by @Grad62304977
 
     def forward(self, x):
@@ -238,6 +238,7 @@ class DigitMixoutNoOp(nn.Module):
 
 class DigitMixinCrossAttention(nn.Module):
     def __init__(self, config: GPTConfig):
+        assert config.n_embd_digit == config.n_embd_tok
         super().__init__()
         self.digit_attn = CausalSelfAttention(config)
         self.cross_attn = CrossAttention(config)
@@ -298,7 +299,7 @@ class GPT(nn.Module):
 
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(config.vocab_size, config.n_embd_tok),
-            dte = nn.Embedding(14, config.n_embd_tok) if config.digit_mixin_method != "noop" else nn.Identity(),  # 10 digits + pad & op & eq
+            dte = nn.Embedding(14, config.n_embd_digit) if config.digit_mixin_method != "noop" else nn.Identity(),  # 10 digits + pad & op & eq
             digit_mixin = make_digit_mixin(config),
             digit_mixout = make_digit_mixout(config),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
