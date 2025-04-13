@@ -18,14 +18,14 @@ class GPTConfig:
     vocab_size : int = 50304
     n_layer : int = 12
     n_head : int = 6 # head dim 128 suggested by @Grad62304977
-    n_embd : int = 768
+    n_embd_tok : int = 768
+    n_embd_digit : int = 768
     T: int = 1024
     length_factor: int = 3  # for cross attention between digits and embeddings; == max_digits_per_token
-    use_digits: bool = False
     k_gt_q: bool = True  # at input: digits to tokens -> k>q; at output: tokens to digits -> q>k
-    n_layer_output: int = 0  # extra layers for moving from tokens to digits at output
-    output_type: Literal["sequential", "cross_attention"] = "sequential"
-    digit_mixin_method: Literal["cross_attn", "concat"] = "cross_attn"
+    n_layer_output: int = 1  # extra layers for moving from tokens to digits at output
+    digit_mixout_method: Literal["self_attention", "cross_attention", "noop"] = "noop"
+    digit_mixin_method: Literal["cross_attn", "concat", "noop"] = "noop"
 
 
 class Rotary(torch.nn.Module):
@@ -92,7 +92,7 @@ class CrossAttention(nn.Module):
         super().__init__()
         self.config = config
         self.n_head = config.n_head
-        self.n_embd = config.n_embd
+        self.n_embd = config.n_embd_tok
         self.head_dim = self.n_embd // self.n_head
         self.length_factor = config.length_factor  # e.g., 3 or 5
         assert self.n_embd % self.n_head == 0
@@ -181,8 +181,9 @@ class Block(nn.Module):
         return x
 
 
-class TokensToDigitsSequential(nn.Module):
+class DigitMixoutSelfAttention(nn.Module):
     def __init__(self, config: GPTConfig):
+        assert config.n_layer_output > 0
         super().__init__()
         self.config = config
         self.attention_layers = nn.ModuleList([
@@ -196,7 +197,7 @@ class TokensToDigitsSequential(nn.Module):
         return x
 
 
-class TokensToDigitsCrossAttention(nn.Module):
+class DigitMixoutCrossAttention(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
         self.config = copy.deepcopy(config)
@@ -230,6 +231,15 @@ class TokensToDigitsCrossAttention(nn.Module):
         return xd
 
 
+class DigitMixoutNoOp(nn.Module):
+    def __init__(self, config: GPTConfig):
+        super().__init__()
+        self.block = Block(config)  # extra layer to make up for the extra parameters
+    
+    def forward(self, x, *args):
+        return self.block(x)
+
+
 class DigitMixinCrossAttention(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
@@ -237,8 +247,8 @@ class DigitMixinCrossAttention(nn.Module):
         self.cross_attn = CrossAttention(config)
     
     def forward(self, we: torch.Tensor, de: torch.Tensor):
-            de = de + self.transformer.digit_attn(F.rms_norm(de, (de.size(-1),)))
-            return self.transformer.cross_attn(
+            de = de + self.digit_attn(F.rms_norm(de, (de.size(-1),)))
+            return self.cross_attn(
                 x_q=F.rms_norm(we, (we.size(-1),)),
                 x_kv=F.rms_norm(de, (de.size(-1),)),
             )
@@ -247,21 +257,16 @@ class DigitMixinCrossAttention(nn.Module):
 class DigitMixinConcat(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
-        self.fc = nn.Linear(config.n_embd * (1 + config.length_factor), config.n_embd)
+        self.fc = nn.Linear(config.n_embd_tok * (1 + config.length_factor), config.n_embd_tok)
         self.config = config
     
     def forward(self, we: torch.Tensor, de: torch.Tensor):
-        B_toks, S_toks = de.shape
-        B_digits, S_digits = we.shape
-        assert B_toks == B_digits
-        assert S_digits // S_toks == self.config.length_factor
-        de = de.view(B_toks, S_toks, 1)
-        we = we.view(B_toks, S_toks, -1)
+        de = einops.rearrange(de, "B (S dpt) D -> B S (dpt D)", dpt=self.config.length_factor)
         x = torch.cat([de, we], dim=-1)
         return self.fc(x)
 
 
-class DigitMixinNoMixin(nn.Module):
+class DigitMixinNoOp(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
         self.block = Block(config)
@@ -270,14 +275,20 @@ class DigitMixinNoMixin(nn.Module):
         return self.block(x)
 
 
-def make_digit_mixin(config: GPTConfig) -> DigitMixinCrossAttention | DigitMixinConcat | DigitMixinNoMixin:
-    if not config.use_digits:
-        return DigitMixinNoMixin(config)
-    
-    if config.digit_mixin_method == "cross_attn":
-        return DigitMixinCrossAttention(config)
-    
-    return DigitMixinConcat(config)
+def make_digit_mixin(config: GPTConfig) -> DigitMixinCrossAttention | DigitMixinConcat | DigitMixinNoOp:
+    return {
+        "noop": DigitMixinNoOp,
+        "cross_attn": DigitMixinCrossAttention,
+        "concat": DigitMixinConcat,
+    }[config.digit_mixin_method](config)
+
+
+def make_digit_mixout(config: GPTConfig) -> DigitMixoutSelfAttention | DigitMixoutCrossAttention | DigitMixoutNoOp:
+    return {
+        "noop": DigitMixoutNoOp,
+        "sequential": DigitMixoutSelfAttention,
+        "cross_attention": DigitMixoutCrossAttention,
+    }[config.digit_mixout_method](config)
 
 
 # -----------------------------------------------------------------------------
@@ -285,37 +296,28 @@ def make_digit_mixin(config: GPTConfig) -> DigitMixinCrossAttention | DigitMixin
 
 class GPT(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config: GPTConfig):
         super().__init__()
         self.config = config
 
         self.transformer = nn.ModuleDict(dict(
-            dte = nn.Embedding(14, config.n_embd) if config.use_digits else nn.Identity(),  # 10 digits + pad & op & eq
+            wte = nn.Embedding(config.vocab_size, config.n_embd_tok),
+            dte = nn.Embedding(14, config.n_embd_tok) if config.digit_mixin_method != "noop" else nn.Identity(),  # 10 digits + pad & op & eq
             digit_mixin = make_digit_mixin(config),
-            wte = nn.Embedding(config.vocab_size, config.n_embd),
+            digit_mixout = make_digit_mixout(config),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
         ))
 
-        # Any output layer -- tokens-to-digits, or Blocks to make up for parameters
-        if config.use_digits and config.n_layer_output > 0:
-            self.out_layer = (
-                TokensToDigitsSequential(config)
-                if config.output_type == "sequential"
-                else TokensToDigitsCrossAttention(config)
-            )
-        else:
-            self.out_layer = Block(config) if config.n_layer_output > 0 else nn.Identity()
-        
         # LM head with tied weights
-        if config.use_digits and config.n_layer_output > 0:
-            self.lm_head = nn.Linear(config.n_embd, 14, bias=False)
+        if config.digit_mixout_method != "noop":
+            self.lm_head = nn.Linear(config.n_embd_tok, 14, bias=False)  # model dim is n_embd_tok
             self.transformer.dte.weight = self.lm_head.weight
         else:
-            self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+            self.lm_head = nn.Linear(config.n_embd_tok, config.vocab_size, bias=False)
             self.transformer.wte.weight = self.lm_head.weight # https://paperswithcode.com/method/weight-tying
 
     def forward(self, idx, digits=None):
-        if self.config.use_digits:
+        if self.config.digit_mixin_method != "noop":
             assert digits is not None, "Digits must be provided"
         # forward the GPT model itself
         we = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
@@ -329,7 +331,7 @@ class GPT(nn.Module):
             x = block(x)
         
         # Output layer
-        x = self.out_layer(x)
+        x = self.transformer.digit_mixout(x)
 
         # Decode logits
         x = F.rms_norm(x, (x.size(-1),))

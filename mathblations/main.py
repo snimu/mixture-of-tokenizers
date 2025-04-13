@@ -71,16 +71,15 @@ def get_args():
     parser.add_argument("--num-runs", type=int, default=1, help="type=int, default=1")
     parser.add_argument("--seed", type=int, default=385, help="type=int, default=385")
     parser.add_argument("--regenerate-dataset-every-run", action="store_true", help="type=FLAG")
-    parser.add_argument("--mot-only", action="store_true", help="For trying out different MoT settings. type=FLAG")
-    parser.add_argument("--no-mot", action="store_true", help="For trying out different non-MoT settings. type=FLAG")
 
     # Model parameters
     parser.add_argument("--n-layer", type=int, default=12, help="type=int, default=12")
     parser.add_argument("--n-head", type=int, default=6, help="type=int, default=6")
-    parser.add_argument("--n-embd", type=int, default=768, help="type=int, default=768")
+    parser.add_argument("--n-embd-tok", type=int, default=768, help="type=int, default=768")
+    parser.add_argument("--n-embd-digit", type=int, default=768, help="type=int, default=768")
     parser.add_argument("--n-layer-output", type=int, default=0, help="type=int, default=0")
-    parser.add_argument("--output-type", choices=("sequential", "cross_attention"), default="sequential", help="type=str, choices=('sequential', 'cross_attention'), default='sequential'")
-    parser.add_argument("--digit-mixin-method", choices=("cross_attn", "concat"), default="cross_attn")
+    parser.add_argument("--digit-mixout-method", choices=("sequential", "cross_attention", "noop"), default="noop", help="default='noop'")
+    parser.add_argument("--digit-mixin-method", choices=("cross_attn", "concat", "noop"), default="noop", help="default='noop'")
 
     
     args = parser.parse_args()
@@ -389,24 +388,25 @@ def make_run_name(
         vocab_size: int,
         n_layer: int,
         n_head: int,
-        n_embd: int,
+        n_embd_tok: int,
+        n_embd_digit: int,
         T: int,
         length_factor: int,
         batchsize: int,
         num_steps: int,
         num_epochs: int,
-        use_digits: bool,
         n_layer_output: int,
-        output_type: Literal["sequential", "cross_attention"],
+        digit_mixout_method: Literal["sequential", "cross_attention"],
         digit_mixin_method: Literal["cross_attn", "concat"],
         
 ) -> str:
     op_to_word = {"+": "addition", "-": "substraction", "*": "multiplication", "/": "division"}
-    name = f"{format_num_params(num_params, 0)}_{'digits' if use_digits else 'tokens'}"
-    name += f"_nlo{n_layer_output}_{output_type}"
-    name += f"_dmi-{'ca' if digit_mixin_method == 'cross_attn' else 'cc'}" if use_digits else ""
+    name = f"{format_num_params(num_params, 0)}"
+    name += f"_dmi-{digit_mixin_method}"
+    name += f"_dmo-{digit_mixout_method}"
+    name += f"_nlo{n_layer_output}" if digit_mixout_method != "noop" else ""
     name += f"_{max_digits_per_token}dpt_{max_tokens_per_num}tpn_{op_to_word[op]}_mod{mod}"
-    name += f"_{vocab_size}vocab_{n_layer}layers_{n_head}heads_{n_embd}embdim"
+    name += f"_{vocab_size}vocab_{n_layer}layers_{n_head}heads_{n_embd_tok}Dtok_{n_embd_digit}Ddig"
     name += f"_{seed}seed_{batchsize}bs_{num_steps}steps_{num_epochs}epochs"
     name += f"_{length_factor}lf_{T}T"
     return name
@@ -447,15 +447,15 @@ def train_and_save(
         vocab_size=gen.vocab_size,
         n_layer=args.n_layer,
         n_head=args.n_head,
-        n_embd=args.n_embd,
+        n_embd_tok=args.n_embd_tok,
+        n_embd_digit=args.n_embd_digit,
         T=gen.max_possible_num_tokens,
         length_factor=max_digits_per_token,
         batchsize=args.batchsize,
         num_steps=args.num_steps,
         num_epochs=args.num_epochs,
-        use_digits=config.use_digits,
         n_layer_output=config.n_layer_output,
-        output_type=config.output_type,
+        digit_mixout_method=config.digit_mixout_method,
         digit_mixin_method=config.digit_mixin_method,
     )
     if args.use_wandb:
@@ -467,11 +467,11 @@ def train_and_save(
 
     save(
         results=dict(
-            use_digits=[config.use_digits],
             max_digits_per_token=[max_digits_per_token],
             max_tokens_per_num=[max_tokens_per_num],
             n_layer_output=[config.n_layer_output],
             digit_mixin_method=[config.digit_mixin_method],
+            digit_mixout_method=[config.digit_mixout_method],
             op=[op],
             mod=[mod],
             final_train_loss=[train_losses[-1]],
@@ -480,7 +480,8 @@ def train_and_save(
             seed=[seed],
             num_params=[num_params],
             depth=[config.n_layer],
-            width=[config.n_embd],
+            width=[config.n_embd_tok],
+            width_digit=[config.n_embd_digit],
             heads=[config.n_head],
             vocab_size=[config.vocab_size],
             num_steps=[args.num_steps],
@@ -499,8 +500,6 @@ def train_and_save(
 
 def main():
     args = get_args()
-    assert not (args.mot_only and args.no_mot), "Cannot use both --mot-only and --no-mot"
-
     os.environ["WANDB_SILENT"] = "true"
     total = len(args.max_digits_per_token) * len(args.max_tokens_per_num) * len(args.op) * len(args.mod)
     loop = tqdm(
@@ -519,20 +518,20 @@ def main():
             op=op,
             mod=mod,
         )
-        
-        common_config = dict(
+
+        config = dict(
             vocab_size=gen.vocab_size,
             n_layer=args.n_layer,
             n_head=args.n_head,
-            n_embd=args.n_embd,
+            n_embd_tok=args.n_embd_tok,
+            n_embb_digit=args.n_embd_digit,
             T=gen.max_possible_num_tokens,
             length_factor=max_digits_per_token,
             n_layer_output=args.n_layer_output,
             output_type=args.output_type,
             digit_mixin_method=args.digit_mixin_method,
+            digit_mixout_method=args.digit_mixout_method,
         )
-        config_with_digits = model.GPTConfig(use_digits=True, **common_config)
-        config_no_digits = model.GPTConfig(use_digits=False, **common_config)
 
         if not args.regenerate_dataset_every_run:
             trainset, valset = make_dataset(gen, args, loop=loop)
@@ -554,40 +553,26 @@ def main():
                 trainset["y_digit_tokens"] = [trainset["y_digit_tokens"][i] for i in shuffle_indices]
                 trainset["y_indices"] = [trainset["y_indices"][i] for i in shuffle_indices]
                 trainset["y_digit_indices"] = [trainset["y_digit_indices"][i] for i in shuffle_indices]
-            
-            loop.set_description(f"{max_digits_per_token=}, {max_tokens_per_num=}, {op=}, {mod=}, {seed=}")
 
-            if not args.no_mot:
-                loop.write("\n\nWITH DIGITS\n\n")
-                train_and_save(
-                    args=args,
-                    config=config_with_digits,
-                    gen=gen,
-                    trainset=trainset,
-                    valset=valset,
-                    max_digits_per_token=max_digits_per_token,
-                    max_tokens_per_num=max_tokens_per_num,
-                    op=op,
-                    mod=mod,
-                    seed=seed,
-                    loop=loop,
-                )
-            if not args.mot_only:
-                loop.write("\n\nWITHOUT DIGITS\n\n")
-                train_and_save(
-                    args=args,
-                    config=config_no_digits,
-                    gen=gen,
-                    trainset=trainset,
-                    valset=valset,
-                    max_digits_per_token=max_digits_per_token,
-                    max_tokens_per_num=max_tokens_per_num,
-                    op=op,
-                    mod=mod,
-                    seed=seed,
-                    loop=loop,
-                )
+            loop.set_description(f"{max_digits_per_token=}, {max_tokens_per_num=}, {op=}, {mod=}, {seed=}")
+            train_and_save(
+                args=args,
+                config=config,
+                gen=gen,
+                trainset=trainset,
+                valset=valset,
+                max_digits_per_token=max_digits_per_token,
+                max_tokens_per_num=max_tokens_per_num,
+                op=op,
+                mod=mod,
+                seed=seed,
+                loop=loop,
+            )
 
 
 if __name__ == "__main__":
     main()
+
+# TODO:
+# - save timing
+# - make emb dims adjustable
