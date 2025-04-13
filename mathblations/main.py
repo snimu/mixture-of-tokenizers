@@ -519,7 +519,7 @@ def main():
             mod=mod,
         )
 
-        config = dict(
+        config = model.GPTConfig(
             vocab_size=gen.vocab_size,
             n_layer=args.n_layer,
             n_head=args.n_head,
