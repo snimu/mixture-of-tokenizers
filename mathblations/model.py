@@ -297,38 +297,36 @@ class GPT(nn.Module):
         super().__init__()
         self.config = config
 
-        self.transformer = nn.ModuleDict(dict(
-            wte = nn.Embedding(config.vocab_size, config.n_embd_tok),
-            dte = nn.Embedding(14, config.n_embd_digit) if config.digit_mixin_method != "noop" else nn.Identity(),  # 10 digits + pad & op & eq
-            digit_mixin = make_digit_mixin(config),
-            digit_mixout = make_digit_mixout(config),
-            h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-        ))
+        self.wte = nn.Embedding(config.vocab_size, config.n_embd_tok)
+        self.dte = nn.Embedding(14, config.n_embd_digit) if config.digit_mixin_method != "noop" else nn.Identity()  # 10 digits + pad & op & eq
+        self.digit_mixin = make_digit_mixin(config)
+        self.digit_mixout = make_digit_mixout(config)
+        self.h = nn.ModuleList([Block(config) for _ in range(config.n_layer)])
 
         # LM head with tied weights
         if config.digit_mixout_method != "noop":
             self.lm_head = nn.Linear(config.n_embd_tok, 14, bias=False)  # model dim is n_embd_tok
-            self.transformer.dte.weight = self.lm_head.weight
+            self.dte.weight = self.lm_head.weight
         else:
             self.lm_head = nn.Linear(config.n_embd_tok, config.vocab_size, bias=False)
-            self.transformer.wte.weight = self.lm_head.weight # https://paperswithcode.com/method/weight-tying
+            self.wte.weight = self.lm_head.weight # https://paperswithcode.com/method/weight-tying
 
     def forward(self, idx, digits=None):
         if self.config.digit_mixin_method != "noop":
             assert digits is not None, "Digits must be provided"
         # forward the GPT model itself
-        we = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)
+        we = self.wte(idx) # token embeddings of shape (b, t, n_embd)
 
         # Digit embeddings
-        de = self.transformer.dte(digits)
-        x = self.transformer.digit_mixin(we, de)
+        de = self.dte(digits)
+        x = self.digit_mixin(we, de)
 
         # Model backend
-        for block in self.transformer.h:
+        for block in self.h:
             x = block(x)
         
         # Output layer
-        x = self.transformer.digit_mixout(x)
+        x = self.digit_mixout(x)
 
         # Decode logits
         x = F.rms_norm(x, (x.size(-1),))

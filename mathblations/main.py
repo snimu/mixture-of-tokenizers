@@ -243,15 +243,13 @@ def train(
     net.train()
 
     # Optimizer
-    adamw_params = []
-    muon_params = list(net.transformer.h.parameters())
-    if not isinstance(net.transformer.dte, torch.nn.Identity):
-        adamw_params.extend(list(net.transformer.dte.parameters()))
-        muon_params.extend(list(net.transformer.digit_attn.parameters()))
-        muon_params.extend(list(net.transformer.cross_attn.parameters()))
-        muon_params.extend(list(net.transformer.alternative_block.parameters()))
-    if not isinstance(net.out_layer, torch.nn.Identity):
-        muon_params.extend(list(net.out_layer.parameters()))
+    adamw_params = (
+        list(net.wte.parameters())
+        + list(net.dte.parameters())
+        + list(net.digit_mixin.parameters())
+        + list(net.lm_head.parameters())
+    )
+    muon_params = list(net.h.parameters()) + list(net.digit_mixout.parameters())
     optimizer = Muon(
         muon_params=muon_params,
         lr=args.learning_rate,
