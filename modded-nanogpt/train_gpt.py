@@ -324,7 +324,7 @@ class Block(nn.Module):
 class CharMixinConcat(nn.Module):
     def __init__(self, model_dim_toks: int, model_dim_chars: int, chars_per_token: int):
         super().__init__()
-        self.fc = CastedLinear(model_dim_toks + chars_per_token * model_dim_chars, model_dim_toks)
+        self.fc = nn.Linear(model_dim_toks + chars_per_token * model_dim_chars, model_dim_toks, bias=False)
         self.chars_per_token = chars_per_token
     
     def forward(self, xt: torch.Tensor, xc: torch.Tensor):  # tokens, chars
