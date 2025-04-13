@@ -439,10 +439,9 @@ class GPT(nn.Module):
         assert len(block_masks) == len(self.blocks)
 
         # Embedding & mixing of bytes and tokens
-        # xc = norm(self.char_embed(input_char_seq)[None])
-        # xt = norm(self.token_embed(input_seq)[None]) # use of norm here by @Grad62304977
-        # x = x0 = norm(self.char_mixin(xt, xc))
-        x = x0 = norm(self.token_embed(input_seq)[None])
+        xc = norm(self.char_embed(input_char_seq)[None])
+        xt = norm(self.token_embed(input_seq)[None]) # use of norm here by @Grad62304977
+        x = x0 = norm(self.char_mixin(xt, xc))
 
         # U-net design by @brendanh0gan
         skip_connections = []
