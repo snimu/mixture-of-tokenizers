@@ -332,7 +332,7 @@ def train(
                 f"val_l1={val_result.l1:.4f} "
                 f"val_loss={val_result.loss:.4f} val_acc={val_result.accuracy:.4f} "
                 f"val_full_acc={val_result.full_accuracy:.4f} "
-                f"t_step={int(timings[-1])} t_total={int(perf_counter() - t0_global)}"
+                f"t_step={int(timings[-1])}s t_total={int(perf_counter() - t0_global)}s"
             )
             if step % args.print_every == 0:
                 print_sample(
