@@ -81,6 +81,7 @@ def get_args():
     parser.add_argument("--n-layer-output", type=int, default=1, help="type=int, default=0")
     parser.add_argument("--digit-mixout-method", choices=("self_attn", "cross_attn", "noop"), default="noop", help="default='noop'")
     parser.add_argument("--digit-mixin-method", choices=("cross_attn", "concat", "noop"), default="noop", help="default='noop'")
+    parser.add_argument("--use-digit-self-attn", action="store_true", help="type=FLAG")
 
     
     args = parser.parse_args()
@@ -402,6 +403,7 @@ def make_run_name(
         n_layer_output: int,
         digit_mixout_method: Literal["sequential", "cross_attention"],
         digit_mixin_method: Literal["cross_attn", "concat"],
+        use_digit_self_attn: bool,
         
 ) -> str:
     op_to_word = {"+": "addition", "-": "substraction", "*": "multiplication", "/": "division"}
@@ -409,6 +411,7 @@ def make_run_name(
     name += f"_dmi-{digit_mixin_method}"
     name += f"_dmo-{digit_mixout_method}"
     name += f"_nlo{n_layer_output}" if digit_mixout_method != "noop" else ""
+    name += "_dsa" if use_digit_self_attn else ""
     name += f"_{max_digits_per_token}dpt_{max_tokens_per_num}tpn_{op_to_word[op]}_mod{mod}"
     name += f"_{vocab_size}vocab_{n_layer}layers_{n_head}heads_{n_embd_tok}Dtok_{n_embd_digit}Ddig"
     name += f"_{seed}seed_{batchsize}bs_{num_steps}steps_{num_epochs}epochs"
@@ -461,6 +464,7 @@ def train_and_save(
         n_layer_output=config.n_layer_output,
         digit_mixout_method=config.digit_mixout_method,
         digit_mixin_method=config.digit_mixin_method,
+        use_digit_self_attn=config.use_digit_self_attn,
     )
     if args.use_wandb:
         wandb.finish(quiet=True)
@@ -476,6 +480,7 @@ def train_and_save(
             n_layer_output=[config.n_layer_output],
             digit_mixin_method=[config.digit_mixin_method],
             digit_mixout_method=[config.digit_mixout_method],
+            use_digit_self_attn=[config.use_digit_self_attn],
             op=[op],
             mod=[mod],
             final_train_loss=[train_losses[-1]],
@@ -536,6 +541,7 @@ def main():
             n_layer_output=args.n_layer_output,
             digit_mixin_method=args.digit_mixin_method,
             digit_mixout_method=args.digit_mixout_method,
+            use_digit_self_attn=args.use_digit_self_attn,
         )
 
         if not args.regenerate_dataset_every_run:

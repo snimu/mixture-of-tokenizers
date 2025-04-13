@@ -26,6 +26,7 @@ class GPTConfig:
     n_layer_output: int = 1  # extra layers for moving from tokens to digits at output
     digit_mixout_method: Literal["self_attn", "cross_attn", "noop"] = "noop"
     digit_mixin_method: Literal["cross_attn", "concat", "noop"] = "noop"
+    use_digit_self_attn: bool = False
 
 
 class Rotary(torch.nn.Module):
@@ -240,11 +241,13 @@ class DigitMixinCrossAttention(nn.Module):
     def __init__(self, config: GPTConfig):
         assert config.n_embd_digit == config.n_embd_tok
         super().__init__()
-        self.digit_attn = CausalSelfAttention(config)
+        self.config = config
+        self.digit_attn = CausalSelfAttention(config) if config.use_digit_self_attn else nn.Identity()
         self.cross_attn = CrossAttention(config)
     
     def forward(self, we: torch.Tensor, de: torch.Tensor):
-            de = de + self.digit_attn(F.rms_norm(de, (de.size(-1),)))
+            if self.config.use_digit_self_attn:
+                de = de + self.digit_attn(F.rms_norm(de, (de.size(-1),)))
             return self.cross_attn(
                 x_q=F.rms_norm(we, (we.size(-1),)),
                 x_kv=F.rms_norm(de, (de.size(-1),)),
@@ -254,10 +257,13 @@ class DigitMixinCrossAttention(nn.Module):
 class DigitMixinConcat(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
-        self.fc = nn.Linear(config.n_embd_tok + config.n_embd_digit * config.length_factor, config.n_embd_tok)
         self.config = config
+        self.digit_attn = CausalSelfAttention(config) if config.use_digit_self_attn else nn.Identity()
+        self.fc = nn.Linear(config.n_embd_tok + config.n_embd_digit * config.length_factor, config.n_embd_tok)
     
     def forward(self, we: torch.Tensor, de: torch.Tensor):
+        if self.config.use_digit_self_attn:
+            de = de + self.digit_attn(F.rms_norm(de, (de.size(-1),)))
         de = einops.rearrange(de, "B (S dpt) D -> B S (dpt D)", dpt=self.config.length_factor)
         x = torch.cat([de, we], dim=-1)
         return self.fc(x)
