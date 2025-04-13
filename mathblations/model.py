@@ -231,10 +231,9 @@ class DigitMixoutCrossAttention(nn.Module):
 class DigitMixoutNoOp(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
-        self.block = Block(config)  # extra layer to make up for the extra parameters
     
     def forward(self, x, *args):
-        return self.block(x)
+        return x
 
 
 class DigitMixinCrossAttention(nn.Module):
