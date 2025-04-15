@@ -1,5 +1,6 @@
 
 import ast
+import os
 from typing import Literal
 
 import seaborn as sns
@@ -60,11 +61,14 @@ def running_average(tensor: np.ndarray, window_size: int) -> np.ndarray:
 
 def load_xs_ys_avg_y(
         file: str,
-        use_digits: bool | None = None,
+        digit_mixin_method: Literal["cross_attn", "concat", "noop"] | None = None,
+        digit_mixout_method: Literal["self_attn", "cross_attn", "noop"] | None = None,
+        use_digit_self_attn: bool | None = None,
         max_digits_per_token: int | None = None,
         max_tokens_per_num: int | None = None,
         depth: int | None = None,
         width: int | None = None,
+        width_digit: int | None = None,
         num_params: int | None = None,
         num_heads: int | None = None,
         seed: int | None = None,
@@ -76,8 +80,12 @@ def load_xs_ys_avg_y(
     """Load x, y, and average y from a CSV file."""
     filters = (pl.col("final_val_loss").ge(0))  # initial condition -> always true
 
-    if use_digits is not None:
-        filters &= (pl.col("use_digits") == use_digits)
+    if digit_mixin_method is not None:
+        filters &= (pl.col("digit_mixin_method") == digit_mixin_method)
+    if digit_mixout_method is not None:
+        filters &= (pl.col("digit_mixout_method") == digit_mixout_method)
+    if use_digit_self_attn is not None:
+        filters &= (pl.col("use_digit_self_attn") == use_digit_self_attn)
     if max_digits_per_token is not None:
         filters &= (pl.col("max_digits_per_token") == max_digits_per_token)
     if max_tokens_per_num is not None:
@@ -86,6 +94,8 @@ def load_xs_ys_avg_y(
         filters &= (pl.col("depth") == depth)
     if width is not None:
         filters &= (pl.col("width") == width)
+    if width_digit is not None:
+        filters &= (pl.col("width_digit") == width_digit)
     if num_params is not None:
         filters &= (pl.col("num_params") == num_params)
     if num_heads is not None:
@@ -158,7 +168,7 @@ def plot_digits_vs_tokens(
         filter_ = pl.col("mod").is_null()
     else:
         filter_ = pl.col("mod") == mod
-    settings =(
+    settings = (
         pl.scan_csv(file)
         .filter(filter_ & (pl.col("op") == op))
         .select("max_digits_per_token", "max_tokens_per_num")
@@ -500,6 +510,84 @@ def scatter_metric_over_times_tok_or_eq_seen(
     close_plt()
 
 
+def get_num_params(file: str, filters) -> int:
+    return int(pl.scan_csv(file).filter(filters).select("num_params").collect()["num_params"].mean())
+
+
+def plot_results_new(
+        file: str,
+        digit_mixin_methods: list[Literal["cross_attn", "concat", "noop"]],
+        digit_mixout_methods: list[Literal["self_attn", "cross_attn", "noop"]],
+        depth: int = 6,
+        to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses", "val_l1s", "val_l2s"] = "val_accuracies",
+        aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
+        show: bool = True,
+        plot_all: bool = False,
+):
+    settings = (
+        pl.scan_csv(file)
+        .filter(
+            (pl.col("depth") == depth)
+            & pl.col("digit_mixin_method").is_in(digit_mixin_methods)
+            & pl.col("digit_mixout_method").is_in(digit_mixout_methods)
+        )
+        .select("digit_mixin_method", "digit_mixout_method")
+        .collect()
+        .unique()
+    )
+    settings = [
+        (dmi, dmo)
+        for dmi, dmo in zip(
+            settings["digit_mixin_method"],
+            settings["digit_mixout_method"],
+        )
+    ]
+
+    settings = list(set(settings))
+    colors = generate_distinct_colors(len(settings))
+    for (dmi, dmo) in settings:
+        xs, ys, avg_ys = load_xs_ys_avg_y(
+            file=file,
+            digit_mixin_method=dmi,
+            digit_mixout_method=dmo,
+            depth=depth,
+            to_plot=to_plot,
+            aggregate_method=aggregate_method,
+        )
+        
+        nparam = format_num_params(get_num_params(
+            file,
+            filters=(
+                (pl.col("digit_mixin_method") == dmi)
+                & (pl.col("digit_mixout_method") == dmo)
+                & (pl.col("depth") == depth)
+            )
+        ))
+        label = f"{dmi=}, {dmo=}, {nparam=}"
+        color = colors.pop(0)
+        if plot_all:
+            for y in ys:
+                plt.plot(xs, y, color=color, alpha=0.2)
+        plt.plot(xs, avg_ys, color=color, label=label)
+    
+    to_plot_to_label = {
+        "val_losses": "loss (validation)",
+        "val_accuracies": "token accuracy (validation)",
+        "val_full_accuracies": "full-number accuracy (validation)",
+        "train_losses": "loss (training)",
+        "val_l1s": "L1 distance to ground truth (validation)",
+        "val_l2s": "L2 distance to ground truth (validation)",
+    }
+    plt.legend()
+    plt.xlabel("step")
+    plt.ylabel(to_plot_to_label[to_plot])
+    plt.grid()
+    plt.tight_layout()
+
+    plt.show()
+    close_plt()
+
+
 def merge_results():
     df = pl.read_csv("results1.csv")
     for i in tqdm(range(2, 8)):
@@ -508,25 +596,41 @@ def merge_results():
     df.write_csv("results.csv")
 
 
+def merge_results_new():
+    files = [f for f in os.listdir(".") if f != "results-mixin.csv" and "results-mixin" in f]
+    df = pl.read_csv(files.pop())
+    for file in files:
+        df2 = pl.read_csv(file)
+        df = pl.concat([df, df2], how="vertical_relaxed")
+    df.write_csv("results-mixin.csv")
+
+
 if __name__ == "__main__":
     # merge_results()
-    file = "results_out_large2.csv"
+    merge_results_new()
+    file = "results-mixin.csv"
+    plot_results_new(
+        file=file,
+        digit_mixin_methods=["cross_attn", "concat", "noop"],
+        digit_mixout_methods=["self_attn", "noop"],
+        to_plot="val_full_accuracies",
+    )
     # file = "results.csv"
     # print_other_metrics(
     #     file=file, mod=None, last_n_samples=1, aggregate_method="median",
     #     exclude=["final_val_accuracies_digits", "final_val_accuracies_tokens"],
     # )
-    plot_digits_vs_tokens(
-        file=file,
-        max_digits_per_token=4,
-        max_tokens_per_num=3,
-        to_plot="val_full_accuracies",
-        plot_all=False,
-        op="+",
-        mod=None,
-        aggregate_method="mean",
-        show=True,
-    )
+    # plot_digits_vs_tokens(
+    #     file=file,
+    #     max_digits_per_token=4,
+    #     max_tokens_per_num=3,
+    #     to_plot="val_full_accuracies",
+    #     plot_all=False,
+    #     op="+",
+    #     mod=None,
+    #     aggregate_method="mean",
+    #     show=True,
+    # )
     # heatmap_final_measure(
     #     file=file,
     #     to_plot="val_l1s",
