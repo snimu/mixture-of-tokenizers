@@ -271,10 +271,9 @@ class DigitMixinConcat(nn.Module):
 class DigitMixinNoOp(nn.Module):
     def __init__(self, config: GPTConfig):
         super().__init__()
-        self.block = Block(config)
-    
+
     def forward(self, x, *args):
-        return self.block(x)
+        return x
 
 
 def make_digit_mixin(config: GPTConfig) -> DigitMixinCrossAttention | DigitMixinConcat | DigitMixinNoOp:
