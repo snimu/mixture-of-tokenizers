@@ -588,8 +588,8 @@ def plot_results_new(
         color = colors.pop(0)
         if plot_all:
             for y in ys:
-                plt.plot(xs, y, color=color, alpha=0.2)
-        plt.plot(xs, avg_ys, color=color, label=label)
+                plt.plot(xs, y, color=color, alpha=0.2)  # TOD
+        plt.plot(xs, avg_ys, color=color, label=label, linestyle="-" if dmo == "self_attn" else "--")
     
     to_plot_to_label = {
         "val_losses": "loss (validation)",
@@ -623,19 +623,22 @@ def merge_results():
 
 
 def merge_results_new():
-    files = [f for f in os.listdir(".") if f != "results-mixin.csv" and "results-mixin" in f]
-    df = pl.read_csv(files.pop())
+    files = [f for f in os.listdir(".") if "results-mixin" in f]
+    f0 = files.pop()
+    df = pl.read_csv(f0)
+    os.remove(f0)
     for file in files:
         df2 = pl.read_csv(file)
         df = pl.concat([df, df2], how="vertical_relaxed")
+        os.remove(file)
     df.write_csv("results-mixin.csv")
 
 
 if __name__ == "__main__":
     # merge_results()
-    # merge_results_new()  # TODO: keep current results, just mix in the new ones
+    merge_results_new()
     file = "results-mixin.csv"
-    plot_results_new(  # TODO: plot different depths if depth=None
+    plot_results_new(
         file=file,
         digit_mixin_methods=["cross_attn", "concat", "noop"],
         digit_mixout_methods=["self_attn", "noop"],
