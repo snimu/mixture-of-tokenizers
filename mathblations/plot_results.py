@@ -517,39 +517,58 @@ def get_num_params(file: str, filters) -> int:
 def plot_results_new(
         file: str,
         digit_mixin_methods: list[Literal["cross_attn", "concat", "noop"]],
-        digit_mixout_methods: list[Literal["self_attn", "cross_attn", "noop"]],
-        depth: int = 6,
+        digit_mixout_methods: list[Literal["self_attn", "noop"]],
+        use_digit_self_attn: bool | None = None,
+        depth: int | None = None,
         to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses", "val_l1s", "val_l2s"] = "val_accuracies",
         aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
-        show: bool = True,
         plot_all: bool = False,
+        ylim: tuple[float | int, float | int] | None = None,
+        show: bool = True,
 ):
+    use_digit_self_attn = [False, True] if use_digit_self_attn is None else [use_digit_self_attn]
     settings = (
         pl.scan_csv(file)
         .filter(
-            (pl.col("depth") == depth)
+            ((pl.col("depth") == depth) if depth else pl.col("depth").is_not_null())
             & pl.col("digit_mixin_method").is_in(digit_mixin_methods)
             & pl.col("digit_mixout_method").is_in(digit_mixout_methods)
+            & pl.col("use_digit_self_attn").is_in(use_digit_self_attn)
         )
-        .select("digit_mixin_method", "digit_mixout_method")
+        .select("digit_mixin_method", "digit_mixout_method", "use_digit_self_attn", "depth")
         .collect()
         .unique()
     )
     settings = [
-        (dmi, dmo)
-        for dmi, dmo in zip(
+        (dmi, dmo, dsa, depth)
+        for dmi, dmo, dsa, depth in zip(
             settings["digit_mixin_method"],
             settings["digit_mixout_method"],
+            settings["use_digit_self_attn"],
+            settings["depth"],
         )
     ]
 
+    dmi_names = {
+        "cross_attn": "Input: Bytes (cross-attn)",
+        "concat": "Input: Bytes(concat)......",
+        "noop": "Input: Tokens................."
+    }
+    dmo_names = {
+        "self_attn": "Output: Bytes..",
+        "noop": "Output: Tokens"
+    }
+
     settings = list(set(settings))
+    for i in range(4):
+        settings = sorted(settings, key=lambda x: x[len(x)-1-i])
     colors = generate_distinct_colors(len(settings))
-    for (dmi, dmo) in settings:
+    for (dmi, dmo, dsa, depth) in settings:
         xs, ys, avg_ys = load_xs_ys_avg_y(
             file=file,
             digit_mixin_method=dmi,
             digit_mixout_method=dmo,
+            use_digit_self_attn=dsa,
             depth=depth,
             to_plot=to_plot,
             aggregate_method=aggregate_method,
@@ -560,10 +579,12 @@ def plot_results_new(
             filters=(
                 (pl.col("digit_mixin_method") == dmi)
                 & (pl.col("digit_mixout_method") == dmo)
+                & (pl.col("use_digit_self_attn") == dsa)
                 & (pl.col("depth") == depth)
             )
         ))
-        label = f"{dmi=}, {dmo=}, {nparam=}"
+        label = f"{dmi_names[dmi]}... {dmo_names[dmo]}... "
+        label += f"{dsa=}, #Params={nparam}" if use_digit_self_attn is None else f"#Params={nparam}"
         color = colors.pop(0)
         if plot_all:
             for y in ys:
@@ -578,14 +599,19 @@ def plot_results_new(
         "val_l1s": "L1 distance to ground truth (validation)",
         "val_l2s": "L2 distance to ground truth (validation)",
     }
+
+    if ylim:
+        plt.ylim(*ylim)
+
     plt.legend()
     plt.xlabel("step")
     plt.ylabel(to_plot_to_label[to_plot])
     plt.grid()
     plt.tight_layout()
 
-    plt.show()
-    close_plt()
+    if show:
+        plt.show()
+        close_plt()
 
 
 def merge_results():
@@ -607,13 +633,16 @@ def merge_results_new():
 
 if __name__ == "__main__":
     # merge_results()
-    merge_results_new()
+    # merge_results_new()  # TODO: keep current results, just mix in the new ones
     file = "results-mixin.csv"
-    plot_results_new(
+    plot_results_new(  # TODO: plot different depths if depth=None
         file=file,
         digit_mixin_methods=["cross_attn", "concat", "noop"],
         digit_mixout_methods=["self_attn", "noop"],
         to_plot="val_full_accuracies",
+        plot_all=False,
+        use_digit_self_attn=False,
+        ylim=(0, 1)
     )
     # file = "results.csv"
     # print_other_metrics(
