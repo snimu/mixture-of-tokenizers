@@ -7,6 +7,7 @@ import seaborn as sns
 import polars as pl
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.lines as lines # For adding lines
 import colorsys
 from tabulate import tabulate
 from tqdm import tqdm
@@ -119,37 +120,17 @@ def load_xs_ys_avg_y(
     return xs, ys, avg_ys
 
 
-def generate_distinct_colors(n):
-    """
-    Generates n visually distinct colors.
-
-    Parameters:
-        n (int): The number of distinct colors to generate.
-
-    Returns:
-        list: A list of n visually distinct colors in hex format.
-    """
-    colors = []
-    for i in range(n):
-        hue = i / n
-        # Fixing saturation and lightness/value to 0.9 for bright colors
-        # You can adjust these values for different color variations
-        lightness = 0.5
-        saturation = 0.9
-        rgb = colorsys.hls_to_rgb(hue, lightness, saturation)
-        hex_color = '#%02x%02x%02x' % (int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255))
-        colors.append(hex_color)
+def generate_distinct_colors(n: int, palette: str = "colorblind") -> list:
+    return list(iter(sns.color_palette(palette, n_colors=n)))
     
-    return colors
-
 
 TO_PLOT_TO_LABEL = {
-    "val_losses": "loss (val)",
-    "val_accuracies": "token accuracy (val)",
-    "val_full_accuracies": "full-number accuracy (val)",
-    "train_losses": "loss (train)",
-    "val_l1s": "L1 error (val)",
-    "val_l2s": "L2 error (val)",
+    "val_losses": "Loss",
+    "val_accuracies": "Token Accuracy",
+    "val_full_accuracies": "Full-Number Accuracy",
+    "train_losses": "Loss",
+    "val_l1s": "L1 Error",
+    "val_l2s": "L2 Error",
 }
 
 
@@ -514,6 +495,12 @@ def get_num_params(file: str, filters) -> int:
     return int(pl.scan_csv(file).filter(filters).select("num_params").collect()["num_params"].mean())
 
 
+def seconds_to_hhmmss(seconds):
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+
 def plot_results_new(
         file: str,
         digit_mixin_methods: list[Literal["cross_attn", "concat", "noop"]],
@@ -523,9 +510,16 @@ def plot_results_new(
         to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses", "val_l1s", "val_l2s"] = "val_accuracies",
         aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
         plot_all: bool = False,
+        loglog: bool = False,
+        steps: tuple[int | None, int | None] | None = None,
         ylim: tuple[float | int, float | int] | None = None,
         show: bool = True,
+        show_times: bool = False,
 ):
+    steps = steps or (None, None)
+    steps = list(steps)
+    steps[0] = steps[0] // 100 if steps[0] else None
+    steps[1] = steps[1] // 100 if steps[1] else None
     use_digit_self_attn = [False, True] if use_digit_self_attn is None else [use_digit_self_attn]
     settings = (
         pl.scan_csv(file)
@@ -540,8 +534,8 @@ def plot_results_new(
         .unique()
     )
     settings = [
-        (dmi, dmo, dsa, depth)
-        for dmi, dmo, dsa, depth in zip(
+        (dmi, dmo, dsa, dep)
+        for dmi, dmo, dsa, dep in zip(
             settings["digit_mixin_method"],
             settings["digit_mixout_method"],
             settings["use_digit_self_attn"],
@@ -550,60 +544,80 @@ def plot_results_new(
     ]
 
     dmi_names = {
-        "cross_attn": "Input: Bytes (cross-attn)",
-        "concat": "Input: Bytes(concat)......",
-        "noop": "Input: Tokens................."
+        "cross_attn": "In: Bytes (cross-attn)",
+        "concat": "In: Bytes(concat)",
+        "noop": "In: Tokens..........."
     }
     dmo_names = {
-        "self_attn": "Output: Bytes..",
-        "noop": "Output: Tokens"
+        "self_attn": "Out: Bytes..",
+        "noop": "Out: Tokens"
     }
 
     settings = list(set(settings))
     for i in range(4):
         settings = sorted(settings, key=lambda x: x[len(x)-1-i])
-    colors = generate_distinct_colors(len(settings))
-    for (dmi, dmo, dsa, depth) in settings:
+    colors = generate_distinct_colors(n=len(settings), palette="tab10")
+    for (dmi, dmo, dsa, dep) in settings:
         xs, ys, avg_ys = load_xs_ys_avg_y(
             file=file,
             digit_mixin_method=dmi,
             digit_mixout_method=dmo,
             use_digit_self_attn=dsa,
-            depth=depth,
+            depth=dep,
             to_plot=to_plot,
             aggregate_method=aggregate_method,
         )
-        
-        nparam = format_num_params(get_num_params(
-            file,
-            filters=(
-                (pl.col("digit_mixin_method") == dmi)
-                & (pl.col("digit_mixout_method") == dmo)
-                & (pl.col("use_digit_self_attn") == dsa)
-                & (pl.col("depth") == depth)
-            )
-        ))
+        xs = xs[steps[0]:steps[1]]
+        ys = ys[:, steps[0]:steps[1]]
+        avg_ys = avg_ys[steps[0]:steps[1]]
+        filters=(
+            (pl.col("digit_mixin_method") == dmi)
+            & (pl.col("digit_mixout_method") == dmo)
+            & (pl.col("use_digit_self_attn") == dsa)
+            & (pl.col("depth") == dep)
+        )
+        nparam = format_num_params(get_num_params(file, filters))
         label = f"{dmi_names[dmi]}... {dmo_names[dmo]}... "
-        label += f"{dsa=}, #Params={nparam}" if use_digit_self_attn is None else f"#Params={nparam}"
+        label += f"{dsa=}... " if use_digit_self_attn == [False, True] else ""
+        label += f"Size: {nparam}"
+        label += f", {dep=}" if depth is None else ""
+        if show_times:
+            time_taken = pl.scan_csv(file).filter(filters).select("total_time").collect()["total_time"].mean()
+            label += f", Time: {seconds_to_hhmmss(time_taken)}"
+
         color = colors.pop(0)
         if plot_all:
             for y in ys:
-                plt.plot(xs, y, color=color, alpha=0.2)  # TOD
-        plt.plot(xs, avg_ys, color=color, label=label, linestyle="-" if dmo == "self_attn" else "--")
+                plt.plot(xs, y, color=color, alpha=0.6, linestyle="dotted")
+        plt.plot(xs, avg_ys, color=color, label=label, linewidth=2.5)
     
     to_plot_to_label = {
-        "val_losses": "loss (validation)",
-        "val_accuracies": "token accuracy (validation)",
-        "val_full_accuracies": "full-number accuracy (validation)",
-        "train_losses": "loss (training)",
+        "val_losses": "Loss (validation)",
+        "val_accuracies": "Token accuracy (validation)",
+        "val_full_accuracies": "Full-number accuracy (validation)",
+        "train_losses": "Loss (training)",
         "val_l1s": "L1 distance to ground truth (validation)",
         "val_l2s": "L2 distance to ground truth (validation)",
     }
 
-    if ylim:
+    if loglog:
+        plt.xscale('log')
+        plt.yscale('log')
+    if ylim and not loglog:
         plt.ylim(*ylim)
-
-    plt.legend()
+    plt.legend(
+        fontsize=10,
+        loc='upper center',
+        bbox_to_anchor=(0.5, -0.18),
+        ncol=1,
+        borderaxespad=0.,
+    )
+    plt.subplots_adjust(
+        left=0.1,
+        right=0.95,
+        bottom=0.25,
+        top=0.90,
+    )
     plt.xlabel("step")
     plt.ylabel(to_plot_to_label[to_plot])
     plt.grid()
@@ -612,6 +626,230 @@ def plot_results_new(
     if show:
         plt.show()
         close_plt()
+    else:
+        plt.savefig(
+            f"plot_digits_vs_tokens__{to_plot}__{aggregate_method}"
+            + ("__all" if plot_all else ''),
+            dpi=300,
+        )
+    
+
+def adjust_lightness(color, amount=0.5):
+    """Adjust the lightness of a color. amount > 1 lightens, < 1 darkens."""
+    try:
+        import matplotlib.colors as mc
+        c = mc.to_rgb(color)
+        h, l, s = colorsys.rgb_to_hls(*c)
+        new_l = max(0, min(1, amount * l))
+        return colorsys.hls_to_rgb(h, new_l, s)
+    except ImportError:
+        print("Warning: matplotlib not found. Cannot adjust lightness.")
+        if amount > 1:
+            return tuple(min(1, c + (1-c)*0.4) for c in mc.to_rgb(color)) # Mix with white approx
+        else:
+             return tuple(max(0, c * 0.6) for c in mc.to_rgb(color)) # Darken approx
+
+
+def plot_results_grid(
+    file: str,
+    to_plot: Literal["val_losses", "val_accuracies", "val_full_accuracies", "train_losses", "val_l1s", "val_l2s"] = "val_accuracies",
+    plot_all: bool = False,
+    aggregate_method: Literal["mean", "median", "max", "min"] = "mean",
+    show: bool = True,
+    ylim: tuple[float | int, float | int] | None = None,
+    loglog: bool = False,
+    steps: tuple[int | None, int | None] | None = None,
+):
+    input_methods = ["noop", "concat", "cross_attn"]
+    output_methods = ["noop", "self_attn"]
+
+    # Full names for annotations/titles
+    input_names_full = { "noop": "Tokens", "concat": "Bytes (Concat)", "cross_attn": "Bytes (Cross-Attn)" }
+    output_names_full = { "noop": "Tokens", "self_attn": "Bytes (Self-Attn)" }
+
+    # Fixed parameters
+    depth = 6
+    use_digit_self_attn = False
+
+    # Define base colors for rows
+    base_colors = ['#1f77b4', '#ff7f0e', '#2ca02c'] # tab10 blue, orange, green
+
+    # Make figure wider
+    fig, axes = plt.subplots(
+        nrows=len(input_methods),
+        ncols=len(output_methods),
+        figsize=(11.0, 7.0), # Keep original width for now, adjust if needed
+        sharex=True,
+        sharey=True
+    )
+
+    if isinstance(axes, np.ndarray):
+        axes_flat = axes.flatten()
+    else:
+        axes_flat = [axes]
+        axes = np.array([[axes]])
+
+    # Define desired x-ticks
+    x_ticks = [0, 5000, 10000, 15000, 20000]
+    x_tick_labels = ['0', '5k', '10k', '15k', '20k']
+
+    plot_idx = 0
+    for r, dmi in enumerate(input_methods):
+        base_color = base_colors[r]
+        for c, dmo in enumerate(output_methods):
+            ax = axes[r, c]
+
+            # Determine color shade
+            if c == 0: plot_color = adjust_lightness(base_color, 1.3) # Lighter
+            else: plot_color = adjust_lightness(base_color, 0.7) # Darker
+
+            try:
+                # Load potentially full data first
+                xs_full, ys_full, avg_ys_full = load_xs_ys_avg_y(
+                    file=file,
+                    digit_mixin_method=dmi,
+                    digit_mixout_method=dmo,
+                    use_digit_self_attn=use_digit_self_attn,
+                    depth=depth,
+                    to_plot=to_plot,
+                    aggregate_method=aggregate_method,
+                )
+
+                # Apply step slicing if specified
+                start_idx, end_idx = None, None
+                if steps and steps[0] is not None:
+                    start_idx = np.searchsorted(xs_full, steps[0], side='left')
+                if steps and steps[1] is not None:
+                    # Ensure end_idx is within bounds after slicing
+                    end_idx_search = np.searchsorted(xs_full, steps[1], side='right')
+                    end_idx = min(end_idx_search, len(xs_full))
+
+
+                xs = xs_full[start_idx:end_idx]
+                # Ensure ys and avg_ys slicing matches xs
+                if ys_full.ndim == 2 and ys_full.shape[1] > 0:
+                    ys = ys_full[:, start_idx:end_idx]
+                else:
+                    ys = np.array([[]]) # Handle empty ys_full case
+
+                if avg_ys_full.ndim == 1 and avg_ys_full.shape[0] > 0:
+                     avg_ys = avg_ys_full[start_idx:end_idx]
+                else:
+                     avg_ys = np.array([]) # Handle empty avg_ys_full case
+
+
+                if xs.size == 0 or avg_ys.size == 0:
+                    # print(f"Warning: No data found for In:{input_names_short[dmi]} / Out:{output_names_short[dmo]} in step range {steps}. Skipping plot.") # Optional: uncomment for debug
+                    # Make empty plots less visually intrusive
+                    ax.tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
+                    ax.spines[:].set_visible(False) # Hide spines for empty plots
+                    continue # Skip plotting for this subplot
+
+                if plot_all and ys.shape[0] > 0 and ys.shape[1] > 0: # Check ys has data points
+                    for y_run in ys:
+                        ax.plot(xs, y_run, color=plot_color, alpha=0.3, linestyle="-", linewidth=0.7)
+
+                if avg_ys.size > 0: # Check avg_ys has data points
+                    # Removed label= from here as it's not used
+                    ax.plot(xs, avg_ys, color=plot_color, linewidth=1.8)
+                else: # Handle case where avg_ys became empty after slicing
+                     # print(f"Warning: Average data became empty after slicing for In:{input_names_short[dmi]} / Out:{output_names_short[dmo]}. Skipping average line.") # Optional: uncomment for debug
+                     pass # Don't plot if no average data
+
+
+            except Exception as e:
+                print(f"Error loading/plotting data for In:{input_names_full[dmi]} / Out:{output_names_full[dmo]}: {e}")
+                import traceback
+                traceback.print_exc() # Print full traceback for debugging
+                ax.text(0.5, 0.5, 'Error', ha='center', va='center', transform=ax.transAxes, fontsize=9, color='red')
+                ax.tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
+                ax.spines[:].set_visible(False) # Hide spines for error plots
+                continue
+
+            # --- Subplot Configuration ---
+            ax.grid(True, linestyle='--', alpha=0.5, linewidth=0.5)
+            # Removed legend display as individual line labels were removed
+            # handles, labels = ax.get_legend_handles_labels()
+            # if handles:
+            #      ax.legend(loc='best', fontsize=9)
+
+
+            if loglog:
+                ax.set_xscale('log')
+                ax.set_yscale('log')
+                from matplotlib.ticker import LogFormatterSciNotation, NullFormatter, LogLocator
+                # Use LogLocator for better tick placement on log scales
+                ax.yaxis.set_major_locator(LogLocator(numticks=6)) # Adjust numticks as needed
+                ax.xaxis.set_major_locator(LogLocator(numticks=8))
+                ax.yaxis.set_minor_formatter(NullFormatter())
+                ax.xaxis.set_minor_formatter(NullFormatter())
+                # Set tick label size for log scale as well
+                ax.tick_params(axis='both', which='major', labelsize=9) # Apply to major ticks
+            elif ylim:
+                 ax.set_ylim(*ylim)
+
+            # --- Axis Labels and Specific Row/Column Titles ---
+            if c == 0: # Leftmost column
+                 # Specific Row Annotation (Input Method) - Black color
+                 ax.annotate(input_names_full[dmi], xy=(-0.18, 0.5), xycoords='axes fraction', # Adjusted x slightly for larger font
+                             textcoords='offset points', xytext=(0,0),
+                             ha='right', va='center', fontsize=12, rotation=90, color="black") # Set to black
+                 # Y-axis metric label
+                 ax.set_ylabel(TO_PLOT_TO_LABEL[to_plot], fontsize=9)
+                 # ***** MODIFICATION: Set Y-tick label size *****
+                 ax.tick_params(axis='y', labelsize=9)
+            else:
+                # Turn off y-tick labels for inner/right columns
+                ax.tick_params(axis='y', labelleft=False)
+
+            if r == len(input_methods) - 1: # Bottom row
+                ax.set_xlabel("Step", fontsize=9)
+                if not loglog: # Set specific ticks only for linear scale
+                    ax.set_xticks(x_ticks)
+                    ax.set_xticklabels(x_tick_labels)
+                    # Set x-axis limits to ensure ticks are visible if data doesn't span full range
+                    current_xlim = ax.get_xlim()
+                    # Ensure xlim accommodates the specified ticks if data is narrower
+                    ax.set_xlim(left=min(current_xlim[0], x_ticks[0] - 500),
+                                right=max(current_xlim[1], x_ticks[-1] + 500))
+                # ***** MODIFICATION: Set X-tick label size *****
+                # Apply labelsize=9 regardless of log scale (affects major ticks)
+                ax.tick_params(axis='x', labelsize=9)
+            else:
+                # Turn off x-tick labels for inner/top rows
+                ax.tick_params(axis='x', labelbottom=False)
+
+            if r == 0: # Top row - Add Specific Column Titles (Output Method) - Black color
+                 ax.set_title(output_names_full[dmo], fontsize=12, pad=10, color='black') # Ensure black color
+
+
+            plot_idx += 1
+
+    # --- Hierarchical Titles ---
+    # Define coordinates based on subplots_adjust values
+    left_margin = 0.15 # Keep increased left margin
+    right_margin = 0.97
+    top_margin = 0.90 # May need slight adjustment if titles overlap axes
+    bottom_margin = 0.10
+    input_title_x = 0.02 # Position of the "Input" text (kept small and fixed)
+    output_title_y = 0.97 # Position of the "Output" text
+
+    # Main "Output" title
+    fig.text( (left_margin + right_margin) / 2 , output_title_y, "Output", ha='center', va='center', fontsize=12, fontweight='bold') # Center between new margins
+
+    # Main "Input" title (Position remains fixed relative to figure)
+    fig.text(input_title_x, 0.5, "Input", ha='left', va='center', rotation=90, fontsize=12, fontweight='bold')
+
+    # --- Figure Configuration ---
+    # Adjust spacing - Use the modified margins
+    plt.subplots_adjust(left=left_margin, right=right_margin, top=top_margin, bottom=bottom_margin,
+                        wspace=0.08, hspace=0.18) # wspace/hspace might need tweaking
+
+    if show:
+        plt.show()
+        close_plt()
+    else:
+        plt.savefig("plot_results_grid.png", dpi=300)
 
 
 def merge_results():
@@ -638,14 +876,27 @@ if __name__ == "__main__":
     # merge_results()
     merge_results_new()
     file = "results-mixin.csv"
+    # plot_results_grid(
+    #     file=file,
+    #     to_plot="val_full_accuracies",
+    #     plot_all=True, # Show individual runs as faint lines
+    #     aggregate_method="mean",
+    #     ylim=(-0.05, 1.05), # Example Y limit for accuracy
+    #     show=False,
+    # )
     plot_results_new(
         file=file,
-        digit_mixin_methods=["cross_attn", "concat", "noop"],
+        digit_mixin_methods=["concat"],
         digit_mixout_methods=["self_attn", "noop"],
         to_plot="val_full_accuracies",
-        plot_all=False,
+        plot_all=True,
         use_digit_self_attn=False,
-        ylim=(0, 1)
+        ylim=(0, 1),
+        depth=6,
+        loglog=False,
+        steps=(None, None),
+        show_times=True,
+        show=False,
     )
     # file = "results.csv"
     # print_other_metrics(
