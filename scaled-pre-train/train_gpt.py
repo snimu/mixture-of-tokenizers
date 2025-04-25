@@ -7,7 +7,6 @@ import os
 import sys
 with open(sys.argv[0]) as f:
     code = f.read() # read the code of this file ASAP, for logging
-import uuid
 import time
 import copy
 from typing import Literal
@@ -223,8 +222,10 @@ class ByteHyperparameters:
     byte_mixin_method: Literal["cross_attn", "concat", "noop"] = "noop"
     byte_mixout_method: Literal["self_attn", "noop"] = "noop"
     use_byte_self_attn: bool = False
-    padding: Literal["left", "right"] = "left"
-    pull: bool = False
+    padding_in: Literal["left", "right"] = "left"
+    padding_out: Literal["left", "right"] = "left"
+    pull_in: bool = True
+    pull_out: bool = True
     add_padded_and_pulled: bool = False
     sliding_window_tokens: int = 8
     n_layer_out: int = 1
@@ -398,14 +399,14 @@ class Block(nn.Module):
 
 
 class FlexibleEmbedding(nn.Module):
-    def __init__(self, dim: int, vocab_size, byte_params: ByteHyperparameters):
+    def __init__(self, dims: ModelDims, vocab_size, byte_params: ByteHyperparameters):
         super().__init__()
-        self.embed_tokens = nn.Embedding(vocab_size, dim)
-        self.embed_bytes = nn.Embedding(byte_params.vocab_size, dim) if byte_params.byte_mixin_method != "noop" else nn.Identity()
+        self.embed_tokens = nn.Embedding(vocab_size, dims.token_dim if byte_params.byte_mixin_method != "noop" else dims.model_dim)
+        self.embed_bytes = nn.Embedding(byte_params.vocab_size, dims.byte_dim) if byte_params.byte_mixin_method != "noop" else nn.Identity()
 
         if byte_params.byte_mixin_method == "noop":
             self.forward = self._forward_tokens
-        elif not byte_params.pull:
+        elif not byte_params.pull_in:
             self.forward = self._forward_bytes_padded
         elif not byte_params.add_padded_and_pulled:
             self.forward = self._forward_bytes_pulled
@@ -486,6 +487,7 @@ class ByteSelfAttn(nn.Module):
 class ByteMixinNoop(nn.Module):
     def __init__(self, dims: ModelDims, max_seq_len: int, byte_params: ByteHyperparameters):
         super().__init__()
+        self.attention = self.mixin = nn.Identity()
 
     def forward(self, x, *args):
         return x
@@ -496,13 +498,13 @@ class ByteMixinConcat(nn.Module):
         super().__init__()
         self.byte_params = byte_params
         self.attention = ByteSelfAttn(dims.byte_dim, max_seq_len, byte_params) if byte_params.use_byte_self_attn else nn.Identity()
-        self.fc = nn.Linear(dims.token_dim + dims.byte_dim * byte_params.bytes_per_token, dims.model_dim)
+        self.mixin = nn.Linear(dims.token_dim + dims.byte_dim * byte_params.bytes_per_token, dims.model_dim)
 
     def forward(self, tok_embs: Tensor, byte_embs: Tensor) -> Tensor:
         if self.byte_params.use_byte_self_attn:
             byte_embs = self.attention(byte_embs)
         byte_embs = einops.rearrange(byte_embs, "B (S bpt) D -> B S (bpt D)", bpt=self.byte_params.bytes_per_token)
-        return norm(self.fc(torch.cat([tok_embs, byte_embs], dim=-1)))
+        return norm(self.mixin(torch.cat([tok_embs, byte_embs], dim=-1)))
 
 
 class ByteMixinCrossAttn(nn.Module):
@@ -511,7 +513,7 @@ class ByteMixinCrossAttn(nn.Module):
         assert dims.byte_dim == dims.token_dim == dims.model_dim
         self.byte_params = byte_params
         self.attention = ByteSelfAttn(dims.byte_dim, max_seq_len, byte_params) if byte_params.use_byte_self_attn else nn.Identity()
-        self.cross_attention = None if byte_params.byte_mixin_method == "noop" else CrossAttention(
+        self.mixin = CrossAttention(
             dim=dims.model_dim,
             num_heads=dims.model_dim//128,
             max_seq_len_kv=max_seq_len * byte_params.bytes_per_token,
@@ -521,7 +523,7 @@ class ByteMixinCrossAttn(nn.Module):
     
     def forward(self, token_embs: Tensor, byte_embs: Tensor) -> Tensor:
         byte_embs = self.attention(byte_embs)
-        return self.cross_attention(xq=token_embs, xkv=byte_embs)
+        return self.mixin(xq=token_embs, xkv=byte_embs)
 
 
 class ByteMixin(nn.Module):
@@ -533,6 +535,8 @@ class ByteMixin(nn.Module):
             self.mixin = ByteMixinCrossAttn(dims, max_seq_len, byte_params)
         elif byte_params.byte_mixin_method == "concat":
             self.mixin = ByteMixinConcat(dims, max_seq_len, byte_params)
+        else:
+            raise RuntimeError(f"Invalid byte mixin method: {byte_params.byte_mixin_method}")
     
     def forward(self, tok_embs: Tensor, byte_embs: Tensor) -> Tensor:
         return self.mixin(tok_embs, byte_embs)
@@ -568,26 +572,25 @@ def next_multiple_of_n(v: float | int, *, n: int):
 class GPT(nn.Module):
     def __init__(
             self, vocab_size: int, num_layers: int, num_heads: int,
-            model_dim: int, max_seq_len: int, expansion_factor: int = 4,
-            byte_params_in: ByteHyperparameters | None = None,
-            byte_params_out: ByteHyperparameters | None = None,
+            model_dims: ModelDims, max_seq_len: int, expansion_factor: int = 4,
+            byte_params: ByteHyperparameters | None = None,
             n_layer_output: int = 1,
     ):
         super().__init__()
-        self.embed = FlexibleEmbedding(dim=model_dim, vocab_size=vocab_size, byte_params=byte_params_in)
+        self.embed = FlexibleEmbedding(dims=model_dims, vocab_size=vocab_size, byte_params=byte_params)
         self.byte_mixin = ByteMixin(
-            dim=model_dim, max_seq_len=max_seq_len, byte_params=byte_params_in
+            dims=model_dims, max_seq_len=max_seq_len, byte_params=byte_params
         )
         # token value embeddings by @KoszarskyB - inspired by @Grad62304977's value residual implementation following https://arxiv.org/abs/2410.17897
         # value embedding code simplification inspired by @ragulpr https://github.com/KellerJordan/modded-nanogpt/pull/78
-        self.value_embeds = nn.ModuleList([nn.Embedding(vocab_size, model_dim) for _ in range(3)])
-        self.blocks = nn.ModuleList([Block(model_dim, num_heads, max_seq_len, i, expansion_factor) for i in range(num_layers)])
+        self.value_embeds = nn.ModuleList([nn.Embedding(vocab_size, model_dims.model_dim) for _ in range(3)])
+        self.blocks = nn.ModuleList([Block(model_dims.model_dim, num_heads, max_seq_len, i, expansion_factor) for i in range(num_layers)])
         self.byte_mixout = ByteMixout(
-            dim=model_dim, max_seq_len=max_seq_len, byte_params=byte_params_out, n_layer_output=n_layer_output
-        ) if byte_params_out is not None else nn.Identity()
+            dims=model_dims, max_seq_len=max_seq_len, byte_params=byte_params, n_layer_output=n_layer_output
+        )
         # there are only 50257 unique GPT-2 tokens; we extend to nearest multiple of 128 for efficiency.
         # suggested to me by @Grad62304977. this originates from Karpathy's experiments.
-        self.lm_head = CastedLinear(model_dim, next_multiple_of_n(vocab_size, n=128), use_fp8=True, x_s=2.0, w_s=2.0**9, grad_s=2.0**19)
+        self.lm_head = CastedLinear(model_dims.model_dim, next_multiple_of_n(vocab_size, n=128), use_fp8=True, x_s=2.0, w_s=2.0**9, grad_s=2.0**19)
         self.lm_head.weight.detach().zero_() # @Grad62304977
         # Add learnable skip connection weights for decoder layers
         assert num_layers % 2 == 0
@@ -596,7 +599,7 @@ class GPT(nn.Module):
         def causal_mask(b, h, q_idx, kv_idx):
             return q_idx >= kv_idx
         
-        T = max_seq_len * byte_params_in.bytes_per_token
+        T = max_seq_len * byte_params.bytes_per_token
         self.block_mask = create_block_mask(
             mask_mod=causal_mask,
             B=None,
@@ -672,6 +675,9 @@ def distributed_data_generator(filename_pattern: str, batch_size: int, rank : in
 
 
 # TODO: dataloader for tokens & bytes (validate first)
+# TODO: checkpointing with metadata
+# TODO: wandb
+# TODO: timing
 
 # -----------------------------------------------------------------------------
 # int main
@@ -693,13 +699,35 @@ class Hyperparameters:
     vocab_size = 50257
     expansion_factor = 4 # expansion factor for MLP
     padding_in: Literal["left", "right"] = "left"
-    pull_in: bool = True
-    add_padded_and_pulled: bool = True
     padding_out: Literal["left", "right"] = "right"
+    pull_in: bool = True
     pull_out: bool = True
+    add_padded_and_pulled: bool = True
+    byte_mixin_method: Literal["noop", "cross_attn", "concat"] = "noop"
+    byte_mixout_method: Literal["noop", "self_attn"] = "noop"
+    sliding_window_tokens: int = 8
+    n_layer_out: int = 1
+    # Model dims
+    model_dim: int = 1024
+    byte_dim: int = 1024
+    token_dim: int = 1024
     # evaluation and logging
     val_loss_every = 125 # every how many steps to evaluate val loss? 0 for only at the end
     save_checkpoint = False
+    # other
+    seed: int | None = None
+
+
+def make_name(args: Hyperparameters) -> str:
+    name = "MoT-scaled-pretrain"
+    name += f"_padding-{args.padding_in}-{args.padding_out}"
+    name += f"_pull-{int(args.pull_in)}-{int(args.pull_out)}"
+    name += "_pad-pull" if args.add_padded_and_pulled else ""
+    name += f"_seed-{args.seed}"
+    timeinfo = time.localtime()
+    date = f"{timeinfo.tm_year}-{timeinfo.tm_mon}-{timeinfo.tm_mday}"
+    name += f"_{date}"
+    return name
 
 
 def get_args() -> Hyperparameters:
@@ -750,6 +778,24 @@ def get_args() -> Hyperparameters:
         "--sliding-window-tokens", type=int, default=8,
         help="",
     )
+    # Model dims
+    parser.add_argument(
+        "--model-dim", type=int, default=1024,
+        help="",
+    )
+    parser.add_argument(
+        "--byte-dim", type=int, default=1024,
+        help="",
+    )
+    parser.add_argument(
+        "--token-dim", type=int, default=1024,
+        help="",
+    )
+    # Other
+    parser.add_argument(
+        "--seed", type=int, default=None,
+        help="The random seed. If None, not manually set. Default: None"
+    )
 
     args = parser.parse_args()
     hps = Hyperparameters(
@@ -758,7 +804,12 @@ def get_args() -> Hyperparameters:
         padding_out=args.padding_out,
         pull_in=args.pull_in,
         pull_out=args.pull_out,
-        
+        sliding_window_tokens=args.sliding_window_tokens,
+        n_layer_out=args.n_layer_out,
+        model_dim=args.model_dim,
+        byte_dim=args.byte_dim,
+        token_dim=args.token_dim,
+        seed=args.seed,
     )
     return hps
 
@@ -779,7 +830,7 @@ master_process = (rank == 0) # this process will do logging, checkpointing etc.
 # begin logging
 logfile = None
 if master_process:
-    run_id = uuid.uuid4()
+    run_id = make_name(args)
     os.makedirs("logs", exist_ok=True)
     logfile = f"logs/{run_id}.txt"
     print(logfile)
@@ -789,6 +840,10 @@ def print0(s, console=False):
             if console:
                 print(s)
             print(s, file=f)
+
+if args.seed:
+    torch.manual_seed(args.seed)
+    print0(f"Set seed to {args.seed}")
 
 # begin by printing this file (the Python code)
 print0(code)
@@ -807,18 +862,21 @@ print0("="*100)
 ########################################
 
 model: nn.Module = GPT(
-    vocab_size=args.vocab_size, num_layers=16, num_heads=8, model_dim=1024,
-    max_seq_len=max(args.train_seq_len, args.val_seq_len), expansion_factor=args.expansion_factor,
-    byte_params_in=ByteHyperparameters(
-        padding=args.padding_in,
-        pull=args.pull_in,
+    vocab_size=args.vocab_size,
+    num_layers=16,
+    num_heads=8,
+    max_seq_len=max(args.train_seq_len, args.val_seq_len),
+    expansion_factor=args.expansion_factor,
+    model_dims=ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim),
+    byte_params=ByteHyperparameters(
+        padding_in=args.padding_in,
+        padding_out=args.padding_out,
+        pull_in=args.pull_in,
+        pull_out=args.pull_out,
         add_padded_and_pulled=args.add_padded_and_pulled,
-    ),
-    byte_params_out=ByteHyperparameters(
-        padding=args.padding_out,
-        pull=args.pull_out,
-        add_padded_and_pulled=args.add_padded_and_pulled,
-    ),
+        byte_mixin_method=args.byte_mixin_method,
+        byte_mixout_method=args.byte_mixout_method,
+    )
 ).cuda()
 for m in model.modules():
     if isinstance(m, nn.Embedding):
@@ -828,7 +886,13 @@ for param in model.parameters():
 
 # collect the parameters to optimize
 hidden_matrix_params = [p for n, p in model.blocks.named_parameters() if p.ndim >= 2 and "embed" not in n]
-embed_params = [p for n, p in model.named_parameters() if "embed" in n]
+hidden_matrix_params.extend([p for p in model.byte_mixout.parameters() if p.ndim >= 2])
+embed_params = [p for n, p in model.named_parameters() if "embed" in n if p.ndim >= 2]
+if args.byte_mixin_method == "concat":
+    embed_params.extend([p for p in model.byte_mixin.mixin.mixin.parameters() if p.ndim >= 2])
+    hidden_matrix_params.extend([p for p in model.byte_mixin.mixin.attention.parameters() if p.ndim >= 2])
+elif args.byte_mixin_method == "cross_attn":
+    hidden_matrix_params.extend([p for p in model.byte_mixin.parameters() if p.ndim >= 2])
 scalar_params = [p for p in model.parameters() if p.ndim < 2]
 head_params = [model.lm_head.weight]
 
@@ -891,6 +955,7 @@ del initial_state
 #        Training and validation       #
 ########################################
 
+# TODO: use actual dataloader with pulled data etc.
 train_loader = distributed_data_generator(args.train_files, world_size * args.train_seq_len, rank, world_size)
 training_time_ms = 0
 # start the clock
@@ -925,7 +990,7 @@ for step in range(train_steps + 1):
         torch.cuda.synchronize()
         t0 = time.perf_counter()
 
-    if last_step:
+    if last_step:  # TODO: replace with HF checkpointing
         if master_process and args.save_checkpoint:
             log = dict(step=step, code=code, model=model.state_dict(), optimizers=[opt.state_dict() for opt in optimizers])
             os.makedirs(f"logs/{run_id}", exist_ok=True)
