@@ -153,7 +153,7 @@ def time_bytes(
     for _ in tqdm(range(n_batches)):
         try:
             _, _, _, _, _ = next(dg)
-        except StopIteration:
+        except (StopIteration, RuntimeError):
             break
     print(f"Time bytes:{perf_counter() - t0:.2f}s\n")
 
