@@ -1,6 +1,7 @@
 
 import os
 from time import perf_counter
+from typing import Literal
 from concurrent.futures import ThreadPoolExecutor
 
 from psutil import cpu_count
@@ -8,7 +9,10 @@ from huggingface_hub import hf_hub_download
 import huggingface_hub as hfhub
 
 
-def download(repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT"):
+def download(
+        repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
+        tokens_or_bytes: Literal["tokens", "bytes"] = "bytes",
+):
     token = os.getenv("HF_TOKEN")
     assert token is not None, "Please set the HF_TOKEN environment variable"
     os.makedirs("data", exist_ok=True)
@@ -23,8 +27,7 @@ def download(repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT"):
 
     files = hfhub.list_repo_files(repo_id, token=token, repo_type="dataset")
 
-    # Only download the "bytes" files; they already contain the tokens
-    files = [file for file in files if "bytes" in file]
+    files = [file for file in files if tokens_or_bytes in file]
 
     # Make sure that the files are named correctly
     slash_train_in_files = any("train/" in file for file in files)
