@@ -1,43 +1,46 @@
 """Just for testing the data loader, the dataloader will later be in train_gpt.py"""
 
 import os
+import argparse
 import json
 import random
 import subprocess as sp
 from pathlib import Path
 from time import perf_counter
 
+import einops
 import torch
 import tiktoken
+from tqdm import tqdm
 
 from data_download import download
+from data_creation import make_embedding, tokens_to_bytes, pull_from_left, pull_from_right
 
 
-def _load_data_shard(file: Path):
+def _load_data_shard(file: Path, dtype: torch.dtype = torch.uint16):
     header = torch.from_file(str(file), False, 256, dtype=torch.int32) # header is 256 int32
     assert header[0] == 20240520, "magic number mismatch in the data .bin file"
     assert header[1] == 1, "unsupported version"
     num_tokens = int(header[2]) # number of tokens (claimed)
     with file.open("rb", buffering=0) as f:
-        tokens = torch.empty(num_tokens, dtype=torch.uint16, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
+        tokens = torch.empty(num_tokens, dtype=dtype, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
         f.seek(256 * 4)
-        nbytes = f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
-        assert nbytes == 2 * num_tokens, "number of tokens read does not match header"
+        f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
     return tokens
 
-def distributed_data_generator(filename_pattern: str, batch_size: int, rank : int, world_size : int):
+def distributed_data_generator(filename_pattern: str, batch_size: int, seq_len: int, rank : int, world_size : int):
     files = sorted(Path.cwd().glob(filename_pattern))
     assert batch_size % world_size == 0
-    local_batch_size = batch_size // world_size
+    local_batch_size = (batch_size * seq_len) // world_size
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
     tokens, pos = _load_data_shard(next(file_iter)), 0
     while True:
-        if pos + batch_size + 1 >= len(tokens):
+        if pos + (batch_size * seq_len) + 1 >= len(tokens):
             tokens, pos = _load_data_shard(next(file_iter)), 0
-        buf = tokens[pos + rank * local_batch_size:][:local_batch_size + 1]
-        inputs = buf[:-1].to(device="cuda", dtype=torch.int32, non_blocking=True) # no sync on host side;
-        targets = buf[1:].to(device="cuda", dtype=torch.int64, non_blocking=True) # H2D in another stream isn't helpful.
-        pos += batch_size
+        buf = tokens[pos + rank * local_batch_size:][:local_batch_size].view(-1, seq_len)
+        inputs = buf[:, :-1].to(device="cuda", dtype=torch.int32, non_blocking=True) # no sync on host side;
+        targets = buf[:, 1:].to(device="cuda", dtype=torch.int64, non_blocking=True) # H2D in another stream isn't helpful.
+        pos += batch_size * seq_len
         yield inputs, targets
 
 
@@ -58,32 +61,45 @@ def distributed_data_generator_bytes(
         bytes_per_token: int,
         rank : int,
         world_size : int,
-        return_tokens: bool = True,
+        vocab_size: int = 50257,
         return_bytes_left_padded: bool = True,
-        return_bytes_pulled_left: bool = True,
+        return_bytes_left_pulled: bool = True,
         return_bytes_right_padded: bool = True,
-        return_bytes_pulled_right: bool = True,
+        return_bytes_right_pulled: bool = True,
+        device: torch.device = "cpu",
+        seed: int = 12345,
 ):
-    def slice_tensor(tensor: torch.Tensor, dtype: torch.dtype, doit: bool = True) -> torch.Tensor:
-        return tensor.to(device="cuda", dtype=dtype, non_blocking=True) if doit else None
+
+    assert not (return_bytes_left_pulled and not return_bytes_left_padded)
+    assert not (return_bytes_right_pulled and not return_bytes_right_padded)
+    ttb_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size).to(device)
+    ttb_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size).to(device)
 
     files = sorted(Path.cwd().glob(filename_pattern))
+    random.seed(seed)  # ensure that all shards are shuffled the same way
     random.shuffle(files)
     assert batch_size % world_size == 0
-    local_batch_size = batch_size // world_size
+    local_batch_size = (batch_size * seq_len) // world_size
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
-    data, pos = _load_data_shard_bytes(next(file_iter), seq_len, batch_size, bytes_per_token), 0
+    data, pos = _load_data_shard(next(file_iter), dtype=torch.int32), 0
     while True:
-        if pos + batch_size + 1 >= len(data):
-            data, pos = _load_data_shard_bytes(next(file_iter), seq_len, batch_size, bytes_per_token), 0
-        buf = data[pos + rank * local_batch_size:][:local_batch_size + 1]
-        tokens = slice_tensor(buf[:, :-1, 0], torch.int32, return_tokens)
-        bytes_left_padded = slice_tensor(buf[:, :-1, 1:17],torch.int32, return_bytes_left_padded)
-        bytes_pulled_left = slice_tensor(buf[:, :-1, 17:33], torch.int32, return_bytes_pulled_left)
-        bytes_right_padded = slice_tensor(buf[:, 1:, 33:49], torch.int64, return_bytes_right_padded)
-        bytes_pulled_right = slice_tensor(buf[:, 1:, 49:65], torch.int64, return_bytes_pulled_right)
-        pos += batch_size
-        yield tokens, bytes_left_padded, bytes_pulled_left, bytes_right_padded, bytes_pulled_right
+        if pos + batch_size * seq_len + 1 >= len(data):
+            data, pos = _load_data_shard(next(file_iter), dtype=torch.int32), 0
+        tokens = data[pos + rank * local_batch_size:][:local_batch_size].view(-1, seq_len).to(device)
+        # bytes_left_padded = einops.rearrange(ttb_left_pad(tokens), "B T bpt -> B (T bpt)") if return_bytes_left_padded else None
+        bytes_left_padded = tokens_to_bytes(tokens, ttb_left_pad)
+        bytes_left_pulled = pull_from_left(bytes_left_padded, bytes_per_token, 456, 457) if return_bytes_left_pulled else None
+        # bytes_right_padded = einops.rearrange(ttb_right_pad(tokens), "B T bpt -> B (T bpt)") if return_bytes_right_padded else None
+        bytes_right_padded = tokens_to_bytes(tokens, ttb_right_pad)
+        bytes_right_pulled = pull_from_right(bytes_right_padded, bytes_per_token, 456, 457) if return_bytes_right_pulled else None
+        pos += batch_size * seq_len
+        yield (
+            tokens,
+            einops.rearrange(bytes_left_padded, "B (T bpt) -> B T bpt", bpt=bytes_per_token) if bytes_left_padded is not None else None,
+            einops.rearrange(bytes_left_pulled, "B (T bpt) -> B T bpt", bpt=bytes_per_token) if bytes_left_pulled is not None else None,
+            einops.rearrange(bytes_right_padded, "B (T bpt) -> B T bpt", bpt=bytes_per_token) if bytes_right_padded is not None else None,
+            einops.rearrange(bytes_right_pulled, "B (T bpt) -> B T bpt", bpt=bytes_per_token) if bytes_right_pulled is not None else None,
+        )
 
 
 def load_byte_decoder() -> dict[int, str]:
@@ -107,11 +123,40 @@ def decode_bytes(byte_tensor: torch.Tensor, byte_decoder: dict[int, str], bytes_
 def download_test_data():
     if not os.path.exists("fineweb100B") or len(os.listdir("fineweb100B")) < 64:
         sp.run(["bash", "fineweb100B.sh", "64"])
-    download()
+    download(tokens_or_bytes="tokens")
 
 
-def test_timing():
-    dg = distributed_data_generator("fineweb100B/fineweb_train_*.bin", 1024, 0, 1)
+def time_bytes(
+        n_batches: int,
+        return_bytes_left_padded: bool = True,
+        return_bytes_left_pulled: bool = True,
+        return_bytes_right_padded: bool = True,
+        return_bytes_right_pulled: bool = True,
+        device: torch.device = "cpu",
+):
+    print(f"\n{n_batches=}")
+    print(f"{return_bytes_left_padded=}, {return_bytes_left_pulled=}, {return_bytes_right_padded=}, {return_bytes_right_pulled=}")
+    dg = distributed_data_generator_bytes(
+        filename_pattern="data/tokens/train/*.bin",
+        seq_len=1024,
+        batch_size=1024,
+        bytes_per_token=16,
+        rank=0,
+        world_size=1,
+        return_bytes_left_padded=return_bytes_left_padded,
+        return_bytes_left_pulled=return_bytes_left_pulled,
+        return_bytes_right_padded=return_bytes_right_padded,
+        return_bytes_right_pulled=return_bytes_right_pulled,
+        device=device,
+    )
+    t0 = perf_counter()
+    for _ in tqdm(range(n_batches)):
+        _, _, _, _, _ = next(dg)
+    print(f"Time bytes:{perf_counter() - t0:.2f}s\n")
+
+
+def test_timing(device: torch.device = "cpu"):
+    dg = distributed_data_generator("fineweb100B/fineweb_train_*.bin", 1024, 1024, 0, 1)
     t0 = perf_counter()
     n_toks = 0
     for _ in range(16):
@@ -119,45 +164,55 @@ def test_timing():
         n_toks += len(x) + 1  # +1 because x cuts off one of the tokens, but the byte loader doesn't
     print("Time tokens: ", perf_counter() - t0)
 
-    dg = distributed_data_generator_bytes("data/bytes/train/*.bin", 1024, 1024, 16, 0, 1)
-    t0 = perf_counter()
-    n_toks_b = 0
-    while n_toks_b < n_toks:
-        tokens, _, _, _, _ = next(dg)
-        n_toks_b += len(tokens)
-    print("Time bytes: ", perf_counter() - t0)
-
-    dg = distributed_data_generator_bytes("data/bytes/train/*.bin", 1024, 1024, 16, 0, 1, return_bytes_right_padded=False)
-    t0 = perf_counter()
-    n_toks_b = 0
-    while n_toks_b < n_toks:
-        _, _, _, _, bytes_pulled_right = next(dg)
-        n_toks_b += len(bytes_pulled_right)
-    print("Time bytes (no bytes right padded): ", perf_counter() - t0)
+    n_batches = n_toks // 1024
+    time_bytes(n_batches, device=device)
+    time_bytes(n_batches, return_bytes_left_pulled=False, device=device)
+    time_bytes(n_batches, return_bytes_left_padded=False, return_bytes_left_pulled=False, device=device)
+    time_bytes(n_batches, return_bytes_left_padded=False, return_bytes_left_pulled=False, return_bytes_right_pulled=False, device=device)
+    time_bytes(n_batches, return_bytes_left_padded=False, return_bytes_left_pulled=False, return_bytes_right_padded=False, return_bytes_right_pulled=False, device=device)
 
 
-def check_plausibility():
-    dg = distributed_data_generator_bytes("data/bytes/train/*.bin", 1024, 1024, 16, 0, 1)
+def time_full_dataset(device: torch.device = "cpu"):
+    time_bytes(n_batches=6600, device=device)
+    time_bytes(n_batches=6600, return_bytes_left_pulled=False, device=device)
+    time_bytes(n_batches=6600, return_bytes_left_padded=False, return_bytes_left_pulled=False, device=device)
+    time_bytes(n_batches=6600, return_bytes_left_padded=False, return_bytes_left_pulled=False, return_bytes_right_pulled=False, device=device)
+    time_bytes(n_batches=6600, return_bytes_left_padded=False, return_bytes_left_pulled=False, return_bytes_right_padded=False, return_bytes_right_pulled=False, device=device)
+
+
+def check_plausibility(device: torch.device = "cpu"):
+    dg = distributed_data_generator_bytes("data/tokens/train/*.bin", 1024, 1024, 16, 0, 1, device=device)
     entry = random.randint(0, 1023)
-    tokens, bytes_left_padded, bytes_pulled_left, bytes_right_padded, bytes_pulled_right = next(dg)
+    tokens, bytes_left_padded, bytes_left_pulled, bytes_right_padded, bytes_right_pulled = next(dg)
     encoding = tiktoken.encoding_for_model("gpt-2")
     print("\n\nTOKENS DECODED:\n\n", encoding.decode(tokens[entry].tolist()))
 
     byte_decoder = load_byte_decoder()
     print("\n\nBYTES LEFT DECODED:\n\n", decode_bytes(bytes_left_padded[entry], byte_decoder))
-    print("\n\nBYTES PULLED LEFT DECODED:\n\n", decode_bytes(bytes_pulled_left[entry], byte_decoder))
+    print("\n\nBYTES PULLED LEFT DECODED:\n\n", decode_bytes(bytes_left_pulled[entry], byte_decoder))
 
     print("\n\nBYTES RIGHT DECODED:\n\n", decode_bytes(bytes_right_padded[entry], byte_decoder))
-    print("\n\nBYTES PULLED RIGHT DECODED:\n\n", decode_bytes(bytes_pulled_right[entry], byte_decoder))
-    
-    assert tuple(tokens.shape) == (1024, 1023, 1)
-    assert tuple(bytes_left_padded.shape) == (1024, 1023, 16)
-    assert tuple(bytes_pulled_left.shape) == (1024, 1023, 16)
-    assert tuple(bytes_right_padded.shape) == (1024, 1023, 16)
-    assert tuple(bytes_pulled_right.shape) == (1024, 1023, 16)
+    print("\n\nBYTES PULLED RIGHT DECODED:\n\n", decode_bytes(bytes_right_pulled[entry], byte_decoder))
+ 
+    assert tuple(tokens.shape) == (1024, 1024), f"{tokens.shape=}"
+    assert tuple(bytes_left_padded.shape) == (1024, 1024, 16), f"{bytes_left_padded.shape=}"
+    assert tuple(bytes_left_pulled.shape) == (1024, 1024, 16), f"{bytes_left_pulled.shape=}"
+    assert tuple(bytes_right_padded.shape) == (1024, 1024, 16), f"{bytes_right_padded.shape=}"
+    assert tuple(bytes_right_pulled.shape) == (1024, 1024, 16), f"{bytes_right_pulled.shape=}"
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--test-timing", action="store_true")
+    parser.add_argument("--check-plausibility", action="store_true")
+    parser.add_argument("--time-full-dataset", action="store_true")
+    parser.add_argument("--device", type=str, default="cpu")
+    args = parser.parse_args()
+
     download_test_data()
-    test_timing()
-    check_plausibility()
+    if args.test_timing:
+        test_timing(device=args.device)
+    if args.check_plausibility:
+        check_plausibility(device=args.device)
+    if args.time_full_dataset:
+        time_full_dataset(device=args.device)
