@@ -1,5 +1,6 @@
 """Just for testing the data loader, the dataloader will later be in train_gpt.py"""
 
+import os
 import json
 import random
 import subprocess as sp
@@ -104,8 +105,9 @@ def decode_bytes(byte_tensor: torch.Tensor, byte_decoder: dict[int, str], bytes_
 
 
 def download_test_data():
-    sp.run(["bash", "fineweb100B.sh", "64"])
-    download(num_train_files=64, num_fm_val_files=0, num_fw_val_files=0)
+    if len(os.listdir("fineweb100B")) < 64:
+        sp.run(["bash", "fineweb100B.sh", "64"])
+    download()
 
 
 def test_timing():
@@ -117,7 +119,7 @@ def test_timing():
         n_toks += len(x) + 1  # +1 because x cuts off one of the tokens, but the byte loader doesn't
     print("Time tokens: ", perf_counter() - t0)
 
-    dg = distributed_data_generator_bytes("data/train_batch_*.bin", 1024, 1024, 16, 0, 1)
+    dg = distributed_data_generator_bytes("data/bytes/train/*.bin", 1024, 1024, 16, 0, 1)
     t0 = perf_counter()
     n_toks_b = 0
     while n_toks_b < n_toks:
@@ -125,7 +127,7 @@ def test_timing():
         n_toks_b += len(tokens)
     print("Time bytes: ", perf_counter() - t0)
 
-    dg = distributed_data_generator_bytes("data/train_batch_*.bin", 1024, 1024, 16, 0, 1, return_bytes_right_padded=False)
+    dg = distributed_data_generator_bytes("data/bytes/train/*.bin", 1024, 1024, 16, 0, 1, return_bytes_right_padded=False)
     t0 = perf_counter()
     n_toks_b = 0
     while n_toks_b < n_toks:
@@ -135,7 +137,7 @@ def test_timing():
 
 
 def check_plausibility():
-    dg = distributed_data_generator_bytes("data/train_batch_*.bin", 1024, 1024, 16, 0, 1)
+    dg = distributed_data_generator_bytes("data/bytes/train/*.bin", 1024, 1024, 16, 0, 1)
     entry = random.randint(0, 1023)
     tokens, bytes_left_padded, bytes_pulled_left, bytes_right_padded, bytes_pulled_right = next(dg)
     encoding = tiktoken.encoding_for_model("gpt-2")
