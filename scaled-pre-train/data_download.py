@@ -7,14 +7,10 @@ from huggingface_hub import hf_hub_download
 import huggingface_hub as hfhub
 
 
-def download(
-        repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
-        num_train_files: int = 700,  # TODO: update when true number is known
-        num_fm_val_files: int = 1,
-        num_fw_val_files: int = 1,
-):
+def download(repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT"):
     token = os.getenv("HF_TOKEN")
     assert token is not None, "Please set the HF_TOKEN environment variable"
+    os.makedirs("data", exist_ok=True)
 
     def _download(filename: str):
         try:
@@ -23,10 +19,17 @@ def download(
         except hfhub.hf_api.HTTPError:
             return 0, filename
 
+    files = hfhub.list_repo_files(repo_id, token=token)
+
+    # Make sure that the files are named correctly
+    slash_train_in_files = any("train/" in file for file in files)
+    slash_val_in_files = any("val/" in file for file in files)
+    assert slash_train_in_files and slash_val_in_files, "Please download the data from the HuggingFace dataset page"
+
+    # Only download the "bytes" files; they already contain the tokens
+    files = [file for file in files if "bytes" in file]
+
     nproc = cpu_count() - 2  # leave some space for user
-    files = [f"train_batch_{i+1}.bin" for i in range(num_train_files)]
-    files += [f"val_batch_finemath_{i+1}.bin" for i in range(num_fm_val_files)]
-    files += [f"val_batch_fineweb_{i+1}.bin" for i in range(num_fw_val_files)]
     print(f"Downloading {len(files)} files...")
 
     while True:

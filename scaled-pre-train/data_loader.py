@@ -64,10 +64,8 @@ def distributed_data_generator_bytes(
         return_bytes_pulled_right: bool = True,
 ):
     def slice_tensor(tensor: torch.Tensor, dtype: torch.dtype, doit: bool = True) -> torch.Tensor:
-        if doit:
-            return tensor.to(device="cuda", dtype=dtype, non_blocking=True)
-        else:
-            return None
+        return tensor.to(device="cuda", dtype=dtype, non_blocking=True) if doit else None
+
     files = sorted(Path.cwd().glob(filename_pattern))
     random.shuffle(files)
     assert batch_size % world_size == 0
