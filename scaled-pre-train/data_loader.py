@@ -55,7 +55,7 @@ def _load_data_shard_bytes(file: Path, seq_len: int, batch_size: int, bytes_per_
     return tokens
 
 def distributed_data_generator_bytes(
-        filename_pattern: str,
+        filename_patterns: str | list[str],
         seq_len: int,
         batch_size: int,
         bytes_per_token: int,
@@ -75,7 +75,11 @@ def distributed_data_generator_bytes(
     ttb_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size).to(device)
     ttb_right_pad = make_embedding(f"ttb_{bytes_per_token}_right_pad.json", vocab_size).to(device)
 
-    files = sorted(Path.cwd().glob(filename_pattern))
+    if isinstance(filename_patterns, str):
+        filename_patterns = [filename_patterns]
+    files = sorted(Path.cwd().glob(filename_patterns[0]))
+    for filename_pattern in filename_patterns[1:]:
+        files.extend(sorted(Path.cwd().glob(filename_pattern)))
     random.seed(seed)  # ensure that all shards are shuffled the same way
     random.shuffle(files)
     assert batch_size % world_size == 0
@@ -137,7 +141,7 @@ def time_bytes(
     print(f"\n{n_batches=}")
     print(f"{return_bytes_left_padded=}, {return_bytes_left_pulled=}, {return_bytes_right_padded=}, {return_bytes_right_pulled=}")
     dg = distributed_data_generator_bytes(
-        filename_pattern="data/tokens/train/*.bin",
+        filename_patterns=["data/tokens/train/*.bin", "fineweb100B/fineweb_val_*.bin"],
         seq_len=1024,
         batch_size=1024,
         bytes_per_token=16,
