@@ -1,5 +1,6 @@
 
 import os
+from time import perf_counter
 from concurrent.futures import ThreadPoolExecutor
 
 from psutil import cpu_count
@@ -11,6 +12,7 @@ def download(repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT"):
     token = os.getenv("HF_TOKEN")
     assert token is not None, "Please set the HF_TOKEN environment variable"
     os.makedirs("data", exist_ok=True)
+    t0 = perf_counter()
 
     def _download(filename: str):
         try:
@@ -40,6 +42,8 @@ def download(repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT"):
         if not files:
             break
         print(f"Downloading {len(files)} files...")
+
+    print(f"\n\nDownloaded {len(files)} files in {perf_counter() - t0:.2f} seconds\n")
 
 
 if __name__ == "__main__":
