@@ -19,7 +19,7 @@ def download(repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT"):
         except hfhub.hf_api.HTTPError:
             return 0, filename
 
-    files = hfhub.list_repo_files(repo_id, token=token)
+    files = hfhub.list_repo_files(repo_id, token=token, repo_type="dataset")
 
     # Make sure that the files are named correctly
     slash_train_in_files = any("train/" in file for file in files)
