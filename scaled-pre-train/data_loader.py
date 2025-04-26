@@ -105,7 +105,7 @@ def decode_bytes(byte_tensor: torch.Tensor, byte_decoder: dict[int, str], bytes_
 
 
 def download_test_data():
-    if len(os.listdir("fineweb100B")) < 64:
+    if not os.path.exists("fineweb100B") or len(os.listdir("fineweb100B")) < 64:
         sp.run(["bash", "fineweb100B.sh", "64"])
     download()
 
