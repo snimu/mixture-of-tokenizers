@@ -19,14 +19,15 @@ from data_creation import make_embedding, tokens_to_bytes, pull_from_left, pull_
 
 def _load_data_shard(file: Path, dtype: torch.dtype = torch.uint16):
     header = torch.from_file(str(file), False, 256, dtype=torch.int32) # header is 256 int32
-    assert header[0] == 20240520, "magic number mismatch in the data .bin file"
-    assert header[1] == 1, "unsupported version"
+    assert header[0] == 20240520, f"magic number mismatch in the data .bin file: {header[0]}"
+    assert header[1] == 1, f"unsupported version, expected 1 but got {header[1]}"
     num_tokens = int(header[2]) # number of tokens (claimed)
     with file.open("rb", buffering=0) as f:
         tokens = torch.empty(num_tokens, dtype=dtype, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
         f.seek(256 * 4)
         f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
     return tokens
+
 
 def distributed_data_generator(filename_pattern: str, batch_size: int, seq_len: int, rank : int, world_size : int):
     files = sorted(Path.cwd().glob(filename_pattern))
@@ -44,15 +45,15 @@ def distributed_data_generator(filename_pattern: str, batch_size: int, seq_len: 
         yield inputs, targets
 
 
-def _load_data_shard_bytes(file: Path, seq_len: int, batch_size: int, bytes_per_token: int):
-    header = torch.from_file(str(file), False, 256, dtype=torch.int32) # header is 256 int32
-    assert header[0] == 20240520, "magic number mismatch in the data .bin file"
-    assert header[1] == 1, "unsupported version"
-    with file.open("rb", buffering=0) as f:
-        tokens = torch.empty((batch_size, seq_len, 1 + bytes_per_token * 4), dtype=torch.int32, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
-        f.seek(256 * 4)
-        f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
-    return tokens
+def _load_data_shard_bytes(file_iter):
+    while True:
+        try:
+            file = next(file_iter)
+            dtype = torch.int32 if "bytes/" in file.name else torch.uint16
+            return _load_data_shard(file, dtype=dtype).to(torch.int32)
+        except AssertionError:
+            pass
+
 
 def distributed_data_generator_bytes(
         filename_patterns: str | list[str],
@@ -69,7 +70,6 @@ def distributed_data_generator_bytes(
         device: torch.device = "cpu",
         seed: int = 12345,
 ):
-
     assert not (return_bytes_left_pulled and not return_bytes_left_padded)
     assert not (return_bytes_right_pulled and not return_bytes_right_padded)
     ttb_left_pad = make_embedding(f"ttb_{bytes_per_token}_left_pad.json", vocab_size).to(device)
@@ -85,10 +85,10 @@ def distributed_data_generator_bytes(
     assert batch_size % world_size == 0
     local_batch_size = (batch_size * seq_len) // world_size
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
-    data, pos = _load_data_shard(next(file_iter), dtype=torch.int32), 0
+    data, pos = _load_data_shard_bytes(file_iter), 0
     while True:
         if pos + batch_size * seq_len + 1 >= len(data):
-            data, pos = _load_data_shard(next(file_iter), dtype=torch.int32), 0
+            data, pos = _load_data_shard_bytes(file_iter), 0
         tokens = data[pos + rank * local_batch_size:][:local_batch_size].view(-1, seq_len).to(device)
         # bytes_left_padded = einops.rearrange(ttb_left_pad(tokens), "B T bpt -> B (T bpt)") if return_bytes_left_padded else None
         bytes_left_padded = tokens_to_bytes(tokens, ttb_left_pad)
@@ -125,8 +125,8 @@ def decode_bytes(byte_tensor: torch.Tensor, byte_decoder: dict[int, str], bytes_
 
 
 def download_test_data():
-    if not os.path.exists("fineweb100B") or len(os.listdir("fineweb100B")) < 64:
-        sp.run(["bash", "fineweb100B.sh", "64"])
+    if not os.path.exists("fineweb100B") or len(os.listdir("fineweb100B")) < 1029:  # 1028 train, 1 val
+        sp.run(["bash", "fineweb100B.sh"])
     download(tokens_or_bytes="tokens")
 
 
@@ -141,7 +141,7 @@ def time_bytes(
     print(f"\n{n_batches=}")
     print(f"{return_bytes_left_padded=}, {return_bytes_left_pulled=}, {return_bytes_right_padded=}, {return_bytes_right_pulled=}")
     dg = distributed_data_generator_bytes(
-        filename_patterns=["data/tokens/train/*.bin", "fineweb100B/fineweb_val_*.bin"],
+        filename_patterns=["data/tokens/train/*.bin", "fineweb100B/fineweb_train_*.bin"],
         seq_len=1024,
         batch_size=1024,
         bytes_per_token=16,
@@ -153,6 +153,8 @@ def time_bytes(
         return_bytes_right_pulled=return_bytes_right_pulled,
         device=device,
     )
+    if n_batches < 0:
+        n_batches = 50271
     t0 = perf_counter()
     for _ in tqdm(range(n_batches)):
         try:
@@ -180,12 +182,34 @@ def test_timing(device: torch.device = "cpu"):
 
 
 def time_full_dataset(device: torch.device = "cpu"):
-    time_bytes(n_batches=6600, device=device)
-    time_bytes(n_batches=6600, return_bytes_left_pulled=False, device=device)
-    time_bytes(n_batches=6600, return_bytes_left_padded=False, return_bytes_left_pulled=False, device=device)
-    time_bytes(n_batches=6600, return_bytes_left_padded=False, return_bytes_left_pulled=False, return_bytes_right_pulled=False, device=device)
-    time_bytes(n_batches=6600, return_bytes_left_padded=False, return_bytes_left_pulled=False, return_bytes_right_padded=False, return_bytes_right_pulled=False, device=device)
+    time_bytes(n_batches=-1, device=device)
+    time_bytes(n_batches=-1, return_bytes_left_pulled=False, device=device)
+    time_bytes(n_batches=-1, return_bytes_left_padded=False, return_bytes_left_pulled=False, device=device)
+    time_bytes(n_batches=-1, return_bytes_left_padded=False, return_bytes_left_pulled=False, return_bytes_right_pulled=False, device=device)
+    time_bytes(n_batches=-1, return_bytes_left_padded=False, return_bytes_left_pulled=False, return_bytes_right_padded=False, return_bytes_right_pulled=False, device=device)
 
+
+def count_batches(device: torch.device = "cpu"):
+    dg = distributed_data_generator_bytes(
+        filename_patterns=["data/tokens/train/*.bin", "fineweb100B/fineweb_train_*.bin"],
+        seq_len=1024,
+        batch_size=1024,
+        bytes_per_token=16,
+        rank=0,
+        world_size=1,
+        return_bytes_left_padded=False,
+        return_bytes_left_pulled=False,
+        return_bytes_right_padded=False,
+        return_bytes_right_pulled=False,
+        device=device,
+    )
+    n_batches = 0
+    try:
+        for _ in dg:
+            n_batches += 1
+    except (StopIteration, RuntimeError):
+        pass
+    print(f"\n\n{n_batches=}\n\n")
 
 def check_plausibility(device: torch.device = "cpu"):
     dg = distributed_data_generator_bytes("data/tokens/train/*.bin", 1024, 1024, 16, 0, 1, device=device)
@@ -213,6 +237,7 @@ if __name__ == "__main__":
     parser.add_argument("--test-timing", action="store_true")
     parser.add_argument("--check-plausibility", action="store_true")
     parser.add_argument("--time-full-dataset", action="store_true")
+    parser.add_argument("--count-batches", action="store_true")
     parser.add_argument("--device", type=str, default="cpu")
     args = parser.parse_args()
 
@@ -223,3 +248,5 @@ if __name__ == "__main__":
         check_plausibility(device=args.device)
     if args.time_full_dataset:
         time_full_dataset(device=args.device)
+    if args.count_batches:
+        count_batches(device=args.device)
