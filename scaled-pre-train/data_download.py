@@ -11,7 +11,7 @@ import huggingface_hub as hfhub
 
 def download(
         repo_id: str = "snimu/finemath-fineweb-100B-data-for-MoT",
-        tokens_or_bytes: Literal["tokens", "bytes"] = "bytes",
+        tokens_or_bytes: Literal["tokens", "bytes"] = "tokens",
 ):
     token = os.getenv("HF_TOKEN")
     assert token is not None, "Please set the HF_TOKEN environment variable"
