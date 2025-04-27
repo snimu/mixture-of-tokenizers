@@ -592,7 +592,7 @@ class GPT(nn.Module):
         self.value_embeds = nn.ModuleList([nn.Embedding(vocab_size, model_dims.model_dim) for _ in range(3)])
         self.blocks = nn.ModuleList([Block(model_dims.model_dim, num_heads, max_seq_len, i, expansion_factor) for i in range(num_layers)])
         self.byte_mixout = ByteMixout(
-            dims=model_dims, max_seq_len=max_seq_len, byte_params=byte_params, n_layer_output=n_layer_output
+            dims=model_dims, max_seq_len=max_seq_len, byte_params=byte_params
         )
         # there are only 50257 unique GPT-2 tokens; we extend to nearest multiple of 128 for efficiency.
         # suggested to me by @Grad62304977. this originates from Karpathy's experiments.
