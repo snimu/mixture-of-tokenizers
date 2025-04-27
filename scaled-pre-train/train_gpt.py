@@ -889,7 +889,7 @@ def get_args() -> Hyperparameters:
 
     # Train args
     parser.add_argument(
-        "--num-iterations", type=int, default=7050,
+        "--num-iterations", type=int, default=int(50_271 * 2),  # all tokens
         help="",
     )
     parser.add_argument(
