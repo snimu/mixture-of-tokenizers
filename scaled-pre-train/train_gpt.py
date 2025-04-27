@@ -755,7 +755,8 @@ class Hyperparameters:
     val_tokens_fw: int = 10485760 # how many tokens of validation data? it's important to keep this fixed for consistent comparisons
     val_tokens_fm: int = 1024*1024
     seq_len: int = 1024  # Sequence length
-    batch_size: int = 64  # Batch size per device
+    batch_size_train: int = 64  # Batch size per device
+    batch_size_val: int = 64  # Batch size per device
     # optimization
     num_iterations: int = int(50_271 * 2) - 50 # number of iterations to run
     cooldown_frac: float = 0.4 # fraction of training spent cooling down the learning rate
@@ -819,9 +820,10 @@ def get_args() -> Hyperparameters:
         help="",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=64,
+        "--batch-size-train", type=int, default=64,
         help="Per device batch size, default=64",
     )
+    parser.add_argument("--batch-size-val", type=int, default=48)
     parser.add_argument(
         "--val-loss-every", type=int, default=125,
         help="",
@@ -899,7 +901,8 @@ def get_args() -> Hyperparameters:
         num_iterations=args.num_iterations,
         cooldown_frac=args.cooldown_frac,
         seq_len=args.seq_len,
-        batch_size=args.batch_size,
+        batch_size_train=args.batch_size_train,
+        batch_size_val=args.batch_size_val,
         val_loss_every=args.val_loss_every,
         add_padded_and_pulled=args.add_padded_and_pulled,
         padding_in=args.padding_in,
@@ -1053,8 +1056,8 @@ warmup_steps = 10
 initial_state = dict(model=copy.deepcopy(model.state_dict()),
                      optimizers=[copy.deepcopy(opt.state_dict()) for opt in optimizers]) # save the initial state
 for _ in range(warmup_steps):
-    toks_in = targets = torch.randint(0, args.vocab_size, size=(args.batch_size, args.seq_len), dtype=torch.int32, device="cuda")
-    bytes_padded_in = bytes_pulled_in = torch.randint(0, 458, size=(args.batch_size, args.seq_len, byte_params.bytes_per_token), dtype=torch.int32, device="cuda")
+    toks_in = targets = torch.randint(0, args.vocab_size, size=(args.batch_size_train, args.seq_len), dtype=torch.int32, device="cuda")
+    bytes_padded_in = bytes_pulled_in = torch.randint(0, 458, size=(args.batch_size_train, args.seq_len, byte_params.bytes_per_token), dtype=torch.int32, device="cuda")
     model(toks_in, bytes_padded_in, bytes_pulled_in, targets).backward()
     for param in model.parameters():
         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
@@ -1073,7 +1076,7 @@ del initial_state
 train_loader = distributed_data_generator(
     filename_patterns=args.train_files,
     seq_len=args.seq_len,
-    batch_size=world_size * args.batch_size,
+    batch_size=world_size * args.batch_size_train,
     rank=rank,
     world_size=world_size,
     byte_params=byte_params,
@@ -1098,12 +1101,12 @@ for step in range(train_steps + 1):
         model.eval()
 
         # fineweb validation
-        assert args.val_tokens_fw % (world_size * args.batch_size) == 0
-        val_steps_fw = 0
+        assert args.val_tokens_fw % (world_size * args.batch_size_val) == 0
+        val_steps = args.val_tokens_fw // (world_size * args.batch_size_val)
         val_loader_fw = distributed_data_generator(
             filename_patterns=args.val_files_fw,
             seq_len=args.seq_len,
-            batch_size=world_size * args.batch_size,
+            batch_size=world_size * args.batch_size_val,
             rank=rank,
             world_size=world_size,
             byte_params=byte_params,
@@ -1111,24 +1114,20 @@ for step in range(train_steps + 1):
         )
         val_loss_fw = 0
         with torch.no_grad():
-            while True:
-                try:
-                    toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fw)
-                    val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
-                    val_steps_fw += 1
-                except (StopIteration, RuntimeError) as e:
-                    break
-        val_loss_fw /= val_steps_fw
+            for i in range(val_steps):
+                toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fw)
+                val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+        val_loss_fw /= val_steps
         del val_loader_fw
         dist.all_reduce(val_loss_fw, op=dist.ReduceOp.AVG)
 
         # finemath validation
-        assert args.val_tokens_fm % (world_size * args.batch_size) == 0
-        val_steps_fm = 0
+        assert args.val_tokens_fm % (world_size * args.batch_size_val) == 0
+        val_steps = args.val_tokens_fm // (world_size * args.batch_size_val)
         val_loader_fm = distributed_data_generator(
             filename_patterns=args.val_files_fm,
             seq_len=args.seq_len,
-            batch_size=world_size * args.batch_size,
+            batch_size=world_size * args.batch_size_val,
             rank=rank,
             world_size=world_size,
             byte_params=byte_params,
@@ -1136,19 +1135,15 @@ for step in range(train_steps + 1):
         )
         val_loss_fm = 0
         with torch.no_grad():
-            for _ in range(val_steps_fm):
-                try:
-                    toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fm)
-                    val_loss_fm += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
-                    val_steps_fm += 1
-                except (StopIteration, RuntimeError) as e:
-                    break
-        val_loss_fm /= val_steps_fm
+            for _ in range(val_steps):
+                toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fm)
+                val_loss_fm += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+        val_loss_fm /= val_steps
         del val_loader_fm
         dist.all_reduce(val_loss_fm, op=dist.ReduceOp.AVG)
 
         # print the results
-        print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} steps_fw:{val_steps_fw} steps_fm:{val_steps_fm} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
+        print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
         if master_process and args.wandb_project:
             wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/train_time": training_time_ms})
         model.train()
