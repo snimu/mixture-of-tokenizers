@@ -1099,7 +1099,7 @@ for step in range(train_steps + 1):
 
         # fineweb validation
         assert args.val_tokens_fw % (world_size * args.batch_size) == 0
-        val_steps = args.val_tokens_fw // (world_size * args.batch_size)
+        val_steps = 0
         val_loader_fw = distributed_data_generator(
             filename_patterns=args.val_files_fw,
             seq_len=args.seq_len,
@@ -1111,16 +1111,20 @@ for step in range(train_steps + 1):
         )
         val_loss_fw = 0
         with torch.no_grad():
-            for _ in range(val_steps):
-                toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fw)
-                val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+            while True:
+                try:
+                    toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fw)
+                    val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+                    val_steps += 1
+                except (StopIteration, RuntimeError) as e:
+                    break
         val_loss_fw /= val_steps
         del val_loader_fw
         dist.all_reduce(val_loss_fw, op=dist.ReduceOp.AVG)
 
         # finemath validation
         assert args.val_tokens_fm % (world_size * args.batch_size) == 0
-        val_steps = args.val_tokens_fm // (world_size * args.batch_size)
+        val_steps = 0
         val_loader_fm = distributed_data_generator(
             filename_patterns=args.val_files_fm,
             seq_len=args.seq_len,
@@ -1133,8 +1137,12 @@ for step in range(train_steps + 1):
         val_loss_fm = 0
         with torch.no_grad():
             for _ in range(val_steps):
-                toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fm)
-                val_loss_fm += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+                try:
+                    toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fm)
+                    val_loss_fm += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+                    val_steps += 1
+                except (StopIteration, RuntimeError) as e:
+                    break
         val_loss_fm /= val_steps
         del val_loader_fm
         dist.all_reduce(val_loss_fm, op=dist.ReduceOp.AVG)
