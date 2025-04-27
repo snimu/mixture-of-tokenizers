@@ -377,7 +377,9 @@ class CrossAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, dim: int, expansion_factor: int = 4):
         super().__init__()
-        hdim = expansion_factor * dim
+        assert isinstance(dim, int)
+        assert isinstance(expansion_factor, int)
+        hdim = int(expansion_factor * dim)
         self.c_fc = CastedLinear(dim, hdim)
         self.c_proj = CastedLinear(hdim, dim)
         self.c_proj.weight.detach().zero_() # zero init suggested by @Grad62304977
@@ -997,8 +999,6 @@ def get_args() -> Hyperparameters:
     return hps
 
 args = get_args()
-model_dims = ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim)
-print(str(model_dims.__dict__))
 
 # torchrun sets these env variables
 rank = int(os.environ["RANK"])
