@@ -90,10 +90,13 @@ def distributed_data_generator_bytes(
         if pos + batch_size * seq_len + 1 >= len(data):
             data, pos = _load_data_shard_bytes(file_iter), 0
         tokens = data[pos + rank * local_batch_size:][:local_batch_size].view(-1, seq_len).to(device)
-        # bytes_left_padded = einops.rearrange(ttb_left_pad(tokens), "B T bpt -> B (T bpt)") if return_bytes_left_padded else None
+        # There will be some re-shaping that might seem redundant.
+        # However, the bytes need to be in shape (B, T*bpt) for pulling and I'm not re-writing that code (Gemini wrote it)
+        # At the output, I want to have (B, T, bpt) for the bytes, so I can
+        # 1.) easily slice per-token and
+        # 2.) have to do less mental work for merging etc downstream
         bytes_left_padded = tokens_to_bytes(tokens, ttb_left_pad)
         bytes_left_pulled = pull_from_left(bytes_left_padded, bytes_per_token, 456, 457) if return_bytes_left_pulled else None
-        # bytes_right_padded = einops.rearrange(ttb_right_pad(tokens), "B T bpt -> B (T bpt)") if return_bytes_right_padded else None
         bytes_right_padded = tokens_to_bytes(tokens, ttb_right_pad)
         bytes_right_pulled = pull_from_right(bytes_right_padded, bytes_per_token, 456, 457) if return_bytes_right_pulled else None
         pos += batch_size * seq_len
