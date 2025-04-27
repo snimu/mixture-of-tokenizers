@@ -15,6 +15,7 @@ from typing import Literal
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+import subprocess as sp
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
@@ -28,6 +29,7 @@ from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_
 #torch._inductor.config.coordinate_descent_tuning = True # we have banned this flag for new records because it causes compilation to take 30min
 
 from data_creation import make_embedding, tokens_to_bytes, pull_from_left, pull_from_right
+from data_download import download
 import wandb
 # -----------------------------------------------------------------------------
 # Custom operators: FP8 matmul by @YouJiacheng
@@ -865,11 +867,18 @@ class Hyperparameters:
     seed: int | None = None
 
 
+def download_data():
+    if not os.path.exists("fineweb100B") or len(os.listdir("fineweb100B")) < 1029:  # 1028 train, 1 val
+        sp.run(["bash", "fineweb100B.sh"])
+    download(tokens_or_bytes="tokens")
+
+
 def make_name(args: Hyperparameters) -> str:
     name = "MoT-scaled-pretrain"
     name += f"_padding-{args.padding_in}-{args.padding_out}"
     name += f"_pull-{int(args.pull_in)}-{int(args.pull_out)}"
     name += "_pad-pull" if args.add_padded_and_pulled else ""
+    name += f"_niter-{args.num_iterations}"
     name += f"_seed-{args.seed}"
     timeinfo = time.localtime()
     date = f"{timeinfo.tm_year}-{timeinfo.tm_mon}-{timeinfo.tm_mday}"
@@ -985,6 +994,9 @@ def get_args() -> Hyperparameters:
     )
     return hps
 
+
+hf_token = os.getenv("HF_TOKEN")
+assert hf_token is not None, "Please set the HF_TOKEN environment variable."
 
 args = get_args()
 
