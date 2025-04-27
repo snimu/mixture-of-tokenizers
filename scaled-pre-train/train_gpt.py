@@ -1051,23 +1051,23 @@ model: nn.Module = torch.compile(model, dynamic=False)
 ########################################
 
 # Warmup the training kernels, then re-initialize the state so we aren't cheating
-print0("Warming up the training kernels...", console=True)
-warmup_steps = 10
-initial_state = dict(model=copy.deepcopy(model.state_dict()),
-                     optimizers=[copy.deepcopy(opt.state_dict()) for opt in optimizers]) # save the initial state
-for _ in range(warmup_steps):
-    toks_in = targets = torch.randint(0, args.vocab_size, size=(args.batch_size_train, args.seq_len), dtype=torch.int32, device="cuda")
-    bytes_padded_in = bytes_pulled_in = torch.randint(0, 458, size=(args.batch_size_train, args.seq_len, byte_params.bytes_per_token), dtype=torch.int32, device="cuda")
-    model(toks_in, bytes_padded_in, bytes_pulled_in, targets).backward()
-    for param in model.parameters():
-        dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
-    for opt in optimizers:
-        opt.step()
-    model.zero_grad(set_to_none=True)
-model.load_state_dict(initial_state["model"])
-for opt, opt_state in zip(optimizers, initial_state["optimizers"]):
-    opt.load_state_dict(opt_state)
-del initial_state
+# print0("Warming up the training kernels...", console=True)
+# warmup_steps = 10
+# initial_state = dict(model=copy.deepcopy(model.state_dict()),
+#                      optimizers=[copy.deepcopy(opt.state_dict()) for opt in optimizers]) # save the initial state
+# for _ in range(warmup_steps):
+#     toks_in = targets = torch.randint(0, args.vocab_size, size=(args.batch_size_train, args.seq_len), dtype=torch.int32, device="cuda")
+#     bytes_padded_in = bytes_pulled_in = torch.randint(0, 458, size=(args.batch_size_train, args.seq_len, byte_params.bytes_per_token), dtype=torch.int32, device="cuda")
+#     model(toks_in, bytes_padded_in, bytes_pulled_in, targets).backward()
+#     for param in model.parameters():
+#         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
+#     for opt in optimizers:
+#         opt.step()
+#     model.zero_grad(set_to_none=True)
+# model.load_state_dict(initial_state["model"])
+# for opt, opt_state in zip(optimizers, initial_state["optimizers"]):
+#     opt.load_state_dict(opt_state)
+# del initial_state
 
 ########################################
 #        Training and validation       #
