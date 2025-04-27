@@ -621,10 +621,10 @@ def distributed_data_generator(
         bytes_padded_out = tokens_to_bytes(toks, ttb_out)
         bytes_pulled_out = pull_out(bytes_padded_out)
 
-        toks_in = toks[:, :-1]
-        bytes_padded_in = bytes_padded_in[:, :-1]
-        bytes_pulled_in = bytes_pulled_in[:, :-1]
-        targets = bytes_pulled_out[:, 1:]
+        toks_in = toks[:, :-1].contiguous()
+        bytes_padded_in = bytes_padded_in[:, :-1].contiguous()
+        bytes_pulled_in = bytes_pulled_in[:, :-1].contiguous()
+        targets = bytes_pulled_out[:, 1:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_TF_TT(toks: Tensor):
@@ -633,9 +633,9 @@ def distributed_data_generator(
         bytes_padded_out = tokens_to_bytes(toks, ttb_out)
         bytes_pulled_out = pull_out(bytes_padded_out)
 
-        toks_in = toks[:, :-1]
-        bytes_padded_in = bytes_padded_in[:, :-1]
-        targets = bytes_pulled_out[:, 1:]
+        toks_in = toks[:, :-1].contiguous()
+        bytes_padded_in = bytes_padded_in[:, :-1].contiguous()
+        targets = bytes_pulled_out[:, 1:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_TT_TF(toks: Tensor):
@@ -643,18 +643,20 @@ def distributed_data_generator(
         bytes_pulled_in = pull_in(bytes_padded_in)
         bytes_padded_out = tokens_to_bytes(toks, ttb_out)
         
-        toks_in = toks[:, :-1]
-        bytes_padded_in = bytes_padded_in[:, :-1]
-        targets = bytes_padded_out[:, 1:]
+        toks_in = toks[:, :-1].contiguous()
+        bytes_padded_in = bytes_padded_in[:, :-1].contiguous()
+        bytes_pulled_in = bytes_pulled_in[:, :-1].contiguous()
+        targets = bytes_padded_out[:, 1:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_TT_FF(toks: Tensor):
         bytes_padded_in = tokens_to_bytes(toks, ttb_in)
         bytes_pulled_in = pull_in(bytes_padded_in)
         
-        toks_in = toks[:, :-1]
-        bytes_padded_in = bytes_padded_in[:, :-1]
-        targets = toks[:, 1:]
+        toks_in = toks[:, :-1].contiguous()
+        bytes_padded_in = bytes_padded_in[:, :-1].contiguous()
+        bytes_pulled_in = bytes_pulled_in[:, :-1].contiguous()
+        targets = toks[:, 1:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_FF_TT(toks: Tensor):
@@ -663,8 +665,8 @@ def distributed_data_generator(
         bytes_padded_out = tokens_to_bytes(toks, ttb_out)
         bytes_pulled_out = pull_out(bytes_padded_out)
 
-        toks_in = toks[:, :-1]
-        targets = bytes_pulled_out[:, 1:]
+        toks_in = toks[:, :-1].contiguous()
+        targets = bytes_pulled_out[:, 1:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_FF_TF(toks: Tensor):
@@ -672,24 +674,25 @@ def distributed_data_generator(
         bytes_pulled_in = None
         bytes_padded_out = tokens_to_bytes(toks, ttb_out)
         
-        toks_in = toks[:, :-1]
-        targets = bytes_padded_out[:, 1:]
+        toks_in = toks[:, :-1].contiguous()
+        targets = bytes_padded_out[:, 1:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_TF_FF(toks: Tensor):
         bytes_padded_in = tokens_to_bytes(toks, ttb_in)
         bytes_pulled_in = None
 
-        toks_in = toks[:, :-1]
-        targets = toks[:, 1:]
+        toks_in = toks[:, :-1].contiguous()
+        bytes_padded_in = bytes_padded_in[:, :-1].contiguous()
+        targets = toks[:, 1:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_FF_FF(toks: Tensor):
         bytes_padded_in = None
         bytes_pulled_in = None
         
-        toks_in = toks[:, :-1]
-        targets = toks[:, 1:]
+        toks_in = toks[:, :-1].contiguous()
+        targets = toks[:, 1:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     create_data_from_toks = {
@@ -730,6 +733,7 @@ def distributed_data_generator(
             newdata, pos = load_data_shard(file_iter), 0
             data = torch.cat([data, newdata])
         tokens = data[pos + rank * local_batch_size:][:local_batch_size].view(-1, local_seq_len).to(device)
+        pos += batch_size * local_seq_len
         yield create_data_from_toks(tokens)
 
 
