@@ -997,6 +997,8 @@ def get_args() -> Hyperparameters:
     return hps
 
 args = get_args()
+model_dims = ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim)
+print(str(model_dims.__dict__))
 
 # torchrun sets these env variables
 rank = int(os.environ["RANK"])
@@ -1059,7 +1061,6 @@ byte_params = ByteHyperparameters(
     byte_mixout_method=args.byte_mixout_method,
 )
 model_dims = ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim)
-print0(model_dims.__dict__, console=True)
 model: nn.Module = GPT(
     vocab_size=args.vocab_size,
     num_layers=16,
