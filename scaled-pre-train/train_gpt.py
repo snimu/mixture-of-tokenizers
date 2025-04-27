@@ -1104,8 +1104,7 @@ for step in range(train_steps + 1):
         model.eval()
 
         # fineweb validation
-        assert args.val_tokens_fw % (world_size * args.batch_size_val) == 0
-        val_steps = args.val_tokens_fw // (world_size * args.batch_size_val)
+        val_steps_fw = 0
         val_loader_fw = distributed_data_generator(
             filename_patterns=args.val_files_fw,
             seq_len=args.seq_len,
@@ -1117,16 +1116,19 @@ for step in range(train_steps + 1):
         )
         val_loss_fw = 0
         with torch.no_grad():
-            for i in range(val_steps):
-                toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fw)
-                val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
-        val_loss_fw /= val_steps
+            while True:
+                try:
+                    toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fw)
+                    val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+                    val_steps_fw += 1
+                except (StopIteration, RuntimeError):
+                    break
+        val_loss_fw /= val_steps_fw
         del val_loader_fw
         dist.all_reduce(val_loss_fw, op=dist.ReduceOp.AVG)
 
         # finemath validation
-        assert args.val_tokens_fm % (world_size * args.batch_size_val) == 0
-        val_steps = args.val_tokens_fm // (world_size * args.batch_size_val)
+        val_steps_fm = 0
         val_loader_fm = distributed_data_generator(
             filename_patterns=args.val_files_fm,
             seq_len=args.seq_len,
@@ -1138,15 +1140,19 @@ for step in range(train_steps + 1):
         )
         val_loss_fm = 0
         with torch.no_grad():
-            for _ in range(val_steps):
-                toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fm)
-                val_loss_fm += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
-        val_loss_fm /= val_steps
+            while True:
+                try:
+                    toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fm)
+                    val_loss_fm += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+                    val_steps_fm += 1
+                except (StopIteration, RuntimeError):
+                    break
+        val_loss_fm /= val_steps_fm
         del val_loader_fm
         dist.all_reduce(val_loss_fm, op=dist.ReduceOp.AVG)
 
         # print the results
-        print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
+        print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} steps_fw:{val_steps_fw} steps_fm:{val_steps_fm} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
         if master_process and args.wandb_project:
             wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/train_time": training_time_ms})
         model.train()
