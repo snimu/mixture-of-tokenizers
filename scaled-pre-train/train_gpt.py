@@ -980,7 +980,7 @@ def get_args() -> Hyperparameters:
         cooldown_frac=args.cooldown_frac,
         seq_len=args.seq_len,
         batch_size=args.batch_size,
-        add_padded_and_pulled=args.add_padded_and_pulled_in,
+        add_padded_and_pulled=args.add_padded_and_pulled,
         padding_in=args.padding_in,
         padding_out=args.padding_out,
         pull_in=args.pull_in,
