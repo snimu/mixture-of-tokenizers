@@ -9,6 +9,8 @@ with open(sys.argv[0]) as f:
     code = f.read() # read the code of this file ASAP, for logging
 import time
 import copy
+import random
+import functools
 from typing import Literal
 from dataclasses import dataclass
 from functools import lru_cache
@@ -25,6 +27,7 @@ import einops
 from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_block_mask
 #torch._inductor.config.coordinate_descent_tuning = True # we have banned this flag for new records because it causes compilation to take 30min
 
+from data_creation import make_embedding, tokens_to_bytes, pull_from_left, pull_from_right
 # -----------------------------------------------------------------------------
 # Custom operators: FP8 matmul by @YouJiacheng
 
@@ -412,12 +415,12 @@ class FlexibleEmbedding(nn.Module):
             self.forward = self._forward_bytes_pulled
         else:
             self.forward = self._forward_bytes_padded_and_pulled
-    
+
     def _forward_tokens(
             self,
             tokens: Tensor,
-            byte_tensor: Tensor,
-            byte_tensor_pulled: Tensor,
+            byte_tensor: Tensor | None,
+            byte_tensor_pulled: Tensor | None,
     ) -> tuple[Tensor, None]:
         return norm(self.embed_tokens(tokens)), None
     
@@ -431,17 +434,17 @@ class FlexibleEmbedding(nn.Module):
         byte_embs = norm(self.embed_bytes(byte_tensor))
         return token_embs, byte_embs
 
-    
+
     def _forward_bytes_pulled(
             self,
             tokens: Tensor,
-            byte_tensor: Tensor,
+            byte_tensor: Tensor | None,
             byte_tensor_pulled: Tensor,
     ) -> tuple[Tensor, Tensor]:
         token_embs = norm(self.embed_tokens(tokens))
         byte_embs = norm(self.embed_bytes(byte_tensor_pulled))
         return token_embs, byte_embs
-    
+
     def _forward_bytes_padded_and_pulled(
             self,
             tokens: Tensor,
@@ -610,19 +613,19 @@ class GPT(nn.Module):
 
     def forward(
             self,
-            input_seq: Tensor,
-            target_seq: Tensor,
-            byte_tensor: Tensor,
-            byte_tensor_pulled_left: Tensor,
+            toks_in: Tensor,
+            bytes_padded_in: Tensor | None,
+            bytes_pulled_in: Tensor | None,
+            target_seq: Tensor,  # bytes or tokens
     ):
-        assert input_seq.ndim == 1
+        assert toks_in.ndim == 1
 
-        ve = [value_embed(input_seq) for value_embed in self.value_embeds]
+        ve = [value_embed(toks_in) for value_embed in self.value_embeds]
         # 012 ... 012 structure on token value embeddings by @YouJiacheng, improved on @leloykun's U-net structure
         ve = [ve[0], ve[1], ve[2]] + [None] * (len(self.blocks) - 6) + [ve[0], ve[1], ve[2]]
         assert len(ve) == len(self.blocks)
 
-        xt, xb = self.embed(tokens=input_seq, byte_tensor=byte_tensor, byte_tensor_pulled=byte_tensor_pulled_left)
+        xt, xb = self.embed(tokens=toks_in, byte_tensor=bytes_padded_in, byte_tensor_pulled=bytes_pulled_in)
         x = x0 = self.byte_mixin(xt, xb)
 
         # U-net design by @brendanh0gan
@@ -646,35 +649,176 @@ class GPT(nn.Module):
 # -----------------------------------------------------------------------------
 # Our own simple Distributed Data Loader
 
-def _load_data_shard(file: Path):
+def _load_data_shard(file: Path, dtype: torch.dtype = torch.uint16):
     header = torch.from_file(str(file), False, 256, dtype=torch.int32) # header is 256 int32
-    assert header[0] == 20240520, "magic number mismatch in the data .bin file"
-    assert header[1] == 1, "unsupported version"
+    assert header[0] == 20240520, f"magic number mismatch in the data .bin file: {header[0]}"
+    assert header[1] == 1, f"unsupported version, expected 1 but got {header[1]}"
     num_tokens = int(header[2]) # number of tokens (claimed)
     with file.open("rb", buffering=0) as f:
-        tokens = torch.empty(num_tokens, dtype=torch.uint16, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
+        tokens = torch.empty(num_tokens, dtype=dtype, pin_memory=True) # avoid pin_memory copy by @YouJiacheng
         f.seek(256 * 4)
-        nbytes = f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
-        assert nbytes == 2 * num_tokens, "number of tokens read does not match header"
+        f.readinto(tokens.numpy()) # avoid bytes->array copy by @YouJiacheng
     return tokens
 
-def distributed_data_generator(filename_pattern: str, batch_size: int, rank : int, world_size : int):
-    files = sorted(Path.cwd().glob(filename_pattern))
-    assert batch_size % world_size == 0
-    local_batch_size = batch_size // world_size
-    file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
-    tokens, pos = _load_data_shard(next(file_iter)), 0
+
+def load_data_shard(file_iter):
     while True:
-        if pos + batch_size + 1 >= len(tokens):
-            tokens, pos = _load_data_shard(next(file_iter)), 0
-        buf = tokens[pos + rank * local_batch_size:][:local_batch_size + 1]
-        inputs = buf[:-1].to(device="cuda", dtype=torch.int32, non_blocking=True) # no sync on host side;
-        targets = buf[1:].to(device="cuda", dtype=torch.int64, non_blocking=True) # H2D in another stream isn't helpful.
-        pos += batch_size
-        yield inputs, targets
+        try:
+            file = next(file_iter)
+            dtype = torch.int32 if "bytes/" in file.name else torch.uint16
+            return _load_data_shard(file, dtype=dtype).to(torch.int32)
+        except AssertionError:
+            pass
 
 
-# TODO: dataloader for tokens & bytes (validate first)
+def distributed_data_generator(
+        filename_patterns: str | list[str],
+        seq_len: int,
+        batch_size: int,
+        rank : int,
+        world_size : int,
+        byte_params: ByteHyperparameters,
+        vocab_size: int = 50257,
+        device: torch.device = "cpu",
+        seed: int = 12345,
+):
+    bpt = byte_params.bytes_per_token
+    # Make the byte embeddings
+    if (byte_params.byte_mixin_method != "noop" and byte_params.padding_in == "left") or (byte_params.byte_mixin_method != "noop" and byte_params.padding_out == "left"):
+        ttb_left_pad = make_embedding(f"ttb_{bpt}_left_pad.json", vocab_size).to(device)
+    else:
+        ttb_left_pad = None
+    if (byte_params.byte_mixin_method != "noop" and byte_params.padding_in == "right") or (byte_params.byte_mixin_method != "noop" and byte_params.padding_out == "right"):
+        ttb_right_pad = make_embedding(f"ttb_{bpt}_right_pad.json", vocab_size).to(device)
+    else:
+        ttb_right_pad = None
+
+    ttb_in = ttb_left_pad if byte_params.padding_in == "left" else ttb_right_pad
+    ttb_out = ttb_left_pad if byte_params.padding_out == "left" else ttb_right_pad
+
+    pull_kwargs = dict(bytes_per_token=bpt, pad_byte=456, eot_byte=457)
+    pull_in = functools.partial(pull_from_left, **pull_kwargs) if byte_params.padding_in == "left" else functools.partial(pull_from_right, **pull_kwargs)
+    pull_out = functools.partial(pull_from_left, **pull_kwargs) if byte_params.padding_out == "left" else functools.partial(pull_from_right, **pull_kwargs)
+
+    # Options for producing the data
+    # Big list of functions to avoid branching, and to make it a bit less confusing for me
+    # The difference is the last Ts and Fs. The mean:
+    # ...(byte_in)(pull_in)_(byte_out)(pull_out)
+    def _create_data_from_toks_TT_TT(toks: Tensor):
+        bytes_padded_in = tokens_to_bytes(toks, ttb_in)
+        bytes_pulled_in = pull_in(bytes_padded_in)
+        bytes_padded_out = tokens_to_bytes(toks, ttb_out)
+        bytes_pulled_out = pull_out(bytes_padded_out)
+
+        toks_in = toks[:, :-1]
+        bytes_padded_in = bytes_padded_in[:, :-1]
+        bytes_pulled_in = bytes_pulled_in[:, :-1]
+        targets = bytes_pulled_out[:, 1:]
+        return toks_in, bytes_padded_in, bytes_pulled_in, targets
+
+    def _create_data_from_toks_TF_TT(toks: Tensor):
+        bytes_padded_in = tokens_to_bytes(toks, ttb_in)
+        bytes_pulled_in = None
+        bytes_padded_out = tokens_to_bytes(toks, ttb_out)
+        bytes_pulled_out = pull_out(bytes_padded_out)
+
+        toks_in = toks[:, :-1]
+        bytes_padded_in = bytes_padded_in[:, :-1]
+        targets = bytes_pulled_out[:, 1:]
+        return toks_in, bytes_padded_in, bytes_pulled_in, targets
+
+    def _create_data_from_toks_TT_TF(toks: Tensor):
+        bytes_padded_in = tokens_to_bytes(toks, ttb_in)
+        bytes_pulled_in = pull_in(bytes_padded_in)
+        bytes_padded_out = tokens_to_bytes(toks, ttb_out)
+        
+        toks_in = toks[:, :-1]
+        bytes_padded_in = bytes_padded_in[:, :-1]
+        targets = bytes_padded_out[:, 1:]
+        return toks_in, bytes_padded_in, bytes_pulled_in, targets
+
+    def _create_data_from_toks_TT_FF(toks: Tensor):
+        bytes_padded_in = tokens_to_bytes(toks, ttb_in)
+        bytes_pulled_in = pull_in(bytes_padded_in)
+        
+        toks_in = toks[:, :-1]
+        bytes_padded_in = bytes_padded_in[:, :-1]
+        targets = toks[:, 1:]
+        return toks_in, bytes_padded_in, bytes_pulled_in, targets
+
+    def _create_data_from_toks_FF_TT(toks: Tensor):
+        bytes_padded_in = None
+        bytes_pulled_in = None
+        bytes_padded_out = tokens_to_bytes(toks, ttb_out)
+        bytes_pulled_out = pull_out(bytes_padded_out)
+
+        toks_in = toks[:, :-1]
+        targets = bytes_pulled_out[:, 1:]
+        return toks_in, bytes_padded_in, bytes_pulled_in, targets
+
+    def _create_data_from_toks_FF_TF(toks: Tensor):
+        bytes_padded_in = None
+        bytes_pulled_in = None
+        bytes_padded_out = tokens_to_bytes(toks, ttb_out)
+        
+        toks_in = toks[:, :-1]
+        targets = bytes_padded_out[:, 1:]
+        return toks_in, bytes_padded_in, bytes_pulled_in, targets
+
+    def _create_data_from_toks_TF_FF(toks: Tensor):
+        bytes_padded_in = tokens_to_bytes(toks, ttb_in)
+        bytes_pulled_in = None
+
+        toks_in = toks[:, :-1]
+        targets = toks[:, 1:]
+        return toks_in, bytes_padded_in, bytes_pulled_in, targets
+
+    def _create_data_from_toks_FF_FF(toks: Tensor):
+        bytes_padded_in = None
+        bytes_pulled_in = None
+        
+        toks_in = toks[:, :-1]
+        targets = toks[:, 1:]
+        return toks_in, bytes_padded_in, bytes_pulled_in, targets
+
+    create_data_from_toks = {
+        (True, True, True, True): _create_data_from_toks_TT_TT,
+        (True, False, True, True): _create_data_from_toks_TF_TT,
+        (True, True, True, False): _create_data_from_toks_TT_TF,
+        (True, True, False, False): _create_data_from_toks_TT_FF,
+        (False, False, True, True): _create_data_from_toks_FF_TT,
+        (False, False, True, False): _create_data_from_toks_FF_TF,
+        (True, False, False, False): _create_data_from_toks_TF_FF,
+        (False, False, False, False): _create_data_from_toks_FF_FF,
+    }[
+        (
+            byte_params.byte_mixin_method != "noop",
+            byte_params.pull_in,
+            byte_params.byte_mixout_method != "noop",
+            byte_params.pull_out,
+        )
+    ]
+
+    # Find and prepare the files
+    if isinstance(filename_patterns, str):
+        filename_patterns = [filename_patterns]
+    files = sorted(Path.cwd().glob(filename_patterns[0]))
+    for filename_pattern in filename_patterns[1:]:
+        files.extend(sorted(Path.cwd().glob(filename_pattern)))
+    random.seed(seed)  # ensure that all shards are shuffled the same way
+    random.shuffle(files)
+
+    assert batch_size % world_size == 0
+    local_batch_size = (batch_size * seq_len) // world_size
+    file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
+    data, pos = load_data_shard(file_iter), 0
+    while True:
+        if pos + batch_size * seq_len + 1 >= len(data):
+            data, pos = load_data_shard(file_iter), 0
+        tokens = data[pos + rank * local_batch_size:][:local_batch_size].view(-1, seq_len).to(device)
+        yield create_data_from_toks(tokens)
+
+
 # TODO: checkpointing with metadata
 # TODO: wandb
 # TODO: timing
@@ -687,11 +831,13 @@ def distributed_data_generator(filename_pattern: str, batch_size: int, rank : in
 @dataclass
 class Hyperparameters:
     # data
-    train_files = "data/fineweb10B/fineweb_train_*.bin" # input .bin to train on
-    val_files = "data/fineweb10B/fineweb_val_*.bin" # input .bin to eval validation loss on
-    val_tokens = 10485760 # how many tokens of validation data? it's important to keep this fixed for consistent comparisons
-    train_seq_len = 64*1024 # FlexAttention sequence length
-    val_seq_len = 4*64*1024 # FlexAttention sequence length for validation
+    train_files = ("data/tokens/train/*.bin", "fineweb100B/fineweb_train_*.bin") # input .bin to train on
+    val_files_fw = "fineweb100B/fineweb_val_*.bin" # input .bin to eval fineweb validation loss on
+    val_files_fm = "data/tokens/val/*.bin" # input .bin to eval finemath validation loss on
+    val_tokens_fw = 10485760 # how many tokens of validation data? it's important to keep this fixed for consistent comparisons
+    val_tokens_fm = 1024*1024
+    seq_len = 1024  # Sequence length
+    batch_size = 64  # Batch size per device
     # optimization
     num_iterations = 7050 # number of iterations to run
     cooldown_frac = 0.4 # fraction of training spent cooling down the learning rate
@@ -733,6 +879,23 @@ def make_name(args: Hyperparameters) -> str:
 def get_args() -> Hyperparameters:
     parser = argparse.ArgumentParser()
 
+    # Train args
+    parser.add_argument(
+        "--num-iterations", type=int, default=7050,
+        help="",
+    )
+    parser.add_argument(
+        "--cooldown-frac", type=float, default=0.4,
+        help="",
+    )
+    parser.add_argument(
+        "--seq-len", type=int, default=1024,
+        help="",
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=64,
+        help="Per device batch size, default=64",
+    )
     # Byte Args
     parser.add_argument(
         "--bytes-per-token", choices=[16, 18, 20], default=16,
@@ -799,6 +962,10 @@ def get_args() -> Hyperparameters:
 
     args = parser.parse_args()
     hps = Hyperparameters(
+        num_iterations=args.num_iterations,
+        cooldown_frac=args.cooldown_frac,
+        seq_len=args.seq_len,
+        batch_size=args.batch_size,
         add_padded_and_pulled=args.add_padded_and_pulled_in,
         padding_in=args.padding_in,
         padding_out=args.padding_out,
@@ -860,7 +1027,15 @@ print0("="*100)
 ########################################
 #    Construct model and optimizer     #
 ########################################
-
+byte_params = ByteHyperparameters(
+    padding_in=args.padding_in,
+    padding_out=args.padding_out,
+    pull_in=args.pull_in,
+    pull_out=args.pull_out,
+    add_padded_and_pulled=args.add_padded_and_pulled,
+    byte_mixin_method=args.byte_mixin_method,
+    byte_mixout_method=args.byte_mixout_method,
+)
 model: nn.Module = GPT(
     vocab_size=args.vocab_size,
     num_layers=16,
@@ -868,15 +1043,7 @@ model: nn.Module = GPT(
     max_seq_len=max(args.train_seq_len, args.val_seq_len),
     expansion_factor=args.expansion_factor,
     model_dims=ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim),
-    byte_params=ByteHyperparameters(
-        padding_in=args.padding_in,
-        padding_out=args.padding_out,
-        pull_in=args.pull_in,
-        pull_out=args.pull_out,
-        add_padded_and_pulled=args.add_padded_and_pulled,
-        byte_mixin_method=args.byte_mixin_method,
-        byte_mixout_method=args.byte_mixout_method,
-    )
+    byte_params=byte_params,
 ).cuda()
 for m in model.modules():
     if isinstance(m, nn.Embedding):
@@ -955,8 +1122,14 @@ del initial_state
 #        Training and validation       #
 ########################################
 
-# TODO: use actual dataloader with pulled data etc.
-train_loader = distributed_data_generator(args.train_files, world_size * args.train_seq_len, rank, world_size)
+train_loader = distributed_data_generator(
+    filename_patterns=args.train_files,
+    seq_len=args.seq_len,
+    batch_size=world_size * args.batch_size,
+    rank=rank,
+    world_size=world_size,
+    byte_params=byte_params,
+)
 training_time_ms = 0
 # start the clock
 torch.cuda.synchronize()
@@ -972,19 +1145,49 @@ for step in range(train_steps + 1):
         torch.cuda.synchronize()
         training_time_ms += 1000 * (time.perf_counter() - t0)
         model.eval()
-        val_batch_size = world_size * args.val_seq_len
-        assert args.val_tokens % val_batch_size == 0
-        val_steps = args.val_tokens // val_batch_size
-        val_loader = distributed_data_generator(args.val_files, val_batch_size, rank, world_size)
-        val_loss = 0
+
+        # fineweb validation
+        assert args.val_tokens_fw % (world_size * args.batch_size) == 0
+        val_steps = args.val_tokens_fw // (world_size * args.batch_size)
+        val_loader_fw = distributed_data_generator(
+            filename_patterns=args.val_files_fw,
+            seq_len=args.seq_len,
+            batch_size=world_size * args.batch_size,
+            rank=rank,
+            world_size=world_size,
+            byte_params=byte_params,
+        )
+        val_loss_fw = 0
         with torch.no_grad():
             for _ in range(val_steps):
-                inputs, targets = next(val_loader)
-                val_loss += model(inputs, targets, get_window_size_blocks(step))
-        val_loss /= val_steps
-        del val_loader
-        dist.all_reduce(val_loss, op=dist.ReduceOp.AVG)
-        print0(f"step:{step}/{train_steps} val_loss:{val_loss:.4f} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
+                inputs, targets = next(val_loader_fw)
+                val_loss_fw += model(inputs, targets, get_window_size_blocks(step))
+        val_loss_fw /= val_steps
+        del val_loader_fw
+        dist.all_reduce(val_loss_fw, op=dist.ReduceOp.AVG)
+
+        # finemath validation
+        assert args.val_tokens_fm % (world_size * args.batch_size) == 0
+        val_steps = args.val_tokens_fm // (world_size * args.batch_size)
+        val_loader_fm = distributed_data_generator(
+            filename_patterns=args.val_files_fm,
+            seq_len=args.seq_len,
+            batch_size=world_size * args.batch_size,
+            rank=rank,
+            world_size=world_size,
+            byte_params=byte_params,
+        )
+        val_loss_fm = 0
+        with torch.no_grad():
+            for _ in range(val_steps):
+                inputs, targets = next(val_loader_fm)
+                val_loss_fm += model(inputs, targets, get_window_size_blocks(step))
+        val_loss_fm /= val_steps
+        del val_loader_fm
+        dist.all_reduce(val_loss_fm, op=dist.ReduceOp.AVG)
+
+        # print the results
+        print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
         model.train()
         # start the clock again
         torch.cuda.synchronize()
