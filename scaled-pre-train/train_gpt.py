@@ -1058,13 +1058,15 @@ byte_params = ByteHyperparameters(
     byte_mixin_method=args.byte_mixin_method,
     byte_mixout_method=args.byte_mixout_method,
 )
+model_dims = ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim)
+print0(model_dims.__dict__)
 model: nn.Module = GPT(
     vocab_size=args.vocab_size,
     num_layers=16,
     num_heads=8,
     max_seq_len=args.seq_len,
     expansion_factor=args.expansion_factor,
-    model_dims=ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim),
+    model_dims=model_dims,
     byte_params=byte_params,
 ).cuda()
 for m in model.modules():
