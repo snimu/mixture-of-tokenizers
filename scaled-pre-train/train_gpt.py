@@ -722,7 +722,6 @@ def distributed_data_generator(
         files.extend(sorted(Path.cwd().glob(filename_pattern)))
     random.seed(seed)  # ensure that all shards are shuffled the same way
     random.shuffle(files)
-    print(f"Found {len(files)} files")
 
     assert batch_size % world_size == 0
     local_seq_len = seq_len + 1  # +1 because I split into inputs and targets
