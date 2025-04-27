@@ -997,6 +997,7 @@ def get_args() -> Hyperparameters:
 
 hf_token = os.getenv("HF_TOKEN")
 assert hf_token is not None, "Please set the HF_TOKEN environment variable."
+download_data()
 
 args = get_args()
 
