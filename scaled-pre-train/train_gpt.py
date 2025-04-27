@@ -28,6 +28,7 @@ from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_
 #torch._inductor.config.coordinate_descent_tuning = True # we have banned this flag for new records because it causes compilation to take 30min
 
 from data_creation import make_embedding, tokens_to_bytes, pull_from_left, pull_from_right
+import wandb
 # -----------------------------------------------------------------------------
 # Custom operators: FP8 matmul by @YouJiacheng
 
@@ -782,6 +783,7 @@ def distributed_data_generator(
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     create_data_from_toks = {
+        # (byte_in, pull_in, byte_out, pull_out): function
         (True, True, True, True): _create_data_from_toks_TT_TT,
         (True, False, True, True): _create_data_from_toks_TF_TT,
         (True, True, True, False): _create_data_from_toks_TT_TF,
@@ -825,7 +827,6 @@ def distributed_data_generator(
 
 # -----------------------------------------------------------------------------
 # int main
-
 
 
 @dataclass
@@ -959,6 +960,10 @@ def get_args() -> Hyperparameters:
         "--seed", type=int, default=None,
         help="The random seed. If None, not manually set. Default: None"
     )
+    parser.add_argument(
+        "--wandb-project", type=str, default=None,
+        help="",
+    )
 
     args = parser.parse_args()
     hps = Hyperparameters(
@@ -993,6 +998,9 @@ torch.cuda.set_device(device)
 dist.init_process_group(backend="nccl", device_id=device)
 dist.barrier()
 master_process = (rank == 0) # this process will do logging, checkpointing etc.
+
+if master_process and args.wandb_project:
+    wandb.init(project=args.wandb_project, name=make_name(args), config=args, save_code=True)
 
 # begin logging
 logfile = None
@@ -1134,6 +1142,7 @@ training_time_ms = 0
 # start the clock
 torch.cuda.synchronize()
 t0 = time.perf_counter()
+loss = torch.tensor(0.0, device="cuda")
 # begin training
 train_steps = args.num_iterations
 for step in range(train_steps + 1):
@@ -1188,6 +1197,8 @@ for step in range(train_steps + 1):
 
         # print the results
         print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
+        if master_process and args.wandb_project:
+            wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/train_time": training_time_ms})
         model.train()
         # start the clock again
         torch.cuda.synchronize()
@@ -1203,7 +1214,8 @@ for step in range(train_steps + 1):
 
     # --------------- TRAINING SECTION -----------------
     inputs, targets = next(train_loader)
-    model(inputs, targets, get_window_size_blocks(step)).backward()
+    loss = model(inputs, targets, get_window_size_blocks(step))
+    loss.backward()
     for param in model.parameters():
         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
     # set optimization hyperparameters
@@ -1221,6 +1233,8 @@ for step in range(train_steps + 1):
     # logging
     approx_training_time_ms = training_time_ms + 1000 * (time.perf_counter() - t0)
     print0(f"step:{step+1}/{train_steps} train_time:{approx_training_time_ms:.0f}ms step_avg:{approx_training_time_ms/(step + 1):.2f}ms", console=True)
+    if master_process and args.wandb_project:
+        wandb.log({"train/loss": loss.item(), "train/train_time": approx_training_time_ms})
 
 print0(f"peak memory allocated: {torch.cuda.max_memory_allocated() // 1024 // 1024} MiB "
        f"reserved: {torch.cuda.max_memory_reserved() // 1024 // 1024} MiB", console=True)
