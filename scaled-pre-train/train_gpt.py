@@ -749,9 +749,9 @@ def distributed_data_generator(
 @dataclass
 class Hyperparameters:
     # data
-    train_files = ("data/tokens/train/*.bin", "fineweb100B/fineweb_train_*.bin") # input .bin to train on
-    val_files_fw = "fineweb100B/fineweb_val_*.bin" # input .bin to eval fineweb validation loss on
-    val_files_fm = "data/tokens/val/*.bin" # input .bin to eval finemath validation loss on
+    train_files: str | list[str] | tuple[str, ...] = ("data/tokens/train/*.bin", "fineweb100B/fineweb_train_*.bin") # input .bin to train on
+    val_files_fw: str | list[str] | tuple[str, ...] = "fineweb100B/fineweb_val_*.bin" # input .bin to eval fineweb validation loss on
+    val_files_fm: str | list[str] | tuple[str, ...] = "data/tokens/val/*.bin" # input .bin to eval finemath validation loss on
     val_tokens_fw: int = 10485760 # how many tokens of validation data? it's important to keep this fixed for consistent comparisons
     val_tokens_fm: int = 1024*1024
     seq_len: int = 1024  # Sequence length
@@ -777,7 +777,7 @@ class Hyperparameters:
     token_dim: int = 1024
     # evaluation and logging
     val_loss_every: int = 125 # every how many steps to evaluate val loss? 0 for only at the end
-    save_checkpoint = False
+    save_checkpoint: bool = False
     # other
     seed: int | None = None
     wandb_project: str | None = None
