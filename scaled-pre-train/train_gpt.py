@@ -621,8 +621,6 @@ class GPT(nn.Module):
             bytes_pulled_in: Tensor | None,
             target_seq: Tensor,  # bytes or tokens
     ):
-        assert toks_in.ndim == 1
-
         ve = [value_embed(toks_in) for value_embed in self.value_embeds]
         # 012 ... 012 structure on token value embeddings by @YouJiacheng, improved on @leloykun's U-net structure
         ve = [ve[0], ve[1], ve[2]] + [None] * (len(self.blocks) - 6) + [ve[0], ve[1], ve[2]]
