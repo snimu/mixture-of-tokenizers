@@ -823,7 +823,10 @@ def get_args() -> Hyperparameters:
         "--batch-size-train", type=int, default=64,
         help="Per device batch size, default=64",
     )
-    parser.add_argument("--batch-size-val", type=int, default=48)
+    parser.add_argument(
+        "--batch-size-val", type=int, default=32,
+        help="Per device batch size, default=32",
+    )
     parser.add_argument(
         "--val-loss-every", type=int, default=125,
         help="",
