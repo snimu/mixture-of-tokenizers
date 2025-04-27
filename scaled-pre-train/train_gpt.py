@@ -951,6 +951,8 @@ def print0(s, console=False):
                 print(s)
             print(s, file=f)
 
+print0(repr(args))
+
 if args.seed:
     torch.manual_seed(args.seed)
     print0(f"Set seed to {args.seed}")
