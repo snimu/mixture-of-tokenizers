@@ -944,7 +944,7 @@ def get_args() -> Hyperparameters:
         help="",
     )
     parser.add_argument(
-        "--n-layer-out", type=int, defaut=1,
+        "--n-layer-out", type=int, default=1,
         help="",
     )
     parser.add_argument(
