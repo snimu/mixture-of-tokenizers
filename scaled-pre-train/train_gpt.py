@@ -377,8 +377,6 @@ class CrossAttention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, dim: int, expansion_factor: int = 4):
         super().__init__()
-        assert isinstance(dim, int)
-        assert isinstance(expansion_factor, int)
         hdim = int(expansion_factor * dim)
         self.c_fc = CastedLinear(dim, hdim)
         self.c_proj = CastedLinear(hdim, dim)
