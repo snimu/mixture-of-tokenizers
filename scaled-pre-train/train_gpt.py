@@ -837,16 +837,16 @@ class Hyperparameters:
     train_files = ("data/tokens/train/*.bin", "fineweb100B/fineweb_train_*.bin") # input .bin to train on
     val_files_fw = "fineweb100B/fineweb_val_*.bin" # input .bin to eval fineweb validation loss on
     val_files_fm = "data/tokens/val/*.bin" # input .bin to eval finemath validation loss on
-    val_tokens_fw = 10485760 # how many tokens of validation data? it's important to keep this fixed for consistent comparisons
-    val_tokens_fm = 1024*1024
-    seq_len = 1024  # Sequence length
-    batch_size = 64  # Batch size per device
+    val_tokens_fw: int = 10485760 # how many tokens of validation data? it's important to keep this fixed for consistent comparisons
+    val_tokens_fm: int = 1024*1024
+    seq_len: int = 1024  # Sequence length
+    batch_size: int = 64  # Batch size per device
     # optimization
-    num_iterations = 7050 # number of iterations to run
-    cooldown_frac = 0.4 # fraction of training spent cooling down the learning rate
+    num_iterations: int = 7050 # number of iterations to run
+    cooldown_frac: float = 0.4 # fraction of training spent cooling down the learning rate
     # architecture
-    vocab_size = 50257
-    expansion_factor = 4 # expansion factor for MLP
+    vocab_size: int = 50257
+    expansion_factor: float = 4.0 # expansion factor for MLP
     padding_in: Literal["left", "right"] = "left"
     padding_out: Literal["left", "right"] = "right"
     pull_in: bool = True
