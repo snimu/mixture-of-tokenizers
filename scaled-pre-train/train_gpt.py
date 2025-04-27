@@ -1130,7 +1130,7 @@ initial_state = dict(model=copy.deepcopy(model.state_dict()),
                      optimizers=[copy.deepcopy(opt.state_dict()) for opt in optimizers]) # save the initial state
 for _ in range(warmup_steps):
     toks_in = targets = torch.randint(0, args.vocab_size, size=(args.batch_size, args.seq_len), dtype=torch.int32, device="cuda")
-    bytes_padded_in = bytes_pulled_in = torch.randint(0, 458, size=(args.batch_size, args.seq_len, args.bytes_per_token), dtype=torch.int32, device="cuda")
+    bytes_padded_in = bytes_pulled_in = torch.randint(0, 458, size=(args.batch_size, args.seq_len, byte_params.bytes_per_token), dtype=torch.int32, device="cuda")
     model(toks_in, bytes_padded_in, bytes_pulled_in, targets).backward()
     for param in model.parameters():
         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
