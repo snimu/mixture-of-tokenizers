@@ -1156,6 +1156,7 @@ train_loader = distributed_data_generator(
     rank=rank,
     world_size=world_size,
     byte_params=byte_params,
+    device=device,
 )
 training_time_ms = 0
 # start the clock
@@ -1185,6 +1186,7 @@ for step in range(train_steps + 1):
             rank=rank,
             world_size=world_size,
             byte_params=byte_params,
+            device=device,
         )
         val_loss_fw = 0
         with torch.no_grad():
@@ -1205,6 +1207,7 @@ for step in range(train_steps + 1):
             rank=rank,
             world_size=world_size,
             byte_params=byte_params,
+            device=device,
         )
         val_loss_fm = 0
         with torch.no_grad():
