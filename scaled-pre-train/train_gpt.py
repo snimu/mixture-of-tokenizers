@@ -1059,7 +1059,7 @@ byte_params = ByteHyperparameters(
     byte_mixout_method=args.byte_mixout_method,
 )
 model_dims = ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim)
-print0(model_dims.__dict__)
+print0(model_dims.__dict__, console=True)
 model: nn.Module = GPT(
     vocab_size=args.vocab_size,
     num_layers=16,
