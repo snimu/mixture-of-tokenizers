@@ -643,7 +643,7 @@ class GPT(nn.Module):
         logits = self.lm_head(x)
         # @Grad62304977 added tanh softcapping following Gemma 2 paper, @KoszarskyB reduced it from 30 to 15, @YouJiacheng shifted it by +15 (2*sigmoid(2*x)=tanh(x)+1)
         logits = 30 * torch.sigmoid(logits.float() / 7.5)
-        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), target_seq)
+        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), target_seq.view(-1))
         return loss
 
 # -----------------------------------------------------------------------------
