@@ -604,7 +604,7 @@ class GPT(nn.Module):
         def causal_mask(b, h, q_idx, kv_idx):
             return q_idx >= kv_idx
         
-        T = max_seq_len * byte_params.bytes_per_token
+        T = max_seq_len
         self.block_mask = create_block_mask(
             mask_mod=causal_mask,
             B=None,
