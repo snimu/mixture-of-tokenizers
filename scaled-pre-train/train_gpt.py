@@ -994,11 +994,6 @@ def get_args() -> Hyperparameters:
     )
     return hps
 
-
-hf_token = os.getenv("HF_TOKEN")
-assert hf_token is not None, "Please set the HF_TOKEN environment variable."
-download_data()
-
 args = get_args()
 
 # torchrun sets these env variables
@@ -1014,6 +1009,10 @@ master_process = (rank == 0) # this process will do logging, checkpointing etc.
 
 if master_process and args.wandb_project:
     wandb.init(project=args.wandb_project, name=make_name(args), config=args, save_code=True)
+if master_process:
+    hf_token = os.getenv("HF_TOKEN")
+    assert hf_token is not None, "Please set the HF_TOKEN environment variable."
+    download_data()
 
 # begin logging
 logfile = None
@@ -1061,7 +1060,7 @@ model: nn.Module = GPT(
     vocab_size=args.vocab_size,
     num_layers=16,
     num_heads=8,
-    max_seq_len=max(args.train_seq_len, args.val_seq_len),
+    max_seq_len=args.seq_len,
     expansion_factor=args.expansion_factor,
     model_dims=ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim),
     byte_params=byte_params,
