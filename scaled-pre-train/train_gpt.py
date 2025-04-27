@@ -555,7 +555,7 @@ class ByteMixout(nn.Module):
             for _ in range(byte_params.n_layer_out)
         ]) if byte_params.byte_mixout_method != "noop" else None
         self.byte_params = byte_params
-        self.forward = self._forward_tokens if byte_params is None else self._forward_bytes
+        self.forward = self._forward_tokens if byte_params.byte_mixout_method == "noop" else self._forward_bytes
 
     def _forward_tokens(self, x: Tensor) -> Tensor:
         return x
