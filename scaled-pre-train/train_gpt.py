@@ -810,13 +810,15 @@ def distributed_data_generator(
     random.shuffle(files)
 
     assert batch_size % world_size == 0
-    local_batch_size = (batch_size * seq_len) // world_size
+    local_seq_len = seq_len + 1  # +1 because I split into inputs and targets
+    local_batch_size = (batch_size * local_seq_len) // world_size
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
     data, pos = load_data_shard(file_iter), 0
     while True:
-        if pos + batch_size * seq_len + 1 >= len(data):
-            data, pos = load_data_shard(file_iter), 0
-        tokens = data[pos + rank * local_batch_size:][:local_batch_size].view(-1, seq_len).to(device)
+        if pos + batch_size * local_seq_len + 1 >= len(data):
+            newdata, pos = load_data_shard(file_iter), 0
+            data = torch.cat([data, newdata])
+        tokens = data[pos + rank * local_batch_size:][:local_batch_size].view(-1, local_seq_len).to(device)
         yield create_data_from_toks(tokens)
 
 
@@ -839,7 +841,7 @@ class Hyperparameters:
     seq_len: int = 1024  # Sequence length
     batch_size: int = 64  # Batch size per device
     # optimization
-    num_iterations: int = 7050 # number of iterations to run
+    num_iterations: int = int(50_271 * 2) - 50 # number of iterations to run
     cooldown_frac: float = 0.4 # fraction of training spent cooling down the learning rate
     # architecture
     vocab_size: int = 50257
@@ -889,7 +891,7 @@ def get_args() -> Hyperparameters:
 
     # Train args
     parser.add_argument(
-        "--num-iterations", type=int, default=int(50_271 * 2),  # all tokens
+        "--num-iterations", type=int, default=int(50_271 * 2) - 50,  # all tokens, but 50 fewer batches because I fucked up the calculation (expected seq_len=1024, but I need 1025 to have inputs and outputs at 1024...)
         help="",
     )
     parser.add_argument(
@@ -1065,7 +1067,7 @@ model: nn.Module = GPT(
     vocab_size=args.vocab_size,
     num_layers=16,
     num_heads=8,
-    max_seq_len=args.seq_len-1,  # -1 because we split into inputs and targets and I didn't consider that before and now it's too late
+    max_seq_len=args.seq_len,
     expansion_factor=args.expansion_factor,
     model_dims=model_dims,
     byte_params=byte_params,
