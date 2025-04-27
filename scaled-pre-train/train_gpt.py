@@ -858,7 +858,7 @@ class Hyperparameters:
     byte_dim: int = 1024
     token_dim: int = 1024
     # evaluation and logging
-    val_loss_every = 125 # every how many steps to evaluate val loss? 0 for only at the end
+    val_loss_every: int = 125 # every how many steps to evaluate val loss? 0 for only at the end
     save_checkpoint = False
     # other
     seed: int | None = None
@@ -903,6 +903,10 @@ def get_args() -> Hyperparameters:
     parser.add_argument(
         "--batch-size", type=int, default=64,
         help="Per device batch size, default=64",
+    )
+    parser.add_argument(
+        "--val-loss-every", type=int, default=125,
+        help="",
     )
     # Byte Args
     parser.add_argument(
@@ -978,6 +982,7 @@ def get_args() -> Hyperparameters:
         cooldown_frac=args.cooldown_frac,
         seq_len=args.seq_len,
         batch_size=args.batch_size,
+        val_loss_every=args.val_loss_every,
         add_padded_and_pulled=args.add_padded_and_pulled,
         padding_in=args.padding_in,
         padding_out=args.padding_out,
@@ -1122,6 +1127,7 @@ model: nn.Module = torch.compile(model, dynamic=False)
 ########################################
 
 # Warmup the training kernels, then re-initialize the state so we aren't cheating
+print0("Warming up the training kernels...", console=True)
 warmup_steps = 10
 initial_state = dict(model=copy.deepcopy(model.state_dict()),
                      optimizers=[copy.deepcopy(opt.state_dict()) for opt in optimizers]) # save the initial state
@@ -1156,6 +1162,7 @@ training_time_ms = 0
 torch.cuda.synchronize()
 t0 = time.perf_counter()
 loss = torch.tensor(0.0, device="cuda")
+print0("Beginning training...", console=True)
 # begin training
 train_steps = args.num_iterations
 for step in range(train_steps + 1):
