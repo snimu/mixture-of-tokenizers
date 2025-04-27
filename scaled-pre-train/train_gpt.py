@@ -865,6 +865,7 @@ class Hyperparameters:
     save_checkpoint = False
     # other
     seed: int | None = None
+    wandb_project: str | None = None
 
 
 def download_data():
@@ -991,6 +992,7 @@ def get_args() -> Hyperparameters:
         byte_dim=args.byte_dim,
         token_dim=args.token_dim,
         seed=args.seed,
+        wandb_project=args.wandb_project,
     )
     return hps
 
