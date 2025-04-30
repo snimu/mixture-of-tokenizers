@@ -584,6 +584,7 @@ def load_data_shard(file_iter):
             pass
 
 
+@torch.no_grad()
 def distributed_data_generator(
         filename_patterns: str | list[str],
         seq_len: int,
