@@ -618,6 +618,7 @@ def distributed_data_generator(
     # Big list of functions to avoid branching, and to make it a bit less confusing for me
     # The difference is the last Ts and Fs. The mean:
     # ...(byte_in)(pull_in)_(byte_out)(pull_out)
+    bpt = byte_params.bytes_per_token
     def _create_data_from_toks_TT_TT(toks: Tensor):
         bytes_padded_in = tokens_to_bytes(toks, ttb_in)
         bytes_pulled_in = pull_in(bytes_padded_in)
@@ -625,9 +626,9 @@ def distributed_data_generator(
         bytes_pulled_out = pull_out(bytes_padded_out)
 
         toks_in = toks[:, :-1].contiguous()
-        bytes_padded_in = bytes_padded_in[:, :-1].contiguous()
-        bytes_pulled_in = bytes_pulled_in[:, :-1].contiguous()
-        targets = bytes_pulled_out[:, 1:].contiguous()
+        bytes_padded_in = bytes_padded_in[:, :-bpt].contiguous()
+        bytes_pulled_in = bytes_pulled_in[:, :-bpt].contiguous()
+        targets = bytes_pulled_out[:, bpt:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_TF_TT(toks: Tensor):
@@ -637,8 +638,8 @@ def distributed_data_generator(
         bytes_pulled_out = pull_out(bytes_padded_out)
 
         toks_in = toks[:, :-1].contiguous()
-        bytes_padded_in = bytes_padded_in[:, :-1].contiguous()
-        targets = bytes_pulled_out[:, 1:].contiguous()
+        bytes_padded_in = bytes_padded_in[:, :-bpt].contiguous()
+        targets = bytes_pulled_out[:, bpt:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_TT_TF(toks: Tensor):
@@ -647,9 +648,9 @@ def distributed_data_generator(
         bytes_padded_out = tokens_to_bytes(toks, ttb_out)
         
         toks_in = toks[:, :-1].contiguous()
-        bytes_padded_in = bytes_padded_in[:, :-1].contiguous()
-        bytes_pulled_in = bytes_pulled_in[:, :-1].contiguous()
-        targets = bytes_padded_out[:, 1:].contiguous()
+        bytes_padded_in = bytes_padded_in[:, :-bpt].contiguous()
+        bytes_pulled_in = bytes_pulled_in[:, :-bpt].contiguous()
+        targets = bytes_padded_out[:, bpt:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_TT_FF(toks: Tensor):
@@ -657,8 +658,8 @@ def distributed_data_generator(
         bytes_pulled_in = pull_in(bytes_padded_in)
         
         toks_in = toks[:, :-1].contiguous()
-        bytes_padded_in = bytes_padded_in[:, :-1].contiguous()
-        bytes_pulled_in = bytes_pulled_in[:, :-1].contiguous()
+        bytes_padded_in = bytes_padded_in[:, :-bpt].contiguous()
+        bytes_pulled_in = bytes_pulled_in[:, :-bpt].contiguous()
         targets = toks[:, 1:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
@@ -669,7 +670,7 @@ def distributed_data_generator(
         bytes_pulled_out = pull_out(bytes_padded_out)
 
         toks_in = toks[:, :-1].contiguous()
-        targets = bytes_pulled_out[:, 1:].contiguous()
+        targets = bytes_pulled_out[:, bpt:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_FF_TF(toks: Tensor):
@@ -678,7 +679,7 @@ def distributed_data_generator(
         bytes_padded_out = tokens_to_bytes(toks, ttb_out)
         
         toks_in = toks[:, :-1].contiguous()
-        targets = bytes_padded_out[:, 1:].contiguous()
+        targets = bytes_padded_out[:, bpt:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
     def _create_data_from_toks_TF_FF(toks: Tensor):
@@ -686,7 +687,7 @@ def distributed_data_generator(
         bytes_pulled_in = None
 
         toks_in = toks[:, :-1].contiguous()
-        bytes_padded_in = bytes_padded_in[:, :-1].contiguous()
+        bytes_padded_in = bytes_padded_in[:, :-bpt].contiguous()
         targets = toks[:, 1:].contiguous()
         return toks_in, bytes_padded_in, bytes_pulled_in, targets
 
@@ -1108,7 +1109,6 @@ for step in range(train_steps + 1):
                     val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
                     val_steps_fw += 1
                 except (StopIteration, RuntimeError) as e:
-                    print0(f"val_loader_fw error: {e}", console=True)
                     break
         val_loss_fw /= val_steps_fw
         del val_loader_fw
