@@ -1109,6 +1109,7 @@ for step in range(train_steps + 1):
                     val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
                     val_steps_fw += 1
                 except (StopIteration, RuntimeError) as e:
+                    print0(f"val_loader_fw error: {e}", console=True)
                     break
         val_loss_fw /= val_steps_fw
         del val_loader_fw
