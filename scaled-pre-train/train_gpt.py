@@ -8,7 +8,6 @@ import sys
 with open(sys.argv[0]) as f:
     code = f.read() # read the code of this file ASAP, for logging
 import time
-import copy
 import random
 import functools
 from typing import Literal
@@ -16,6 +15,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 import subprocess as sp
+from time import perf_counter
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
@@ -31,6 +31,8 @@ from torch.nn.attention.flex_attention import BlockMask, flex_attention, create_
 from data_creation import make_embedding, tokens_to_bytes, pull_from_left, pull_from_right
 from data_download import download
 import wandb
+import safetensors.torch
+from huggingface_hub import upload_file
 
 # -----------------------------------------------------------------------------
 # Muon optimizer
@@ -738,7 +740,6 @@ def distributed_data_generator(
 
 
 # TODO: checkpointing with metadata
-# TODO: wandb
 # TODO: timing
 
 # -----------------------------------------------------------------------------
@@ -777,7 +778,7 @@ class Hyperparameters:
     token_dim: int = 1024
     # evaluation and logging
     val_loss_every: int = 125 # every how many steps to evaluate val loss? 0 for only at the end
-    save_checkpoint: bool = False
+    save_checkpoint_every: int = 0  # if 0, won't save; otherwise, save every nth step>0, where n is this arg
     # other
     seed: int | None = None
     wandb_project: str | None = None
@@ -829,6 +830,10 @@ def get_args() -> Hyperparameters:
     parser.add_argument(
         "--val-loss-every", type=int, default=125,
         help="",
+    )
+    parser.add_argument(
+        "--save-checkpoint-every", type=int, default=0,
+        help="If >0, save model every nth step>0, where n is this arg. default=0"
     )
     # Byte Args
     parser.add_argument(
@@ -906,6 +911,7 @@ def get_args() -> Hyperparameters:
         batch_size_train=args.batch_size_train,
         batch_size_val=args.batch_size_val,
         val_loss_every=args.val_loss_every,
+        save_checkpoint_every=args.save_checkpoint_every,
         add_padded_and_pulled=args.add_padded_and_pulled,
         padding_in=args.padding_in,
         padding_out=args.padding_out,
@@ -1049,29 +1055,6 @@ def get_window_size_blocks(step: int):
 model: nn.Module = torch.compile(model, dynamic=False)
 
 ########################################
-#            Warmup kernels            #
-########################################
-
-# Warmup the training kernels, then re-initialize the state so we aren't cheating
-# print0("Warming up the training kernels...", console=True)
-# warmup_steps = 10
-# initial_state = dict(model=copy.deepcopy(model.state_dict()),
-#                      optimizers=[copy.deepcopy(opt.state_dict()) for opt in optimizers]) # save the initial state
-# for _ in range(warmup_steps):
-#     toks_in = targets = torch.randint(0, args.vocab_size, size=(args.batch_size_train, args.seq_len), dtype=torch.int32, device="cuda")
-#     bytes_padded_in = bytes_pulled_in = torch.randint(0, 458, size=(args.batch_size_train, args.seq_len, byte_params.bytes_per_token), dtype=torch.int32, device="cuda")
-#     model(toks_in, bytes_padded_in, bytes_pulled_in, targets).backward()
-#     for param in model.parameters():
-#         dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
-#     for opt in optimizers:
-#         opt.step()
-#     model.zero_grad(set_to_none=True)
-# model.load_state_dict(initial_state["model"])
-# for opt, opt_state in zip(optimizers, initial_state["optimizers"]):
-#     opt.load_state_dict(opt_state)
-# del initial_state
-
-########################################
 #        Training and validation       #
 ########################################
 
@@ -1159,11 +1142,12 @@ for step in range(train_steps + 1):
         torch.cuda.synchronize()
         t0 = time.perf_counter()
 
-    if last_step:  # TODO: replace with HF checkpointing
-        if master_process and args.save_checkpoint:
-            log = dict(step=step, code=code, model=model.state_dict(), optimizers=[opt.state_dict() for opt in optimizers])
-            os.makedirs(f"logs/{run_id}", exist_ok=True)
-            torch.save(log, f"logs/{run_id}/state_step{step:06d}.pt")
+    if last_step:
+        if master_process and step > 0 and step % args.save_checkpoint_every == 0:
+            t0 = perf_counter()
+            safetensors.torch.save_model(model, run_id + ".safetensors", metadata=args.__dict__)
+            upload_file(run_id + ".safetensors", path_in_repo="model.safetensors", repo_id=run_id, token=hf_token)
+            print(f"Saved checkpoint at step {step} in {int(perf_counter()-t0)} seconds")
         # the last step only has the validation loop, so break to avoid training
         break
 

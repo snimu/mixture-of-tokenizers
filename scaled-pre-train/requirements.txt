@@ -7,3 +7,4 @@ psutil
 tqdm
 einops
 wandb
+safetensors
