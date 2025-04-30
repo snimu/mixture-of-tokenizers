@@ -416,7 +416,7 @@ class ByteMixinConcat(nn.Module):
         super().__init__()
         self.byte_params = byte_params
         self.attention = ByteSelfAttn(dims.byte_dim, max_seq_len, byte_params) if byte_params.use_byte_self_attn else nn.Identity()
-        self.mixin = nn.Linear(dims.token_dim + dims.byte_dim * byte_params.bytes_per_token, dims.model_dim)
+        self.mixin = CastedLinear(dims.token_dim + dims.byte_dim * byte_params.bytes_per_token, dims.model_dim)
 
     def forward(self, tok_embs: Tensor, byte_embs: Tensor) -> Tensor:
         if self.byte_params.use_byte_self_attn:
