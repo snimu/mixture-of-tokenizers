@@ -564,6 +564,9 @@ class GPT(nn.Module):
 
 def _load_data_shard(file: Path, dtype: torch.dtype = torch.uint16):
     header = torch.from_file(str(file), False, 256, dtype=torch.int32) # header is 256 int32
+    # debug start
+    print(f"Reading header from {file.name}: magic={header[0]}, version={header[1]}, num_tokens={header[2]}", flush=True)
+    # debug end
     assert header[0] == 20240520, f"magic number mismatch in the data .bin file: {header[0]}"
     assert header[1] == 1, f"unsupported version, expected 1 but got {header[1]}"
     num_tokens = int(header[2]) # number of tokens (claimed)
@@ -580,7 +583,8 @@ def load_data_shard(file_iter):
             file = next(file_iter)
             dtype = torch.int32 if "bytes/" in file.name else torch.uint16
             return _load_data_shard(file, dtype=dtype).to(torch.int32)
-        except AssertionError:
+        except AssertionError as e:
+            print(f"Assertion failed for file {file.name}: {e}", flush=True)
             pass
 
 
@@ -723,6 +727,15 @@ def distributed_data_generator(
     files = sorted(Path.cwd().glob(filename_patterns[0]))
     for filename_pattern in filename_patterns[1:]:
         files.extend(sorted(Path.cwd().glob(filename_pattern)))
+
+    # debug start
+    print(f"[Rank {rank}] CWD: {Path.cwd()}", flush=True)
+    print(f"[Rank {rank}] Trying patterns: {filename_patterns}", flush=True)
+    print(f"[Rank {rank}] Found files: {files}", flush=True)
+    if not files:
+        print(f"[Rank {rank}] WARNING: No files found!", flush=True)
+    # debug end
+
     random.seed(seed)  # ensure that all shards are shuffled the same way
     random.shuffle(files)
 
