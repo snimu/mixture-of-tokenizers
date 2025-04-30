@@ -772,6 +772,7 @@ class Hyperparameters:
     byte_mixout_method: Literal["noop", "self_attn"] = "noop"
     sliding_window_tokens: int = 8
     n_layer_out: int = 1
+    bytes_per_token: int = 16
     # Model dims
     model_dim: int = 1024
     byte_dim: int = 1024
@@ -994,6 +995,7 @@ byte_params = ByteHyperparameters(
     add_padded_and_pulled=args.add_padded_and_pulled,
     byte_mixin_method=args.byte_mixin_method,
     byte_mixout_method=args.byte_mixout_method,
+    bytes_per_token=args.bytes_per_token,
 )
 model_dims = ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim)
 model: nn.Module = GPT(
