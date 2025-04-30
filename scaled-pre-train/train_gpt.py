@@ -744,6 +744,9 @@ def distributed_data_generator(
     local_batch_size = (batch_size * local_seq_len) // world_size
     file_iter = iter(files) # use itertools.cycle(files) instead if you want to do multi-epoch training
     data, pos = load_data_shard(file_iter), 0
+    # debug start
+    print(f"{data.shape=}", flush=True)
+    # debug end
     while True:
         if pos + batch_size * local_seq_len + 1 >= len(data):
             newdata, pos = load_data_shard(file_iter), 0
