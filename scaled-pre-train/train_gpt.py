@@ -1192,7 +1192,7 @@ for step in range(train_steps + 1):
         t0 = time.perf_counter()
 
     if last_step:
-        if master_process and step > 0 and step % args.save_checkpoint_every == 0:
+        if master_process and step > 0 and args.save_checkpoint_every > 0 and step % args.save_checkpoint_every == 0:
             t0 = time.perf_counter()
             safetensors.torch.save_model(model, run_id + ".safetensors", metadata=args.__dict__)
             upload_file(run_id + ".safetensors", path_in_repo="model.safetensors", repo_id=run_id, token=hf_token)
