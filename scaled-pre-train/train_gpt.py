@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 import subprocess as sp
-from time import perf_counter
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import torch
@@ -1192,10 +1191,10 @@ for step in range(train_steps + 1):
 
     if last_step:
         if master_process and step > 0 and step % args.save_checkpoint_every == 0:
-            t0 = perf_counter()
+            t0 = time.perf_counter()
             safetensors.torch.save_model(model, run_id + ".safetensors", metadata=args.__dict__)
             upload_file(run_id + ".safetensors", path_in_repo="model.safetensors", repo_id=run_id, token=hf_token)
-            print(f"Saved checkpoint at step {step} in {int(perf_counter()-t0)} seconds")
+            print(f"Saved checkpoint at step {step} in {int(time.perf_counter()-t0)} seconds")
         # the last step only has the validation loop, so break to avoid training
         break
 
