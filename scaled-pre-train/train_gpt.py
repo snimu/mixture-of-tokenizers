@@ -1184,8 +1184,8 @@ for step in range(train_steps + 1):
         if master_process and args.wandb_project:
             wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/train_time": training_time_ms})
         if master_process:
-            val_losses_fw.append(val_loss_fw)
-            val_losses_fm.append(val_loss_fm)
+            val_losses_fw.append(float(val_loss_fw))
+            val_losses_fm.append(float(val_loss_fm))
         model.train()
         # start the clock again
         torch.cuda.synchronize()
@@ -1232,7 +1232,7 @@ if master_process:
     args.min_val_loss_fw = min(val_losses_fw)
     args.final_val_loss_fm = val_losses_fm[-1]
     args.min_val_loss_fm = min(val_losses_fm)
-    args.step_avg_train_time = approx_training_time_ms / max(step+1, 1)
+    args.step_avg_train_time = float(approx_training_time_ms / max(step+1, 1))
     with open(f"results/{run_id}.json", "w") as f:
         f.write(json.dumps(vars(args), indent=4))
 dist.destroy_process_group()
