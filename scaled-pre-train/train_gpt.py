@@ -148,7 +148,7 @@ class ByteHyperparameters:
     bytes_per_token: int = 16
     vocab_size: int = 458
     byte_mixin_method: Literal["cross_attn", "concat", "noop"] = "noop"
-    byte_mixout_method: Literal["self_attn", "noop"] = "noop"
+    byte_mixout_method: Literal["noop", "copy", "split"] = "noop"
     use_byte_self_attn: bool = False
     padding_in: Literal["left", "right"] = "left"
     padding_out: Literal["left", "right"] = "left"
@@ -460,24 +460,57 @@ class ByteMixin(nn.Module):
         return self.mixin(tok_embs, byte_embs)
 
 
-class ByteMixout(nn.Module):
+class ByteMixoutCopy(nn.Module):
     def __init__(self, dims: ModelDims, max_seq_len: int, byte_params: ByteHyperparameters):
         super().__init__()
         self.attention_layers = nn.ModuleList([
             ByteSelfAttn(dims.model_dim, max_seq_len, byte_params)  # use model dim at output
             for _ in range(byte_params.n_layer_out)
-        ]) if byte_params.byte_mixout_method != "noop" else None
+        ])
         self.byte_params = byte_params
-        self.forward = self._forward_tokens if byte_params.byte_mixout_method == "noop" else self._forward_bytes
 
-    def _forward_tokens(self, x: Tensor) -> Tensor:
-        return x
-
-    def _forward_bytes(self, x: Tensor) -> Tensor:
-        x = einops.repeat(x, f"... seq dim-> ... (seq {self.byte_params.bytes_per_token}) dim")
+    def forward(self, x: Tensor) -> Tensor:
+        x = einops.repeat(x, "... T D-> ... (T bpt) D", bpt=self.byte_params.bytes_per_token)
         for layer in self.attention_layers:
             x = x + layer(norm(x))
         return x
+
+
+class ByteMixoutSplit(nn.Module):
+    def __init__(self, dims: ModelDims, max_seq_len: int, byte_params: ByteHyperparameters):
+        super().__init__()
+        self.attention_layers = nn.ModuleList([
+            ByteSelfAttn(dims.model_dim, max_seq_len, byte_params)  # use model dim at output
+            for _ in range(byte_params.n_layer_out)
+        ])
+        self.byte_params = byte_params
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = einops.rearrange(x, "... T (D bpt) -> ... (T bpt) D", bpt=self.byte_params.bytes_per_token)
+        for layer in self.attention_layers:
+            x = x + layer(norm(x))
+        return x
+
+
+class ByteMixoutNoop(nn.Module):
+    def __init__(self, dims: ModelDims, max_seq_len: int, byte_params: ByteHyperparameters):
+        super().__init__()
+
+    def forward(self, x: Tensor) -> Tensor:
+        return x
+
+
+class ByteMixout(nn.Module):
+    def __init__(self, dims: ModelDims, max_seq_len: int, byte_params: ByteHyperparameters):
+        super().__init__()
+        self.mixout = {
+            "noop": ByteMixoutNoop,
+            "copy": ByteMixoutCopy,
+            "split": ByteMixoutSplit,
+        }[byte_params.byte_mixout_method](dims, max_seq_len, byte_params)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.mixout(x)
 
 
 # -----------------------------------------------------------------------------
@@ -769,7 +802,7 @@ class Hyperparameters:
     pull_out: bool = True
     add_padded_and_pulled: bool = True
     byte_mixin_method: Literal["noop", "cross_attn", "concat"] = "noop"
-    byte_mixout_method: Literal["noop", "self_attn"] = "noop"
+    byte_mixout_method: Literal["noop", "copy", "split"] = "noop"
     sliding_window_tokens: int = 8
     n_layer_out: int = 1
     bytes_per_token: int = 16
@@ -846,7 +879,7 @@ def get_args() -> Hyperparameters:
         help="",
     )
     parser.add_argument(
-        "--byte-mixout-method", choices=["self_attn", "noop"], default="noop",
+        "--byte-mixout-method", choices=["noop", "copy", "split"], default="noop",
         help="",
     )
     parser.add_argument(
