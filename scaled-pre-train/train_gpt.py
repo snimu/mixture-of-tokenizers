@@ -816,10 +816,12 @@ class Hyperparameters:
     # other
     seed: int | None = None
     wandb_project: str | None = None
+    # results
     final_val_loss_fw: float | None = None
     min_val_loss_fw: float | None = None
     final_val_loss_fm: float | None = None
     min_val_loss_fm: float | None = None
+    step_avg_train_time: float | None = None
 
 
 def download_data():
@@ -1230,6 +1232,7 @@ if master_process:
     args.min_val_loss_fw = min(val_losses_fw)
     args.final_val_loss_fm = val_losses_fm[-1]
     args.min_val_loss_fm = min(val_losses_fm)
+    args.step_avg_train_time = approx_training_time_ms / max(step+1, 1)
     with open(f"results/{run_id}.json", "w") as f:
         json.dump(args.__dict__, f)
 dist.destroy_process_group()
