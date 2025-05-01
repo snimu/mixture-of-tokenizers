@@ -835,6 +835,9 @@ def make_name(args: Hyperparameters) -> str:
     name += f"_padding-{args.padding_in}-{args.padding_out}"
     name += f"_pull-{int(args.pull_in)}-{int(args.pull_out)}"
     name += "_pad-pull" if args.add_padded_and_pulled else ""
+    name += f"_bdim-{args.byte_dim}"
+    name += f"_tdim-{args.token_dim}"
+    name += f"_mdim-{args.model_dim}"
     name += f"_niter-{args.num_iterations}"
     name += f"_seed-{args.seed}"
     timeinfo = time.localtime()
