@@ -21,9 +21,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --byte-mixin-method concat \
     --byte-mixout-method noop \
     --padding-in left \
-    --pull-in True \
-    --add-padded-and-pulled False \
-    --use-byte-self-attn False \
+    --pull-in \
     --model-dim 1024 \
     --byte-dim 32 \
     --token-dim 512 \
@@ -44,9 +42,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --byte-mixin-method concat \
     --byte-mixout-method noop \
     --padding-in left \
-    --pull-in True \
-    --add-padded-and-pulled False \
-    --use-byte-self-attn False \
+    --pull-in \
     --model-dim 1024 \
     --byte-dim 48 \
     --token-dim 256 \
@@ -67,9 +63,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --byte-mixin-method concat \
     --byte-mixout-method noop \
     --padding-in left \
-    --pull-in True \
-    --add-padded-and-pulled False \
-    --use-byte-self-attn False \
+    --pull-in \
     --model-dim 1024 \
     --byte-dim 60 \
     --token-dim 60 \
