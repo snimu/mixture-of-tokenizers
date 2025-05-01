@@ -4,6 +4,24 @@
 
 # Run on commit b860cdc (b860cdc6fa5dfc12bb3c53c6d2747998f6cbc979)
 
+# 0. Baseline: Token-Token
+
+torchrun --nproc_per_node=8 train_gpt.py \
+    --num-iterations 100 \
+    --cooldown-frac 0.6 \
+    --seq-len 1024 \
+    --batch-size-train 64 \
+    --batch-size-val 32 \
+    --val-loss-every 10 \
+    --save-checkpoint-every 0 \
+    --bytes-per-token 16 \
+    --byte-mixin-method noop \
+    --byte-mixout-method noop \
+    --model-dim 1024 \
+    --token-dim 1024 \
+    --seed 12345 \
+    --wandb-project MoT-scaled-pre-train-tests
+
 # 1. Check some variations of byte-mixin-method=concat: different sizes of byte vs token embeddings
 #    Output tokens to make them comparable
 
