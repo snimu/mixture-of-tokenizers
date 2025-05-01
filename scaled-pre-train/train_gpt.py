@@ -10,6 +10,7 @@ with open(sys.argv[0]) as f:
 import time
 import random
 import functools
+import json
 from typing import Literal
 from dataclasses import dataclass
 from functools import lru_cache
@@ -816,6 +817,10 @@ class Hyperparameters:
     # other
     seed: int | None = None
     wandb_project: str | None = None
+    final_val_loss_fw: float | None = None
+    min_val_loss_fw: float | None = None
+    final_val_loss_fm: float | None = None
+    min_val_loss_fm: float | None = None
 
 
 def download_data():
@@ -984,6 +989,8 @@ if master_process:
     hf_token = os.getenv("HF_TOKEN")
     assert hf_token is not None, "Please set the HF_TOKEN environment variable."
     download_data()
+    val_losses_fw = []
+    val_losses_fm = []
 
 # begin logging
 logfile = None
@@ -1175,6 +1182,9 @@ for step in range(train_steps + 1):
         print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} steps_fw:{val_steps_fw} steps_fm:{val_steps_fm} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
         if master_process and args.wandb_project:
             wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/train_time": training_time_ms})
+        if master_process:
+            val_losses_fw.append(val_loss_fw)
+            val_losses_fm.append(val_loss_fm)
         model.train()
         # start the clock again
         torch.cuda.synchronize()
@@ -1215,4 +1225,12 @@ for step in range(train_steps + 1):
 
 print0(f"peak memory allocated: {torch.cuda.max_memory_allocated() // 1024 // 1024} MiB "
        f"reserved: {torch.cuda.max_memory_reserved() // 1024 // 1024} MiB", console=True)
+if master_process:
+    os.makedirs("results", exist_ok=True)
+    args.final_val_loss_fw = val_losses_fw[-1]
+    args.min_val_loss_fw = min(val_losses_fw)
+    args.final_val_loss_fm = val_losses_fm[-1]
+    args.min_val_loss_fm = min(val_losses_fm)
+    with open(f"results/{run_id}.json", "w") as f:
+        json.dump(args.__dict__, f)
 dist.destroy_process_group()
