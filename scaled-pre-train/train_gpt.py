@@ -1234,5 +1234,5 @@ if master_process:
     args.min_val_loss_fm = min(val_losses_fm)
     args.step_avg_train_time = approx_training_time_ms / max(step+1, 1)
     with open(f"results/{run_id}.json", "w") as f:
-        json.dump(args.__dict__, f)
+        f.write(json.dumps(vars(args), indent=4))
 dist.destroy_process_group()
