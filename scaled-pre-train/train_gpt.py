@@ -876,7 +876,7 @@ def get_args() -> Hyperparameters:
     )
     # Byte Args
     parser.add_argument(
-        "--bytes-per-token", choices=[16, 18, 20], default=16,
+        "--bytes-per-token", type=int, choices=[16, 18, 20], default=16,
         help="",
     )
     parser.add_argument(
