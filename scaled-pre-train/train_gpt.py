@@ -484,10 +484,10 @@ class ByteMixoutSplit(nn.Module):
             ByteSelfAttn(dims.model_dim, max_seq_len, byte_params)  # use model dim at output
             for _ in range(byte_params.n_layer_out)
         ])
-        self.byte_params = byte_params
+        self.bpt = byte_params.bytes_per_token
 
     def forward(self, x: Tensor) -> Tensor:
-        x = einops.rearrange(x, "... T (D bpt) -> ... (T bpt) D", bpt=self.byte_params.bytes_per_token)
+        x = einops.rearrange(x, "... T (bpt D) -> ... (T bpt) D", bpt=self.bpt)
         for layer in self.attention_layers:
             x = x + layer(norm(x))
         return x
@@ -523,9 +523,13 @@ def next_multiple_of_n(v: float | int, *, n: int):
 
 class GPT(nn.Module):
     def __init__(
-            self, vocab_size: int, num_layers: int, num_heads: int,
-            model_dims: ModelDims, max_seq_len: int,
-            byte_params: ByteHyperparameters | None = None,
+            self,
+            vocab_size: int,
+            num_layers: int,
+            num_heads: int,
+            model_dims: ModelDims,
+            max_seq_len: int,
+            byte_params: ByteHyperparameters,
     ):
         super().__init__()
         self.embed = FlexibleEmbedding(dims=model_dims, vocab_size=vocab_size, byte_params=byte_params)
