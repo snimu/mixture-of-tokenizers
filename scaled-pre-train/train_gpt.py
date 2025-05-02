@@ -982,276 +982,283 @@ def get_args() -> Hyperparameters:
     )
     hps.train_files = list(hps.train_files)
     return hps
+def main():
+    args = get_args()
 
-args = get_args()
+    # torchrun sets these env variables
+    rank = int(os.environ["RANK"])
+    world_size = int(os.environ["WORLD_SIZE"])
+    assert world_size == 8 # this code is designed for 8xH100
+    assert torch.cuda.is_available()
+    device = torch.device("cuda", int(os.environ["LOCAL_RANK"]))
+    torch.cuda.set_device(device)
+    dist.init_process_group(backend="nccl", device_id=device)
+    dist.barrier()
+    master_process = (rank == 0) # this process will do logging, checkpointing etc.
 
-# torchrun sets these env variables
-rank = int(os.environ["RANK"])
-world_size = int(os.environ["WORLD_SIZE"])
-assert world_size == 8 # this code is designed for 8xH100
-assert torch.cuda.is_available()
-device = torch.device("cuda", int(os.environ["LOCAL_RANK"]))
-torch.cuda.set_device(device)
-dist.init_process_group(backend="nccl", device_id=device)
-dist.barrier()
-master_process = (rank == 0) # this process will do logging, checkpointing etc.
-
-if master_process and args.wandb_project:
-    wandb.init(project=args.wandb_project, name=make_name(args), config=args, save_code=True)
-if master_process:
-    hf_token = os.getenv("HF_TOKEN")
-    assert hf_token is not None, "Please set the HF_TOKEN environment variable."
-    download_data()
-    val_losses_fw = []
-    val_losses_fm = []
-
-# begin logging
-logfile = None
-if master_process:
-    run_id = make_name(args)
-    os.makedirs("logs", exist_ok=True)
-    logfile = f"logs/{run_id}.txt"
-    print(logfile)
-def print0(s, console=False):
+    if master_process and args.wandb_project and args.num_iterations > 0:
+        wandb.init(project=args.wandb_project, name=make_name(args), config=args, save_code=True)
     if master_process:
-        with open(logfile, "a") as f:
-            if console:
-                print(s)
-            print(s, file=f)
+        hf_token = os.getenv("HF_TOKEN")
+        assert hf_token is not None, "Please set the HF_TOKEN environment variable."
+        download_data()
+        val_losses_fw = []
+        val_losses_fm = []
 
-print0("\n\n" + repr(args) + "\n\n", console=True)
-
-if args.seed:
-    torch.manual_seed(args.seed)
-    print0(f"Set seed to {args.seed}")
-
-# begin by printing this file (the Python code)
-print0(code)
-print0("="*100)
-# log information about the hardware/software environment this is running on
-print0(f"Running Python {sys.version}")
-print0(f"Running PyTorch {torch.version.__version__} compiled for CUDA {torch.version.cuda}")
-def nvidia_smi():
-    import subprocess  # avoid top level import
-    return subprocess.run(["nvidia-smi"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True).stdout
-print0(nvidia_smi())
-print0("="*100)
-
-########################################
-#    Construct model and optimizer     #
-########################################
-byte_params = ByteHyperparameters(
-    padding_in=args.padding_in,
-    padding_out=args.padding_out,
-    pull_in=args.pull_in,
-    pull_out=args.pull_out,
-    add_padded_and_pulled=args.add_padded_and_pulled,
-    byte_mixin_method=args.byte_mixin_method,
-    byte_mixout_method=args.byte_mixout_method,
-    bytes_per_token=args.bytes_per_token,
-)
-model_dims = ModelDims(
-    model_dim=args.model_dim,
-    byte_dim=args.byte_dim,
-    token_dim=args.token_dim,
-    expansion_factor=args.expansion_factor,
-)
-model: nn.Module = GPT(
-    vocab_size=args.vocab_size,
-    num_layers=16,
-    num_heads=8,
-    max_seq_len=args.seq_len,
-    model_dims=model_dims,
-    byte_params=byte_params,
-).cuda()
-for m in model.modules():
-    if isinstance(m, nn.Embedding):
-        m.bfloat16()
-for param in model.parameters():
-    dist.broadcast(param.detach(), 0)
-
-args.num_params = sum(p.numel() for p in model.parameters())
-print0(f"\n\nNumber of parameters: {args.num_params:_}\n", console=True)
-
-# collect the parameters to optimize
-hidden_matrix_params = [p for n, p in model.blocks.named_parameters() if p.ndim >= 2 and "embed" not in n]
-hidden_matrix_params.extend([p for p in model.byte_mixout.parameters() if p.ndim >= 2])
-embed_params = [p for n, p in model.named_parameters() if "embed" in n if p.ndim >= 2]
-if args.byte_mixin_method == "concat":
-    embed_params.extend([p for p in model.byte_mixin.mixin.mixin.parameters() if p.ndim >= 2])
-    hidden_matrix_params.extend([p for p in model.byte_mixin.mixin.attention.parameters() if p.ndim >= 2])
-elif args.byte_mixin_method == "cross_attn":
-    hidden_matrix_params.extend([p for p in model.byte_mixin.parameters() if p.ndim >= 2])
-scalar_params = [p for p in model.parameters() if p.ndim < 2]
-head_params = [model.lm_head.weight]
-
-# init the optimizer(s)
-adam_params = [dict(params=head_params, lr=0.1/1024**0.5), dict(params=embed_params, lr=0.3), dict(params=scalar_params, lr=0.015)]
-# small adam epsilon by @YouJiacheng. this is an alternate method of fixing the world_size dependence
-# discovered by @fernbear.bsky.social https://x.com/hi_tysam/status/1879692937589875094
-optimizer1 = torch.optim.Adam(adam_params, betas=(0.8, 0.95), eps=1e-10, fused=True)
-optimizer2 = Muon(hidden_matrix_params, lr=0.025, momentum=0.95, rank=rank, world_size=world_size)
-optimizers = [optimizer1, optimizer2]
-for opt in optimizers:
-    for group in opt.param_groups:
-        group["initial_lr"] = group["lr"]
-
-# learning rate schedule: stable then decay
-def get_lr(step: int):
-    x = step / args.num_iterations # progress in training
-    assert 0 <= x < 1
-    if x < 1 - args.cooldown_frac:
-        return 1.0
-    else:
-        return (1 - x) / args.cooldown_frac
-
-# attention window size schedule: linearly increase
-@lru_cache(1)
-def get_window_size_blocks_helper(window_size: int):
-    return torch.tensor(window_size // 128, dtype=torch.int32, pin_memory=True).cuda(non_blocking=True)
-def get_window_size_blocks(step: int):
-    x = step / args.num_iterations # progress in training
-    assert 0 <= x <= 1
-    # Linearly increase the block-wise sliding window size over training 128 -> 1792
-    # increase by @fernbear.bsky.social; block-wise by @YouJiacheng
-    window_size = next_multiple_of_n(1728 * x, n=128)
-    return get_window_size_blocks_helper(window_size)
-
-model: nn.Module = torch.compile(model, dynamic=False)
-
-########################################
-#        Training and validation       #
-########################################
-
-train_loader = distributed_data_generator(
-    filename_patterns=args.train_files,
-    seq_len=args.seq_len,
-    batch_size=world_size * args.batch_size_train,
-    rank=rank,
-    world_size=world_size,
-    byte_params=byte_params,
-    device=device,
-)
-training_time_ms = 0
-# start the clock
-torch.cuda.synchronize()
-t0 = time.perf_counter()
-loss = torch.tensor(0.0, device="cuda")
-print0("Beginning training...", console=True)
-# begin training
-train_steps = args.num_iterations
-for step in range(train_steps + 1):
-    last_step = (step == train_steps)
-
-    # --------------- VALIDATION SECTION -----------------
-    if last_step or (args.val_loss_every > 0 and step % args.val_loss_every == 0):
-        # stop the clock
-        torch.cuda.synchronize()
-        training_time_ms += 1000 * (time.perf_counter() - t0)
-        model.eval()
-
-        # fineweb validation
-        val_steps_fw = 0
-        val_loader_fw = distributed_data_generator(
-            filename_patterns=args.val_files_fw,
-            seq_len=args.seq_len,
-            batch_size=world_size * args.batch_size_val,
-            rank=rank,
-            world_size=world_size,
-            byte_params=byte_params,
-            device=device,
-        )
-        val_loss_fw = 0
-        with torch.no_grad():
-            while True:
-                try:
-                    toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fw)
-                    val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
-                    val_steps_fw += 1
-                except (StopIteration, RuntimeError):
-                    break
-        val_loss_fw /= val_steps_fw
-        del val_loader_fw
-        dist.all_reduce(val_loss_fw, op=dist.ReduceOp.AVG)
-
-        # finemath validation
-        val_steps_fm = 0
-        val_loader_fm = distributed_data_generator(
-            filename_patterns=args.val_files_fm,
-            seq_len=args.seq_len,
-            batch_size=world_size * args.batch_size_val,
-            rank=rank,
-            world_size=world_size,
-            byte_params=byte_params,
-            device=device,
-        )
-        val_loss_fm = 0
-        with torch.no_grad():
-            while True:
-                try:
-                    toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fm)
-                    val_loss_fm += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
-                    val_steps_fm += 1
-                except (StopIteration, RuntimeError):
-                    break
-        val_loss_fm /= val_steps_fm
-        del val_loader_fm
-        dist.all_reduce(val_loss_fm, op=dist.ReduceOp.AVG)
-
-        # print the results
-        print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} steps_fw:{val_steps_fw} steps_fm:{val_steps_fm} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
-        if master_process and args.wandb_project:
-            wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/train_time": training_time_ms,  "val/step_avg_time": training_time_ms/max(step, 1)})
+    # begin logging
+    logfile = None
+    if master_process:
+        run_id = make_name(args)
+        os.makedirs("logs", exist_ok=True)
+        logfile = f"logs/{run_id}.txt"
+        print(logfile)
+    def print0(s, console=False):
         if master_process:
-            val_losses_fw.append(float(val_loss_fw))
-            val_losses_fm.append(float(val_loss_fm))
-        model.train()
-        # start the clock again
-        torch.cuda.synchronize()
-        t0 = time.perf_counter()
+            with open(logfile, "a") as f:
+                if console:
+                    print(s)
+                print(s, file=f)
 
-    if last_step:
-        if master_process and step > 0 and args.save_checkpoint_every > 0 and step % args.save_checkpoint_every == 0:
-            t0 = time.perf_counter()
-            safetensors.torch.save_model(model, run_id + ".safetensors", metadata=args.__dict__)
-            upload_file(run_id + ".safetensors", path_in_repo="model.safetensors", repo_id=run_id, token=hf_token)
-            print(f"Saved checkpoint at step {step} in {int(time.perf_counter()-t0)} seconds")
-        # the last step only has the validation loop, so break to avoid training
-        break
+    print0("\n\n" + repr(args) + "\n\n", console=True)
 
-    # --------------- TRAINING SECTION -----------------
-    toks_in, bytes_padded_in, bytes_pulled_in, targets = next(train_loader)
-    loss = model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
-    loss.backward()
+    if args.seed:
+        torch.manual_seed(args.seed)
+        print0(f"Set seed to {args.seed}")
+
+    # begin by printing this file (the Python code)
+    print0(code)
+    print0("="*100)
+    # log information about the hardware/software environment this is running on
+    print0(f"Running Python {sys.version}")
+    print0(f"Running PyTorch {torch.version.__version__} compiled for CUDA {torch.version.cuda}")
+    def nvidia_smi():
+        import subprocess  # avoid top level import
+        return subprocess.run(["nvidia-smi"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True).stdout
+    print0(nvidia_smi())
+    print0("="*100)
+
+    ########################################
+    #    Construct model and optimizer     #
+    ########################################
+    byte_params = ByteHyperparameters(
+        padding_in=args.padding_in,
+        padding_out=args.padding_out,
+        pull_in=args.pull_in,
+        pull_out=args.pull_out,
+        add_padded_and_pulled=args.add_padded_and_pulled,
+        byte_mixin_method=args.byte_mixin_method,
+        byte_mixout_method=args.byte_mixout_method,
+        bytes_per_token=args.bytes_per_token,
+    )
+    model_dims = ModelDims(
+        model_dim=args.model_dim,
+        byte_dim=args.byte_dim,
+        token_dim=args.token_dim,
+        expansion_factor=args.expansion_factor,
+    )
+    model: nn.Module = GPT(
+        vocab_size=args.vocab_size,
+        num_layers=16,
+        num_heads=8,
+        max_seq_len=args.seq_len,
+        model_dims=model_dims,
+        byte_params=byte_params,
+    ).cuda()
+    for m in model.modules():
+        if isinstance(m, nn.Embedding):
+            m.bfloat16()
     for param in model.parameters():
-        dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
-    # set optimization hyperparameters
+        dist.broadcast(param.detach(), 0)
+
+    args.num_params = sum(p.numel() for p in model.parameters())
+    print0(f"\n\nNumber of parameters: {args.num_params:_}\n", console=True)
+    if args.num_iterations <= 0:
+        dist.destroy_process_group()
+        return
+
+    # collect the parameters to optimize
+    hidden_matrix_params = [p for n, p in model.blocks.named_parameters() if p.ndim >= 2 and "embed" not in n]
+    hidden_matrix_params.extend([p for p in model.byte_mixout.parameters() if p.ndim >= 2])
+    embed_params = [p for n, p in model.named_parameters() if "embed" in n if p.ndim >= 2]
+    if args.byte_mixin_method == "concat":
+        embed_params.extend([p for p in model.byte_mixin.mixin.mixin.parameters() if p.ndim >= 2])
+        hidden_matrix_params.extend([p for p in model.byte_mixin.mixin.attention.parameters() if p.ndim >= 2])
+    elif args.byte_mixin_method == "cross_attn":
+        hidden_matrix_params.extend([p for p in model.byte_mixin.parameters() if p.ndim >= 2])
+    scalar_params = [p for p in model.parameters() if p.ndim < 2]
+    head_params = [model.lm_head.weight]
+
+    # init the optimizer(s)
+    adam_params = [dict(params=head_params, lr=0.1/1024**0.5), dict(params=embed_params, lr=0.3), dict(params=scalar_params, lr=0.015)]
+    # small adam epsilon by @YouJiacheng. this is an alternate method of fixing the world_size dependence
+    # discovered by @fernbear.bsky.social https://x.com/hi_tysam/status/1879692937589875094
+    optimizer1 = torch.optim.Adam(adam_params, betas=(0.8, 0.95), eps=1e-10, fused=True)
+    optimizer2 = Muon(hidden_matrix_params, lr=0.025, momentum=0.95, rank=rank, world_size=world_size)
+    optimizers = [optimizer1, optimizer2]
     for opt in optimizers:
         for group in opt.param_groups:
-            group["lr"] = group["initial_lr"] * get_lr(step)
-    for group in optimizer2.param_groups:
-        frac = min(step / 300, 1) # momentum warmup for muon
-        group["momentum"] = (1 - frac) * 0.85 + frac * 0.95
-    # step the optimizers
-    for opt in optimizers:
-        opt.step()
-    # null the gradients
-    model.zero_grad(set_to_none=True)
-    # logging
-    approx_training_time_ms = training_time_ms + 1000 * (time.perf_counter() - t0)
-    print0(f"step:{step+1}/{train_steps} train_time:{approx_training_time_ms:.0f}ms step_avg:{approx_training_time_ms/(step + 1):.2f}ms", console=True)
-    if master_process and args.wandb_project:
-        wandb.log({"train/loss": loss.item(), "train/train_time": approx_training_time_ms})
+            group["initial_lr"] = group["lr"]
 
-print0(f"peak memory allocated: {torch.cuda.max_memory_allocated() // 1024 // 1024} MiB "
-       f"reserved: {torch.cuda.max_memory_reserved() // 1024 // 1024} MiB", console=True)
-if master_process:
-    os.makedirs("results", exist_ok=True)
-    args.final_val_loss_fw = val_losses_fw[-1]
-    args.min_val_loss_fw = min(val_losses_fw)
-    args.final_val_loss_fm = val_losses_fm[-1]
-    args.min_val_loss_fm = min(val_losses_fm)
-    args.step_avg_train_time = float(approx_training_time_ms / max(step+1, 1))
-    with open(f"results/{run_id}.json", "w") as f:
-        f.write(json.dumps(vars(args), indent=4))
-dist.destroy_process_group()
+    # learning rate schedule: stable then decay
+    def get_lr(step: int):
+        x = step / args.num_iterations # progress in training
+        assert 0 <= x < 1
+        if x < 1 - args.cooldown_frac:
+            return 1.0
+        else:
+            return (1 - x) / args.cooldown_frac
+
+    # attention window size schedule: linearly increase
+    @lru_cache(1)
+    def get_window_size_blocks_helper(window_size: int):
+        return torch.tensor(window_size // 128, dtype=torch.int32, pin_memory=True).cuda(non_blocking=True)
+    def get_window_size_blocks(step: int):
+        x = step / args.num_iterations # progress in training
+        assert 0 <= x <= 1
+        # Linearly increase the block-wise sliding window size over training 128 -> 1792
+        # increase by @fernbear.bsky.social; block-wise by @YouJiacheng
+        window_size = next_multiple_of_n(1728 * x, n=128)
+        return get_window_size_blocks_helper(window_size)
+
+    model: nn.Module = torch.compile(model, dynamic=False)
+
+    ########################################
+    #        Training and validation       #
+    ########################################
+
+    train_loader = distributed_data_generator(
+        filename_patterns=args.train_files,
+        seq_len=args.seq_len,
+        batch_size=world_size * args.batch_size_train,
+        rank=rank,
+        world_size=world_size,
+        byte_params=byte_params,
+        device=device,
+    )
+    training_time_ms = 0
+    # start the clock
+    torch.cuda.synchronize()
+    t0 = time.perf_counter()
+    loss = torch.tensor(0.0, device="cuda")
+    print0("Beginning training...", console=True)
+    # begin training
+    train_steps = args.num_iterations
+    for step in range(train_steps + 1):
+        last_step = (step == train_steps)
+
+        # --------------- VALIDATION SECTION -----------------
+        if last_step or (args.val_loss_every > 0 and step % args.val_loss_every == 0):
+            # stop the clock
+            torch.cuda.synchronize()
+            training_time_ms += 1000 * (time.perf_counter() - t0)
+            model.eval()
+
+            # fineweb validation
+            val_steps_fw = 0
+            val_loader_fw = distributed_data_generator(
+                filename_patterns=args.val_files_fw,
+                seq_len=args.seq_len,
+                batch_size=world_size * args.batch_size_val,
+                rank=rank,
+                world_size=world_size,
+                byte_params=byte_params,
+                device=device,
+            )
+            val_loss_fw = 0
+            with torch.no_grad():
+                while True:
+                    try:
+                        toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fw)
+                        val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+                        val_steps_fw += 1
+                    except (StopIteration, RuntimeError):
+                        break
+            val_loss_fw /= val_steps_fw
+            del val_loader_fw
+            dist.all_reduce(val_loss_fw, op=dist.ReduceOp.AVG)
+
+            # finemath validation
+            val_steps_fm = 0
+            val_loader_fm = distributed_data_generator(
+                filename_patterns=args.val_files_fm,
+                seq_len=args.seq_len,
+                batch_size=world_size * args.batch_size_val,
+                rank=rank,
+                world_size=world_size,
+                byte_params=byte_params,
+                device=device,
+            )
+            val_loss_fm = 0
+            with torch.no_grad():
+                while True:
+                    try:
+                        toks_in, bytes_padded_in, bytes_pulled_in, targets = next(val_loader_fm)
+                        val_loss_fm += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+                        val_steps_fm += 1
+                    except (StopIteration, RuntimeError):
+                        break
+            val_loss_fm /= val_steps_fm
+            del val_loader_fm
+            dist.all_reduce(val_loss_fm, op=dist.ReduceOp.AVG)
+
+            # print the results
+            print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} steps_fw:{val_steps_fw} steps_fm:{val_steps_fm} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
+            if master_process and args.wandb_project:
+                wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/train_time": training_time_ms,  "val/step_avg_time": training_time_ms/max(step, 1)})
+            if master_process:
+                val_losses_fw.append(float(val_loss_fw))
+                val_losses_fm.append(float(val_loss_fm))
+            model.train()
+            # start the clock again
+            torch.cuda.synchronize()
+            t0 = time.perf_counter()
+
+        if last_step:
+            if master_process and step > 0 and args.save_checkpoint_every > 0 and step % args.save_checkpoint_every == 0:
+                t0 = time.perf_counter()
+                safetensors.torch.save_model(model, run_id + ".safetensors", metadata=args.__dict__)
+                upload_file(run_id + ".safetensors", path_in_repo="model.safetensors", repo_id=run_id, token=hf_token)
+                print(f"Saved checkpoint at step {step} in {int(time.perf_counter()-t0)} seconds")
+            # the last step only has the validation loop, so break to avoid training
+            break
+
+        # --------------- TRAINING SECTION -----------------
+        toks_in, bytes_padded_in, bytes_pulled_in, targets = next(train_loader)
+        loss = model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
+        loss.backward()
+        for param in model.parameters():
+            dist.all_reduce(param.grad, op=dist.ReduceOp.AVG)
+        # set optimization hyperparameters
+        for opt in optimizers:
+            for group in opt.param_groups:
+                group["lr"] = group["initial_lr"] * get_lr(step)
+        for group in optimizer2.param_groups:
+            frac = min(step / 300, 1) # momentum warmup for muon
+            group["momentum"] = (1 - frac) * 0.85 + frac * 0.95
+        # step the optimizers
+        for opt in optimizers:
+            opt.step()
+        # null the gradients
+        model.zero_grad(set_to_none=True)
+        # logging
+        approx_training_time_ms = training_time_ms + 1000 * (time.perf_counter() - t0)
+        print0(f"step:{step+1}/{train_steps} train_time:{approx_training_time_ms:.0f}ms step_avg:{approx_training_time_ms/(step + 1):.2f}ms", console=True)
+        if master_process and args.wandb_project:
+            wandb.log({"train/loss": loss.item(), "train/train_time": approx_training_time_ms})
+
+    print0(f"peak memory allocated: {torch.cuda.max_memory_allocated() // 1024 // 1024} MiB "
+        f"reserved: {torch.cuda.max_memory_reserved() // 1024 // 1024} MiB", console=True)
+    if master_process:
+        os.makedirs("results", exist_ok=True)
+        args.final_val_loss_fw = val_losses_fw[-1]
+        args.min_val_loss_fw = min(val_losses_fw)
+        args.final_val_loss_fm = val_losses_fm[-1]
+        args.min_val_loss_fm = min(val_losses_fm)
+        args.step_avg_train_time = float(approx_training_time_ms / max(step+1, 1))
+        with open(f"results/{run_id}.json", "w") as f:
+            f.write(json.dumps(vars(args), indent=4))
+    dist.destroy_process_group()
+
+
+if __name__ == "__main__":
+    main()
