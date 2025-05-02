@@ -164,6 +164,7 @@ class ModelDims:
     model_dim: int = 768
     byte_dim: int = 768
     token_dim: int = 768
+    expansion_factor: float = 4.0
 
 
 def norm(x: Tensor):
@@ -287,9 +288,9 @@ class CrossAttention(nn.Module):
         return y
 
 class MLP(nn.Module):
-    def __init__(self, dim: int, expansion_factor: int = 4):
+    def __init__(self, dim: int, expansion_factor: float = 4.0):
         super().__init__()
-        hdim = int(expansion_factor * dim)
+        hdim = next_multiple_of_n(int(expansion_factor * dim), n=128)
         self.c_fc = CastedLinear(dim, hdim)
         self.c_proj = CastedLinear(hdim, dim)
         self.c_proj.weight.detach().zero_() # zero init suggested by @Grad62304977
@@ -301,11 +302,11 @@ class MLP(nn.Module):
         return x
 
 class Block(nn.Module):
-    def __init__(self, dim: int, num_heads: int, max_seq_len: int, layer_idx: int, expansion_factor: int = 4):
+    def __init__(self, dims: ModelDims, num_heads: int, max_seq_len: int, layer_idx: int):
         super().__init__()
         # skip attention of blocks.7 (the 8th layer) by @YouJiacheng
-        self.attn = CausalSelfAttention(dim, num_heads, max_seq_len) if layer_idx != 7 else None
-        self.mlp = MLP(dim, expansion_factor)
+        self.attn = CausalSelfAttention(dims.model_dim, num_heads, max_seq_len) if layer_idx != 7 else None
+        self.mlp = MLP(dims.model_dim, dims.expansion_factor)
         self.lambdas = nn.Parameter(torch.tensor([1., 0.]))
 
     def forward(self, x: Tensor, ve: Tensor | None, x0: Tensor, block_mask: BlockMask):
@@ -523,9 +524,8 @@ def next_multiple_of_n(v: float | int, *, n: int):
 class GPT(nn.Module):
     def __init__(
             self, vocab_size: int, num_layers: int, num_heads: int,
-            model_dims: ModelDims, max_seq_len: int, expansion_factor: int = 4,
+            model_dims: ModelDims, max_seq_len: int,
             byte_params: ByteHyperparameters | None = None,
-            n_layer_output: int = 1,
     ):
         super().__init__()
         self.embed = FlexibleEmbedding(dims=model_dims, vocab_size=vocab_size, byte_params=byte_params)
@@ -535,7 +535,7 @@ class GPT(nn.Module):
         # token value embeddings by @KoszarskyB - inspired by @Grad62304977's value residual implementation following https://arxiv.org/abs/2410.17897
         # value embedding code simplification inspired by @ragulpr https://github.com/KellerJordan/modded-nanogpt/pull/78
         self.value_embeds = nn.ModuleList([nn.Embedding(vocab_size, model_dims.model_dim) for _ in range(3)])
-        self.blocks = nn.ModuleList([Block(model_dims.model_dim, num_heads, max_seq_len, i, expansion_factor) for i in range(num_layers)])
+        self.blocks = nn.ModuleList([Block(model_dims, num_heads, max_seq_len, i) for i in range(num_layers)])
         self.byte_mixout = ByteMixout(
             dims=model_dims, max_seq_len=max_seq_len, byte_params=byte_params
         )
@@ -940,6 +940,10 @@ def get_args() -> Hyperparameters:
         "--token-dim", type=int, default=1024,
         help="",
     )
+    parser.add_argument(
+        "--expansion-factor", type=float, default=4.0,
+        help="",
+    )
     # Other
     parser.add_argument(
         "--seed", type=int, default=None,
@@ -972,6 +976,7 @@ def get_args() -> Hyperparameters:
         model_dim=args.model_dim,
         byte_dim=args.byte_dim,
         token_dim=args.token_dim,
+        expansion_factor=args.expansion_factor,
         seed=args.seed,
         wandb_project=args.wandb_project,
     )
@@ -1045,13 +1050,17 @@ byte_params = ByteHyperparameters(
     byte_mixout_method=args.byte_mixout_method,
     bytes_per_token=args.bytes_per_token,
 )
-model_dims = ModelDims(model_dim=args.model_dim, byte_dim=args.byte_dim, token_dim=args.token_dim)
+model_dims = ModelDims(
+    model_dim=args.model_dim,
+    byte_dim=args.byte_dim,
+    token_dim=args.token_dim,
+    expansion_factor=args.expansion_factor,
+)
 model: nn.Module = GPT(
     vocab_size=args.vocab_size,
     num_layers=16,
     num_heads=8,
     max_seq_len=args.seq_len,
-    expansion_factor=args.expansion_factor,
     model_dims=model_dims,
     byte_params=byte_params,
 ).cuda()
