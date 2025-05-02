@@ -817,6 +817,7 @@ class Hyperparameters:
     seed: int | None = None
     wandb_project: str | None = None
     # results
+    num_params: int | None = None
     final_val_loss_fw: float | None = None
     min_val_loss_fw: float | None = None
     final_val_loss_fm: float | None = None
@@ -1060,6 +1061,9 @@ for m in model.modules():
 for param in model.parameters():
     dist.broadcast(param.detach(), 0)
 
+args.num_params = sum(p.numel() for p in model.parameters())
+print0(f"\n\nNumber of parameters: {args.num_params:_}\n", console=True)
+
 # collect the parameters to optimize
 hidden_matrix_params = [p for n, p in model.blocks.named_parameters() if p.ndim >= 2 and "embed" not in n]
 hidden_matrix_params.extend([p for p in model.byte_mixout.parameters() if p.ndim >= 2])
@@ -1188,7 +1192,7 @@ for step in range(train_steps + 1):
         # print the results
         print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} steps_fw:{val_steps_fw} steps_fm:{val_steps_fm} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
         if master_process and args.wandb_project:
-            wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/train_time": training_time_ms})
+            wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/train_time": training_time_ms,  "val/step_avg_time": training_time_ms/max(step, 1)})
         if master_process:
             val_losses_fw.append(float(val_loss_fw))
             val_losses_fm.append(float(val_loss_fm))
