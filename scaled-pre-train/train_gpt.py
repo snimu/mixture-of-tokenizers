@@ -468,10 +468,10 @@ class ByteMixoutCopy(nn.Module):
             ByteSelfAttn(dims.model_dim, max_seq_len, byte_params)  # use model dim at output
             for _ in range(byte_params.n_layer_out)
         ])
-        self.byte_params = byte_params
+        self.bpt = byte_params.bytes_per_token
 
     def forward(self, x: Tensor) -> Tensor:
-        x = einops.repeat(x, "... T D-> ... (T bpt) D", bpt=self.byte_params.bytes_per_token)
+        x = einops.repeat(x, "... T D-> ... (T bpt) D", bpt=self.bpt)
         for layer in self.attention_layers:
             x = x + layer(norm(x))
         return x
@@ -845,6 +845,7 @@ def make_name(args: Hyperparameters) -> str:
     name += f"_bpt-{args.bytes_per_token}"
     name += f"_mixin-{args.byte_mixin_method}"
     name += f"_mixout-{args.byte_mixout_method}"
+    name += f"_nlayerout-{args.n_layer_out}" if args.byte_mixout_method != "noop" else ""
     name += f"_bdim-{args.byte_dim}"
     name += f"_tdim-{args.token_dim}"
     name += f"_mdim-{args.model_dim}"
