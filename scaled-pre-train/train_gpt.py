@@ -546,7 +546,8 @@ class GPT(nn.Module):
         # there are only 50257 unique GPT-2 tokens; we extend to nearest multiple of 128 for efficiency.
         # suggested to me by @Grad62304977. this originates from Karpathy's experiments.
         lm_head_in_dim = model_dims.model_dim if byte_params.byte_mixout_method != "split" else model_dims.model_dim // byte_params.bytes_per_token
-        self.lm_head = CastedLinear(lm_head_in_dim, next_multiple_of_n(vocab_size, n=128))
+        lm_head_out_dim = vocab_size if byte_params.byte_mixout_method == "noop" else byte_params.vocab_size
+        self.lm_head = CastedLinear(lm_head_in_dim, next_multiple_of_n(lm_head_out_dim, n=128))
         self.lm_head.weight.detach().zero_() # @Grad62304977
         # Add learnable skip connection weights for decoder layers
         assert num_layers % 2 == 0
