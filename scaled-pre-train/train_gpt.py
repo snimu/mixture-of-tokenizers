@@ -541,7 +541,8 @@ class GPT(nn.Module):
         )
         # there are only 50257 unique GPT-2 tokens; we extend to nearest multiple of 128 for efficiency.
         # suggested to me by @Grad62304977. this originates from Karpathy's experiments.
-        self.lm_head = CastedLinear(model_dims.model_dim, next_multiple_of_n(vocab_size, n=128))
+        lm_head_in_dim = model_dims.model_dim if byte_params.byte_mixout_method != "split" else model_dims.model_dim // byte_params.bytes_per_token
+        self.lm_head = CastedLinear(lm_head_in_dim, next_multiple_of_n(vocab_size, n=128))
         self.lm_head.weight.detach().zero_() # @Grad62304977
         # Add learnable skip connection weights for decoder layers
         assert num_layers % 2 == 0
@@ -981,6 +982,8 @@ def get_args() -> Hyperparameters:
         wandb_project=args.wandb_project,
     )
     hps.train_files = list(hps.train_files)
+    if hps.byte_mixout_method == "split":
+        assert hps.model_dim % hps.bytes_per_token == 0, f"model_dim ({hps.model_dim}) must be a multiple of bytes_per_token ({hps.bytes_per_token})"
     return hps
 def main():
     args = get_args()
@@ -1172,8 +1175,6 @@ def main():
                         val_loss_fw += model(toks_in, bytes_padded_in, bytes_pulled_in, targets)
                         val_steps_fw += 1
                     except (StopIteration, RuntimeError) as e:
-                        import traceback
-                        print0(traceback.format_exc(), console=True)
                         break
             val_loss_fw /= val_steps_fw
             del val_loader_fw
