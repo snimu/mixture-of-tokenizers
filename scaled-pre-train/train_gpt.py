@@ -1058,6 +1058,7 @@ def main():
         byte_mixin_method=args.byte_mixin_method,
         byte_mixout_method=args.byte_mixout_method,
         bytes_per_token=args.bytes_per_token,
+        n_layer_out=args.n_layer_out,
     )
     model_dims = ModelDims(
         model_dim=args.model_dim,
