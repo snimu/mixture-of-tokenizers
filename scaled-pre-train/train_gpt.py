@@ -1255,8 +1255,14 @@ def main():
         args.final_val_loss_fm = val_losses_fm[-1]
         args.min_val_loss_fm = min(val_losses_fm)
         args.step_avg_train_time = float(approx_training_time_ms / max(step+1, 1))
+        if os.path.exists(f"results/{run_id}.json"):
+            with open(f"results/{run_id}.json", "r") as f:
+                results = json.load(f)
+                results.append(vars(args))
+        else:
+            results = [vars(args)]
         with open(f"results/{run_id}.json", "w") as f:
-            f.write(json.dumps(vars(args), indent=4))
+            f.write(json.dumps(results, indent=4))
     dist.destroy_process_group()
 
 
