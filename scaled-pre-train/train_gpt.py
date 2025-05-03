@@ -842,22 +842,16 @@ def download_data():
 
 
 def make_name(args: Hyperparameters) -> str:
-    name = "MoT-scaled-pretrain"
-    name += f"_padding-{args.padding_in}-{args.padding_out}"
-    name += f"_pull-{int(args.pull_in)}-{int(args.pull_out)}"
-    name += "_pad-pull" if args.add_padded_and_pulled else ""
+    name = "MoT"
+    name += f"_pad-{'l' if args.padding_in == 'left' else 'r'}{'l' if args.padding_out == 'left' else 'r'}"
+    name += f"_pull-{'y' if args.pull_in else 'n'}{'y' if args.pull_out else 'n'}"
+    name += "_add" if args.add_padded_and_pulled else ""
     name += f"_bpt-{args.bytes_per_token}"
-    name += f"_mixin-{args.byte_mixin_method}"
-    name += f"_mixout-{args.byte_mixout_method}"
-    name += f"_nlayerout-{args.n_layer_out}" if args.byte_mixout_method != "noop" else ""
-    name += f"_bdim-{args.byte_dim}"
-    name += f"_tdim-{args.token_dim}"
-    name += f"_mdim-{args.model_dim}"
+    name += f"_how-{args.byte_mixin_method}-{args.byte_mixout_method}"
+    name += f"_nlo-{args.n_layer_out}" if args.byte_mixout_method != "noop" else ""
+    name += f"_BTMdim-{args.byte_dim}-{args.token_dim}-{args.model_dim}"
     name += f"_niter-{args.num_iterations}"
-    name += f"_seed-{args.seed}"
-    timeinfo = time.localtime()
-    date = f"{timeinfo.tm_year}-{timeinfo.tm_mon}-{timeinfo.tm_mday}"
-    name += f"_{date}"
+    name += f"_{args.seed}"
     return name
 
 
