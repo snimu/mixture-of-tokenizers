@@ -1232,7 +1232,7 @@ def main():
 
         if master_process and step > 0 and args.save_checkpoint_every > 0 and (step % args.save_checkpoint_every == 0 or last_step):
             t0 = time.perf_counter()
-            safetensors.torch.save_model(model, run_id + ".safetensors", metadata={str(k): str(v) for k, v in vars(args)})
+            safetensors.torch.save_model(model, run_id + ".safetensors", metadata={str(k): str(v) for k, v in vars(args).items()})
             upload_file(
                 run_id + ".safetensors",
                 path_in_repo="model.safetensors",
