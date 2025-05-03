@@ -32,7 +32,7 @@ from data_creation import make_embedding, tokens_to_bytes, pull_from_left, pull_
 from data_download import download
 import wandb
 import safetensors.torch
-from huggingface_hub import upload_file
+from huggingface_hub import upload_file, create_repo
 
 # -----------------------------------------------------------------------------
 # Muon optimizer
@@ -1019,6 +1019,8 @@ def main():
         os.makedirs("logs", exist_ok=True)
         logfile = f"logs/{run_id}.txt"
         print(logfile)
+        if args.save_checkpoint_every > 0:
+            create_repo(repo_id=run_id, token=hf_token, exist_ok=True)
     def print0(s, console=False):
         if master_process:
             with open(logfile, "a") as f:
