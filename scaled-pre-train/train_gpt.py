@@ -1020,7 +1020,7 @@ def main():
         logfile = f"logs/{run_id}.txt"
         print(logfile)
         if args.save_checkpoint_every > 0:
-            create_repo(repo_id=run_id, token=hf_token, exist_ok=True)
+            create_repo(repo_id=f"snimu/{run_id}", token=hf_token, exist_ok=True)
     def print0(s, console=False):
         if master_process:
             with open(logfile, "a") as f:
@@ -1232,7 +1232,7 @@ def main():
             upload_file(
                 path_or_fileobj=run_id + ".safetensors",
                 path_in_repo="model.safetensors",
-                repo_id=run_id,
+                repo_id=f"snimu/{run_id}",
                 revision="main" if last_step else f"step-{step}",
                 token=hf_token,
             )
