@@ -1277,14 +1277,14 @@ def main():
         args.val_losses_fm = val_losses_fm
         args.peak_mem_alloc_mb = peak_mem_alloc_mb
         args.peak_mem_reserved_mb = peak_mem_reserved_mb
-        if os.path.exists(f"results/{run_id}.json"):
-            with open(f"results/{run_id}.json", "r") as f:
-                results = json.load(f)
+        if os.path.exists("results/results.json"):
+            with open("results/results.json", "r") as f:
+                results: list = json.loads(f.read())
                 results.append(vars(args))
         else:
             results = [vars(args)]
-        with open(f"results/{run_id}.json", "w") as f:
-            f.write(json.dumps(results, indent=4))
+        with open("results/results.json", "w") as f:
+            f.write(json.dumps(results, indent=2))
     dist.destroy_process_group()
 
 
