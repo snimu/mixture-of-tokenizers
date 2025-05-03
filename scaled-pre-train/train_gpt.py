@@ -1029,7 +1029,7 @@ def main():
         if master_process:
             with open(logfile, "a") as f:
                 if console:
-                    print(s)
+                    print(s, flush=True)
                 print(s, file=f)
 
     print0("\n\n" + repr(args) + "\n\n", console=True)
