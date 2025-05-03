@@ -6,7 +6,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seq-len 1024 \
     --batch-size-train 64 \
     --batch-size-val 32 \
-    --val-loss-every 10 \
+    --val-loss-every 50 \
     --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method noop \
@@ -34,7 +34,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seq-len 1024 \
     --batch-size-train 64 \
     --batch-size-val 32 \
-    --val-loss-every 10 \
+    --val-loss-every 50 \
     --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
@@ -62,7 +62,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seq-len 1024 \
     --batch-size-train 64 \
     --batch-size-val 32 \
-    --val-loss-every 10 \
+    --val-loss-every 50 \
     --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
@@ -89,7 +89,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seq-len 1024 \
     --batch-size-train 64 \
     --batch-size-val 32 \
-    --val-loss-every 10 \
+    --val-loss-every 50 \
     --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
@@ -123,7 +123,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seq-len 1024 \
     --batch-size-train 64 \
     --batch-size-val 32 \
-    --val-loss-every 10 \
+    --val-loss-every 50 \
     --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
@@ -149,7 +149,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seq-len 1024 \
     --batch-size-train 64 \
     --batch-size-val 32 \
-    --val-loss-every 10 \
+    --val-loss-every 50 \
     --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
@@ -181,7 +181,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seq-len 1024 \
     --batch-size-train 64 \
     --batch-size-val 32 \
-    --val-loss-every 10 \
+    --val-loss-every 50 \
     --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
@@ -211,7 +211,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seq-len 1024 \
     --batch-size-train 64 \
     --batch-size-val 32 \
-    --val-loss-every 10 \
+    --val-loss-every 50 \
     --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
@@ -241,7 +241,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seq-len 1024 \
     --batch-size-train 64 \
     --batch-size-val 32 \
-    --val-loss-every 10 \
+    --val-loss-every 50 \
     --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
