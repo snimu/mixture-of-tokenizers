@@ -14,6 +14,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --model-dim 1024 \
     --token-dim 1024 \
     --seed 9090333 \
+    --save-checkpoint-every 500 \
     --wandb-project MoT-scaled-pre-train-tests
 
 #    Output tokens to make them comparable
@@ -37,6 +38,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --byte-dim 48 \
     --token-dim 256 \
     --seed 9090333 \
+    --save-checkpoint-every 500 \
     --wandb-project MoT-scaled-pre-train-tests
 # 2. Pull-in vs. no-pull-in vs. add-padded-and-pulled
 
@@ -61,6 +63,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --byte-dim 48 \
     --token-dim 256 \
     --seed 9090333 \
+    --save-checkpoint-every 500 \
     --wandb-project MoT-scaled-pre-train-tests
 
 # 3. Compare different mixout methods
@@ -86,6 +89,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --byte-dim 48 \
     --token-dim 256 \
     --seed 9090333 \
+    --save-checkpoint-every 500 \
     --wandb-project MoT-scaled-pre-train-tests
 
 # 3.2 copy with 1 self-attn layer
@@ -109,4 +113,5 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --byte-dim 48 \
     --token-dim 256 \
     --seed 9090333 \
+    --save-checkpoint-every 500 \
     --wandb-project MoT-scaled-pre-train-tests
