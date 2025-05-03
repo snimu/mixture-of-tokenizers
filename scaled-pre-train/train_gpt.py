@@ -829,6 +829,8 @@ class Hyperparameters:
     final_val_loss_fm: float | None = None
     min_val_loss_fm: float | None = None
     step_avg_train_time: float | None = None
+    val_losses_fw: list[float] | None = None
+    val_losses_fm: list[float] | None = None
 
 
 def download_data():
@@ -1144,6 +1146,7 @@ def main():
         world_size=world_size,
         byte_params=byte_params,
         device=device,
+        seed=args.seed,
     )
     training_time_ms = 0
     # start the clock
@@ -1173,6 +1176,7 @@ def main():
                 world_size=world_size,
                 byte_params=byte_params,
                 device=device,
+                seed=args.seed,
             )
             val_loss_fw = 0
             with torch.no_grad():
@@ -1197,6 +1201,7 @@ def main():
                 world_size=world_size,
                 byte_params=byte_params,
                 device=device,
+                seed=args.seed,
             )
             val_loss_fm = 0
             with torch.no_grad():
@@ -1265,6 +1270,8 @@ def main():
         args.final_val_loss_fm = val_losses_fm[-1]
         args.min_val_loss_fm = min(val_losses_fm)
         args.step_avg_train_time = float(approx_training_time_ms / max(step+1, 1))
+        args.val_losses_fw = val_losses_fw
+        args.val_losses_fm = val_losses_fm
         if os.path.exists(f"results/{run_id}.json"):
             with open(f"results/{run_id}.json", "r") as f:
                 results = json.load(f)
