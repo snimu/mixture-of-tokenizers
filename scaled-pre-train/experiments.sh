@@ -54,8 +54,6 @@ torchrun --nproc_per_node=8 train_gpt.py \
     # "min_val_loss_fm": 5.868696212768555,
     # "step_avg_train_time": 489.14060482174233
 
-# Number of parameters: 429_827_974
-
 # 1.2 byte-dim*bpt + token-dim = model-dim
 #     But bytes get a larger embedding, so the token dim is smaller
 torchrun --nproc_per_node=8 train_gpt.py \
@@ -83,9 +81,6 @@ torchrun --nproc_per_node=8 train_gpt.py \
     # "final_val_loss_fm": 5.56953763961792,
     # "min_val_loss_fm": 5.527792930603027,
     # "step_avg_train_time": 552.0098968119224
-
-# Number of parameters: 416_969_510
-
 
 # 1.3 slightly larger byte embs
 torchrun --nproc_per_node=8 train_gpt.py \
@@ -209,6 +204,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
         # "min_val_loss_fm": 4.657312393188477,
         # "step_avg_train_time": 670.2071643664054
 
+# 3.2 split with 1 self-attn layer
 torchrun --nproc_per_node=8 train_gpt.py \
     --num-iterations 100 \
     --cooldown-frac 0.6 \
@@ -238,6 +234,7 @@ torchrun --nproc_per_node=8 train_gpt.py \
         # "min_val_loss_fm": 4.712076187133789,
         # "step_avg_train_time": 516.550470089167
 
+# 3.3 copy with 1 self-attn layer
 torchrun --nproc_per_node=8 train_gpt.py \
     --num-iterations 100 \
     --cooldown-frac 0.6 \
