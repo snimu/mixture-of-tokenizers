@@ -32,7 +32,7 @@ from data_creation import make_embedding, tokens_to_bytes, pull_from_left, pull_
 from data_download import download
 import wandb
 import safetensors.torch
-from huggingface_hub import upload_file, create_repo
+from huggingface_hub import upload_file, create_repo, HfApi
 
 # -----------------------------------------------------------------------------
 # Muon optimizer
@@ -1005,10 +1005,12 @@ def main():
 
     if master_process and args.wandb_project and args.num_iterations > 0:
         wandb.init(project=args.wandb_project, name=make_name(args), config=args, save_code=True)
+    api = None
     if master_process:
         hf_token = os.getenv("HF_TOKEN")
         assert hf_token is not None, "Please set the HF_TOKEN environment variable."
         download_data()
+        api = HfApi()
         val_losses_fw = []
         val_losses_fm = []
 
@@ -1228,7 +1230,13 @@ def main():
 
         if master_process and step > 0 and args.save_checkpoint_every > 0 and (step % args.save_checkpoint_every == 0 or last_step):
             t0 = time.perf_counter()
-            safetensors.torch.save_model(model, run_id + ".safetensors", metadata={str(k): str(v) for k, v in vars(args).items()})
+            safetensors.torch.save_model(model, run_id + ".safetensors", metadata={str(k): str(v) for k, v in vars(args).items()})  # yes, overwrite this
+            api.create_branch(
+                repo_id=f"snimu/{run_id}",
+                branch="main" if last_step else f"step-{step}",
+                repo_type="model",
+                exist_ok=True # Don't error if it already exists
+            )
             upload_file(
                 path_or_fileobj=run_id + ".safetensors",
                 path_in_repo="model.safetensors",
@@ -1236,6 +1244,7 @@ def main():
                 revision="main" if last_step else f"step-{step}",
                 token=hf_token,
             )
+            os.remove(run_id + ".safetensors")
             print(f"Saved checkpoint at step {step} in {int(time.perf_counter()-t0)} seconds")
         if last_step:
             # the last step only has the validation loop, so break to avoid training
