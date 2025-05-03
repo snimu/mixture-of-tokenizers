@@ -198,11 +198,11 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --wandb-project MoT-scaled-pre-train-tests
 
         # "num_params": 365_490_982,
-        # "final_val_loss_fw": 3.0287742614746094,
-        # "min_val_loss_fw": 3.0287742614746094,
-        # "final_val_loss_fm": 4.808889865875244,
-        # "min_val_loss_fm": 4.657312393188477,
-        # "step_avg_train_time": 670.2071643664054
+    # "final_val_loss_fw": 3.028449058532715,
+    # "min_val_loss_fw": 3.028449058532715,
+    # "final_val_loss_fm": 4.834708213806152,
+    # "min_val_loss_fm": 4.652087688446045,
+    # "step_avg_train_time": 664.8992933269526,
 
 # 3.2 split with 1 self-attn layer
 torchrun --nproc_per_node=8 train_gpt.py \
@@ -227,12 +227,12 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seed 12345 \
     --wandb-project MoT-scaled-pre-train-tests
 
-        # "num_params": 365_490_982,
-        # "final_val_loss_fw": 3.0277862548828125,
-        # "min_val_loss_fw": 3.0277862548828125,
-        # "final_val_loss_fm": 4.789813995361328,
-        # "min_val_loss_fm": 4.712076187133789,
-        # "step_avg_train_time": 516.550470089167
+    # "num_params": 365_490_982,
+    # "final_val_loss_fw": 3.0281455516815186,
+    # "min_val_loss_fw": 3.0281455516815186,
+    # "final_val_loss_fm": 4.805236339569092,
+    # "min_val_loss_fm": 4.707444667816162,
+    # "step_avg_train_time": 512.7760536731267,
 
 # 3.3 copy with 1 self-attn layer
 torchrun --nproc_per_node=8 train_gpt.py \
@@ -258,8 +258,8 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --wandb-project MoT-scaled-pre-train-tests
 
     # "num_params": 365_982_502,
-    # "final_val_loss_fw": 3.1354775428771973,
-    # "min_val_loss_fw": 3.1354775428771973,
-    # "final_val_loss_fm": 4.467406272888184,
-    # "min_val_loss_fm": 4.204345226287842,
-    # "step_avg_train_time": 492.57973214851444
+    # "final_val_loss_fw": 3.1351568698883057,
+    # "min_val_loss_fw": 3.1351568698883057,
+    # "final_val_loss_fm": 4.343830108642578,
+    # "min_val_loss_fm": 4.177652359008789,
+    # "step_avg_train_time": 606.9947358713275,
