@@ -831,6 +831,8 @@ class Hyperparameters:
     step_avg_train_time: float | None = None
     val_losses_fw: list[float] | None = None
     val_losses_fm: list[float] | None = None
+    peak_mem_alloc_mb: int | None = None
+    peak_mem_reserved_mb: int | None = None
 
 
 def download_data():
@@ -1261,8 +1263,9 @@ def main():
         if master_process and args.wandb_project:
             wandb.log({"train/loss": loss.item(), "train/train_time": approx_training_time_ms})
 
-    print0(f"peak memory allocated: {torch.cuda.max_memory_allocated() // 1024 // 1024} MiB "
-        f"reserved: {torch.cuda.max_memory_reserved() // 1024 // 1024} MiB", console=True)
+    peak_mem_alloc_mb = torch.cuda.max_memory_allocated() // 1024 // 1024
+    peak_mem_reserved_mb = torch.cuda.max_memory_reserved() // 1024 // 1024
+    print0(f"peak memory allocated: {peak_mem_alloc_mb} MiB reserved: {peak_mem_reserved_mb} MiB", console=True)
     if master_process:
         os.makedirs("results", exist_ok=True)
         args.final_val_loss_fw = val_losses_fw[-1]
@@ -1272,6 +1275,8 @@ def main():
         args.step_avg_train_time = float(approx_training_time_ms / max(step+1, 1))
         args.val_losses_fw = val_losses_fw
         args.val_losses_fm = val_losses_fm
+        args.peak_mem_alloc_mb = peak_mem_alloc_mb
+        args.peak_mem_reserved_mb = peak_mem_reserved_mb
         if os.path.exists(f"results/{run_id}.json"):
             with open(f"results/{run_id}.json", "r") as f:
                 results = json.load(f)
