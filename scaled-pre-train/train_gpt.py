@@ -1165,6 +1165,7 @@ def main():
             torch.cuda.synchronize()
             training_time_ms += 1000 * (time.perf_counter() - t0)
             model.eval()
+            val_t0 = time.perf_counter()
 
             # fineweb validation
             val_steps_fw = 0
@@ -1216,10 +1217,12 @@ def main():
             del val_loader_fm
             dist.all_reduce(val_loss_fm, op=dist.ReduceOp.AVG)
 
+            val_time_ms = int(1000 * (time.perf_counter() - val_t0))
+
             # print the results
-            print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} steps_fw:{val_steps_fw} steps_fm:{val_steps_fm} train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
+            print0(f"step:{step}/{train_steps} val_loss_fw:{val_loss_fw:.4f} val_loss_fm:{val_loss_fm:.4f} steps_fw:{val_steps_fw} steps_fm:{val_steps_fm} val_time: {val_time_ms}ms train_time:{training_time_ms:.0f}ms step_avg:{training_time_ms/max(step, 1):.2f}ms", console=True)
             if master_process and args.wandb_project:
-                wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/train_time": training_time_ms,  "val/step_avg_time": training_time_ms/max(step, 1)})
+                wandb.log({"val/loss_fw": val_loss_fw, "val/loss_fm": val_loss_fm, "val/val_time": val_time_ms, "val/train_time": training_time_ms,  "val/step_avg_time": training_time_ms/max(step, 1)})
             if master_process:
                 val_losses_fw.append(float(val_loss_fw))
                 val_losses_fm.append(float(val_loss_fm))
