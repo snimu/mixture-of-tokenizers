@@ -63,6 +63,27 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --save-checkpoint-every 500 \
     --wandb-project MoT-scaled-pre-train-tests
 
+# 1.3 Cross-attn
+torchrun --nproc_per_node=8 train_gpt.py \
+    --num-iterations 10000 \
+    --cooldown-frac 0.6 \
+    --seq-len 1024 \
+    --batch-size-train 64 \
+    --batch-size-val 32 \
+    --val-loss-every 250 \
+    --save-checkpoint-every 0 \
+    --bytes-per-token 16 \
+    --byte-mixin-method cross_attn \
+    --byte-mixout-method noop \
+    --padding-in left \
+    --pull-in \
+    --model-dim 1024 \
+    --byte-dim 1024 \
+    --token-dim 1024 \
+    --seed 9090333 \
+    --save-checkpoint-every 500 \
+    --wandb-project MoT-scaled-pre-train-tests
+
 # 2. Pull-in vs. no-pull-in vs. add-padded-and-pulled
 
 # 2.1 pull-in
