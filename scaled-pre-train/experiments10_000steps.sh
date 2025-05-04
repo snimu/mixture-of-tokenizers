@@ -7,7 +7,6 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --batch-size-train 64 \
     --batch-size-val 32 \
     --val-loss-every 250 \
-    --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method noop \
     --byte-mixout-method noop \
@@ -28,7 +27,6 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --batch-size-train 64 \
     --batch-size-val 32 \
     --val-loss-every 250 \
-    --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
     --byte-mixout-method noop \
@@ -50,7 +48,6 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --batch-size-train 64 \
     --batch-size-val 32 \
     --val-loss-every 250 \
-    --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
     --byte-mixout-method noop \
@@ -71,7 +68,6 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --batch-size-train 64 \
     --batch-size-val 32 \
     --val-loss-every 250 \
-    --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method cross_attn \
     --byte-mixout-method noop \
@@ -96,7 +92,6 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --batch-size-train 64 \
     --batch-size-val 32 \
     --val-loss-every 250 \
-    --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
     --byte-mixout-method noop \
@@ -120,7 +115,6 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --batch-size-train 64 \
     --batch-size-val 32 \
     --val-loss-every 250 \
-    --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
     --byte-mixout-method split \
@@ -144,7 +138,6 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --batch-size-train 64 \
     --batch-size-val 32 \
     --val-loss-every 250 \
-    --save-checkpoint-every 0 \
     --bytes-per-token 16 \
     --byte-mixin-method concat \
     --byte-mixout-method copy \
