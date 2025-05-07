@@ -494,8 +494,14 @@ class ByteMixoutCopy(nn.Module):
 class ByteMixoutSplit(nn.Module):
     def __init__(self, dims: ModelDims, max_seq_len: int, byte_params: ByteHyperparameters):
         super().__init__()
+        assert dims.model_dim % byte_params.bytes_per_token == 0
         self.attention_layers = nn.ModuleList([
-            ByteSelfAttn(dims.model_dim, max_seq_len, byte_params, byte_params.mix_bytes_in_tok_out)  # use model dim at output
+            ByteSelfAttn(
+                dims.model_dim // byte_params.bytes_per_token,
+                max_seq_len,
+                byte_params,
+                byte_params.mix_bytes_in_tok_out,
+            )
             for _ in range(byte_params.n_layer_out)
         ])
         self.bpt = byte_params.bytes_per_token
