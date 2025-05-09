@@ -157,8 +157,8 @@ class ByteHyperparameters:
     add_padded_and_pulled: bool = False
     sliding_window_tokens: int = 8
     n_layer_out: int = 1
-    mix_bytes_in_tok_in: bool = False
-    mix_bytes_in_tok_out: bool = False
+    mix_bytes_within_tok_in: bool = False
+    mix_bytes_within_tok_out: bool = False
 
 
 @dataclass
@@ -427,7 +427,7 @@ class ByteMixinConcat(nn.Module):
         super().__init__()
         self.byte_params = byte_params
         self.attention = ByteSelfAttn(
-            dims.byte_dim, max_seq_len, byte_params, byte_params.mix_bytes_in_tok_in
+            dims.byte_dim, max_seq_len, byte_params, byte_params.mix_bytes_within_tok_in
         ) if byte_params.use_byte_self_attn else nn.Identity()
         self.mixin = CastedLinear(dims.token_dim + dims.byte_dim * byte_params.bytes_per_token, dims.model_dim)
 
@@ -444,7 +444,7 @@ class ByteMixinCrossAttn(nn.Module):
         assert dims.byte_dim == dims.token_dim == dims.model_dim
         self.byte_params = byte_params
         self.attention = ByteSelfAttn(
-            dims.byte_dim, max_seq_len, byte_params, byte_params.mix_bytes_in_tok_in
+            dims.byte_dim, max_seq_len, byte_params, byte_params.mix_bytes_within_tok_in
         ) if byte_params.use_byte_self_attn else nn.Identity()
         self.mixin = CrossAttention(
             dim=dims.model_dim,
@@ -479,7 +479,7 @@ class ByteMixoutCopy(nn.Module):
     def __init__(self, dims: ModelDims, max_seq_len: int, byte_params: ByteHyperparameters):
         super().__init__()
         self.attention_layers = nn.ModuleList([
-            ByteSelfAttn(dims.model_dim, max_seq_len, byte_params, byte_params.mix_bytes_in_tok_out)  # use model dim at output
+            ByteSelfAttn(dims.model_dim, max_seq_len, byte_params, byte_params.mix_bytes_within_tok_out)  # use model dim at output
             for _ in range(byte_params.n_layer_out)
         ])
         self.bpt = byte_params.bytes_per_token
@@ -500,7 +500,7 @@ class ByteMixoutSplit(nn.Module):
                 dims.model_dim // byte_params.bytes_per_token,
                 max_seq_len,
                 byte_params,
-                byte_params.mix_bytes_in_tok_out,
+                byte_params.mix_bytes_within_tok_out,
             )
             for _ in range(byte_params.n_layer_out)
         ])
@@ -832,8 +832,8 @@ class Hyperparameters:
     sliding_window_tokens: int = 8
     n_layer_out: int = 1
     bytes_per_token: int = 16
-    mix_bytes_in_tok_in: bool = False
-    mix_bytes_in_tok_out: bool = False
+    mix_bytes_within_tok_in: bool = False
+    mix_bytes_within_tok_out: bool = False
     # Model dims
     model_dim: int = 1024
     byte_dim: int = 1024
@@ -955,10 +955,10 @@ def get_args() -> Hyperparameters:
         help="",
     )
     parser.add_argument(
-        "--mix-bytes-in-toks-in", action="store_true",
+        "--mix-bytes-within-tok-in", action="store_true",
     )
     parser.add_argument(
-        "--mix-bytes-in-toks-out", action="store_true",
+        "--mix-bytes-within-tok-out", action="store_true",
     )
     # Model dims
     parser.add_argument(
@@ -1006,8 +1006,8 @@ def get_args() -> Hyperparameters:
         pull_out=args.pull_out if args.byte_mixout_method != "noop" else False,
         sliding_window_tokens=args.sliding_window_tokens,
         n_layer_out=args.n_layer_out,
-        mix_bytes_in_tok_in=args.mix_bytes_in_tok_in,
-        mix_bytes_in_tok_out=args.mix_bytes_in_tok_out,
+        mix_bytes_within_tok_in=args.mix_bytes_within_tok_in,
+        mix_bytes_within_tok_out=args.mix_bytes_within_tok_out,
         model_dim=args.model_dim,
         byte_dim=args.byte_dim,
         token_dim=args.token_dim,
@@ -1091,8 +1091,8 @@ def main():
         byte_mixout_method=args.byte_mixout_method,
         bytes_per_token=args.bytes_per_token,
         n_layer_out=args.n_layer_out,
-        mix_bytes_in_tok_in=args.mix_bytes_in_tok_in,
-        mix_bytes_in_tok_out=args.mix_bytes_in_tok_out,
+        mix_bytes_within_tok_in=args.mix_bytes_within_tok_in,
+        mix_bytes_within_tok_out=args.mix_bytes_within_tok_out,
     )
     model_dims = ModelDims(
         model_dim=args.model_dim,
