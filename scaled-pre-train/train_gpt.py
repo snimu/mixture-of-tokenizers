@@ -834,6 +834,7 @@ class Hyperparameters:
     bytes_per_token: int = 16
     mix_bytes_within_tok_in: bool = False
     mix_bytes_within_tok_out: bool = False
+    use_byte_self_attn: bool = False
     # Model dims
     model_dim: int = 1024
     byte_dim: int = 1024
@@ -868,6 +869,8 @@ def make_name(args: Hyperparameters) -> str:
     name += f"_pad-{'l' if args.padding_in == 'left' else 'r'}{'l' if args.padding_out == 'left' else 'r'}"
     name += f"_pull-{'y' if args.pull_in else 'n'}{'y' if args.pull_out else 'n'}"
     name += "_add" if args.add_padded_and_pulled else ""
+    name += "_mix-in" if args.mix_bytes_within_tok_in and args.use_byte_self_attn else ""
+    name += "_mix-out" if args.mix_bytes_within_tok_out else ""
     name += f"_bpt-{args.bytes_per_token}"
     name += f"_how-{args.byte_mixin_method}-{args.byte_mixout_method}"
     name += f"_nlo-{args.n_layer_out}" if args.byte_mixout_method != "noop" else ""
@@ -1008,6 +1011,7 @@ def get_args() -> Hyperparameters:
         n_layer_out=args.n_layer_out,
         mix_bytes_within_tok_in=args.mix_bytes_within_tok_in,
         mix_bytes_within_tok_out=args.mix_bytes_within_tok_out,
+        use_byte_self_attn=args.use_byte_self_attn,
         model_dim=args.model_dim,
         byte_dim=args.byte_dim,
         token_dim=args.token_dim,
@@ -1093,6 +1097,7 @@ def main():
         n_layer_out=args.n_layer_out,
         mix_bytes_within_tok_in=args.mix_bytes_within_tok_in,
         mix_bytes_within_tok_out=args.mix_bytes_within_tok_out,
+        use_byte_self_attn=args.use_byte_self_attn,
     )
     model_dims = ModelDims(
         model_dim=args.model_dim,
