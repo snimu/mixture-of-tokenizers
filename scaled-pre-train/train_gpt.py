@@ -185,6 +185,7 @@ class CastedLinear(nn.Linear):
     def forward(self, x: Tensor):
         return F.linear(x, self.weight.type_as(x))
 
+
 class Rotary(nn.Module):
     def __init__(self, dim: int, max_seq_len: int):
         super().__init__()
@@ -203,6 +204,7 @@ class Rotary(nn.Module):
         y1 = x1 * cos + x2 * sin
         y2 = x1 * (-sin) + x2 * cos
         return torch.cat((y1, y2), 3).type_as(x_BTHD)
+
 
 class CausalSelfAttention(nn.Module):
     def __init__(self, dim: int, num_heads: int, max_seq_len: int, head_dim=128):
@@ -236,6 +238,7 @@ class CausalSelfAttention(nn.Module):
         y = y.contiguous().view(B, T, self.num_heads * self.head_dim) # re-assemble all head outputs side by side
         y = self.c_proj(y)
         return y
+
 
 class CrossAttention(nn.Module):
     """
@@ -289,6 +292,7 @@ class CrossAttention(nn.Module):
         y = self.c_proj(y)
         return y
 
+
 class MLP(nn.Module):
     def __init__(self, dim: int, expansion_factor: float = 4.0):
         super().__init__()
@@ -302,6 +306,7 @@ class MLP(nn.Module):
         x = F.relu(x).square() # https://arxiv.org/abs/2109.08668v2; ~1-2% better than GELU; suggested by @SKYLINEZ007 and @Grad62304977
         x = self.c_proj(x)
         return x
+
 
 class Block(nn.Module):
     def __init__(self, dims: ModelDims, num_heads: int, max_seq_len: int, layer_idx: int):
@@ -1023,6 +1028,8 @@ def get_args() -> Hyperparameters:
     if hps.byte_mixout_method == "split":
         assert hps.model_dim % hps.bytes_per_token == 0, f"model_dim ({hps.model_dim}) must be a multiple of bytes_per_token ({hps.bytes_per_token})"
     return hps
+
+
 def main():
     args = get_args()
 
@@ -1270,7 +1277,7 @@ def main():
 
         if master_process and step > 0 and args.save_checkpoint_every > 0 and (step % args.save_checkpoint_every == 0 or last_step):
             t0 = time.perf_counter()
-            safetensors.torch.save_model(model, run_id + ".safetensors", metadata={str(k): str(v) for k, v in vars(args).items()})  # yes, overwrite this
+            safetensors.torch.save_model(model, run_id + ".safetensors", metadata={str(k): str(v) for k, v in vars(args).items()})
             api.create_branch(
                 repo_id=f"snimu/{run_id}",
                 branch="main" if last_step else f"step-{step}",
