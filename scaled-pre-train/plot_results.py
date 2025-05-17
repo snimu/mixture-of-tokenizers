@@ -14,7 +14,7 @@ def load_data(
         ignore_add: bool = False,
 ):
     assert file.endswith(".json")
-    with open(file, "r") as f:
+    with open(f"results/runs/{file}", "r") as f:
         data = json.loads(f.read())
     assert isinstance(data, list)
     assert all(isinstance(item, dict) for item in data)
@@ -126,14 +126,70 @@ def tabulate_results(
     print()
 
 
+def tabulate_evals(
+        files: list[str],
+        names: list[str] | None = None,
+        extra_forbidden_metrics: list[str] | None = None,
+        extra_forbidden_evals: list[str] | None = None,
+        tablefmt: str = "pipe",
+):
+    forbidden_metrics = ["alias", "stderr"] + (extra_forbidden_metrics or [])
+    forbidden_evals = ["mmlu_"] + (extra_forbidden_evals or [])
+    higher_is_better = ["acc", "mcc", "f1", "rouge", "bleu"]
+    results = []
+    if names:
+        assert len(files) == len(names)
+    names = names or [file.replace(".json", "") for file in files]
+    for file in files:
+        with open(f"results/evals/{file}", "r") as f:
+            result = json.loads(f.read())["results"]
+        
+        metric_names = []
+        metric_values = []
+        for eval in result:
+            if any(term in eval for term in forbidden_evals):
+                continue
+            for metric in result[eval]:
+                if any(term in metric for term in forbidden_metrics):
+                    continue
+                metric_names.append(eval + " " + metric.replace(",none", ""))
+                metric_values.append(result[eval][metric])
+        results.append({"metrics": metric_names, "results": metric_values})
+    tabledata = {"metric": results[0]["metrics"], **{names[i]: results[i]["results"] for i in range(len(files))}}
+
+    # Add a "best" column
+    tabledata["best"] = []
+    for metric_idx, metric in enumerate(tabledata["metric"]):
+        compare_fct = max if any(term in metric for term in higher_is_better) else min
+        values = [float(tabledata[names[name_idx]][metric_idx]) for name_idx in range(len(files))]
+        best_value = compare_fct(values)
+        best_idx = values.index(best_value)
+        tabledata["best"].append(names[best_idx])
+
+    table = tabulate(tabledata, headers="keys", floatfmt=".4f", tablefmt=tablefmt)
+    print(f"\n\n{table}\n\n")
+
+
 if __name__ == "__main__":
     file = "results100_000steps.json"
-    tabulate_results(
-        file,
-        mixin_mixout=[("concat", "split"), ("concat", "copy")],
-        ignore_add=True,
-        data_frac=0.1,
+    # tabulate_results(
+    #     file,
+    #     mixin_mixout=[("concat", "split"), ("concat", "copy")],
+    #     ignore_add=True,
+    #     data_frac=0.1,
+    #     tablefmt="pipe",
+    #     info_columns=["mean", "std", "n_params", "step_time"],
+    # )
+    tabulate_evals(
+        files=[
+            "noop-noop-1024-1024-1024-greedy.json",
+            "noop-noop-1024-1024-1024-temp-050.json",
+            "noop-noop-1024-1024-1024-temp-100.json",
+            "concat-noop-48-256-1024-greedy.json",
+            "concat-noop-48-256-1024-temp-050.json",
+            "concat-noop-48-256-1024-temp-100.json",
+        ],
+        names=["T (0.0)", "T (0.5)", "T (1.0)", "B (0.0)", "B (0.5)", "B (1.0)"],
+        extra_forbidden_evals=["arithmetic", "cola", "lambada_openai", "mrpc", "rte", "wnli"],
         tablefmt="pipe",
-        info_columns=["mean", "std", "n_params", "step_time"],
     )
-
