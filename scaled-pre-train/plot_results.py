@@ -1,9 +1,12 @@
 
 import json
+import random
+from collections import Counter
 from typing import Literal
 
-import matplotlib.pyplot as plt
+import dspy
 import numpy as np
+from tqdm import tqdm
 from tabulate import tabulate
 import polars as pl
 
@@ -170,6 +173,75 @@ def tabulate_evals(
     print(f"\n\n{table}\n\n")
 
 
+def compare_generations(
+        files: list[str],
+        names: list[str] | None = None,
+        save_to: str | None = None,
+        cmp_model: str | None = None,
+        n_samples: int = 10,
+):
+    names = names or [file.replace(".json", "") for file in files]
+    assert len(files) == len(names)
+    generations = []
+    for file in files:
+        with open(f"results/generation/{file}", "r") as f:
+            generations.append(json.loads(f.read()))
+    
+    queries = [[g["query"] for g in gen] for gen in generations]
+    assert set(queries[0]) == set(sum(queries, []))  # all generations have the same queries
+    
+    # Set up LLM
+    if cmp_model:
+        llm = dspy.LM(f"openai/{cmp_model}", temperature=0.2)
+        dspy.settings.configure(lm=llm)
+        judge = dspy.ChainOfThought(
+            dspy.Signature(
+                "query, answer1, answer2 -> better_answer_idx: int",
+                "1 or 2. Criteria: grammar, internal consistency, consistency with query.",
+            )
+        )
+    results = dict(summary=Counter())
+    loop = tqdm(range(n_samples), disable=not cmp_model)
+    for _ in loop:
+        query = random.choice(queries[0])
+        if query not in results:
+            results[query] = Counter()
+        answers = []
+
+        # Extract answers from generations
+        for gen in generations:
+            for g in gen:
+                if g["query"] == query:
+                    answers.append(random.choice(g["responses"]))
+                    break
+        
+        # Give choices
+        order = random.sample(range(len(answers)), len(answers))
+        if cmp_model:
+            resp_idx = -1
+            while resp_idx-1 not in order:
+                resp_idx = judge(query=query, answer1=answers[order[0]], answer2=answers[order[1]]).better_answer_idx
+        else:
+            print(f"\n\nQUERY:\n{query}")
+            answers_repr = ""
+            for idx, answer_idx in enumerate(order):
+                answer = answers[answer_idx]
+                answers_repr += f"\n\n{idx+1}. {answer}"
+            print(answers_repr)
+            resp_idx = int(input("\nChoose answer: "))
+        answer_idx = order.index(resp_idx-1)
+        results[query][names[answer_idx]] += 1
+        results["summary"][names[answer_idx]] += 1
+        if not cmp_model:
+            print("\n\n")
+            print(results["summary"])
+        else:
+            loop.set_description(f"{results['summary']}")
+        if save_to:
+            with open(save_to, "w") as f:
+                f.write(json.dumps(results, indent=2))
+
+
 if __name__ == "__main__":
     file = "results100_000steps.json"
     # tabulate_results(
@@ -180,16 +252,23 @@ if __name__ == "__main__":
     #     tablefmt="pipe",
     #     info_columns=["mean", "std", "n_params", "step_time"],
     # )
-    tabulate_evals(
-        files=[
-            "noop-noop-1024-1024-1024-greedy.json",
-            "noop-noop-1024-1024-1024-temp-050.json",
-            "noop-noop-1024-1024-1024-temp-100.json",
-            "concat-noop-48-256-1024-greedy.json",
-            "concat-noop-48-256-1024-temp-050.json",
-            "concat-noop-48-256-1024-temp-100.json",
-        ],
-        names=["T (0.0)", "T (0.5)", "T (1.0)", "B (0.0)", "B (0.5)", "B (1.0)"],
-        extra_forbidden_evals=["arithmetic", "cola", "lambada_openai", "mrpc", "rte", "wnli"],
-        tablefmt="pipe",
-    )
+    # tabulate_evals(
+    #     files=[
+    #         "noop-noop-1024-1024-1024-greedy.json",
+    #         "noop-noop-1024-1024-1024-temp-050.json",
+    #         "noop-noop-1024-1024-1024-temp-100.json",
+    #         "concat-noop-48-256-1024-greedy.json",
+    #         "concat-noop-48-256-1024-temp-050.json",
+    #         "concat-noop-48-256-1024-temp-100.json",
+    #     ],
+    #     names=["T (0.0)", "T (0.5)", "T (1.0)", "B (0.0)", "B (0.5)", "B (1.0)"],
+    #     extra_forbidden_evals=["arithmetic", "cola", "lambada_openai", "mrpc", "rte", "wnli"],
+    #     tablefmt="pipe",
+    # )
+    for model in ["gpt-4o-mini", "gpt-4o", "gpt-4.1"]:
+        compare_generations(
+            ["bytes-tokens.json", "tokens-tokens.json"],
+            save_to=f"results/generation/comparison_{model.replace('-', '_')}.json",
+            cmp_model=model,
+            n_samples=500,
+        )
