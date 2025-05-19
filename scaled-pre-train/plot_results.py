@@ -1,11 +1,11 @@
 
 import json
 import random
-from collections import Counter
 from typing import Literal
 
 import dspy
 import numpy as np
+import tiktoken
 from tqdm import tqdm
 from tabulate import tabulate
 import polars as pl
@@ -176,70 +176,126 @@ def tabulate_evals(
 def compare_generations(
         files: list[str],
         names: list[str] | None = None,
+        tokens_out: list[int] | None = None,
         save_to: str | None = None,
-        cmp_model: str | None = None,
-        n_samples: int = 10,
+        cmp_model: str = "gpt-4o-mini",
+        n_samples_per_completion: int = 10,
+        queries_file: str = "queries.json",
 ):
     names = names or [file.replace(".json", "") for file in files]
     assert len(files) == len(names)
+    tokens_out = tokens_out or [20, 100, 500]
     generations = []
     for file in files:
         with open(f"results/generation/{file}", "r") as f:
             generations.append(json.loads(f.read()))
-    
-    queries = [[g["query"] for g in gen] for gen in generations]
-    assert set(queries[0]) == set(sum(queries, []))  # all generations have the same queries
-    
-    # Set up LLM
-    if cmp_model:
-        llm = dspy.LM(f"openai/{cmp_model}", temperature=0.2)
-        dspy.settings.configure(lm=llm)
-        judge = dspy.ChainOfThought(
-            dspy.Signature(
-                "query, answer1, answer2 -> better_answer_idx: int",
-                "1 or 2. Criteria: grammar, internal consistency, consistency with query.",
-            )
-        )
-    results = dict(summary=Counter())
-    loop = tqdm(range(n_samples), disable=not cmp_model)
-    for _ in loop:
-        query = random.choice(queries[0])
-        if query not in results:
-            results[query] = Counter()
-        answers = []
+    assert len(generations[0]) == len(generations[1])
 
-        # Extract answers from generations
-        for gen in generations:
-            for g in gen:
-                if g["query"] == query:
-                    answers.append(random.choice(g["responses"]))
-                    break
-        
-        # Give choices
-        order = random.sample(range(len(answers)), len(answers))
-        if cmp_model:
-            resp_idx = -1
-            while resp_idx-1 not in order:
-                resp_idx = judge(query=query, answer1=answers[order[0]], answer2=answers[order[1]]).better_answer_idx
-        else:
-            print(f"\n\nQUERY:\n{query}")
-            answers_repr = ""
-            for idx, answer_idx in enumerate(order):
-                answer = answers[answer_idx]
-                answers_repr += f"\n\n{idx+1}. {answer}"
-            print(answers_repr)
-            resp_idx = int(input("\nChoose answer: "))
-        answer_idx = order.index(resp_idx-1)
-        results[query][names[answer_idx]] += 1
-        results["summary"][names[answer_idx]] += 1
-        if not cmp_model:
-            print("\n\n")
-            print(results["summary"])
-        else:
-            loop.set_description(f"{results['summary']}")
-        if save_to:
-            with open(save_to, "w") as f:
-                f.write(json.dumps(results, indent=2))
+    with open(queries_file, "r") as f:
+        queries = json.loads(f.read())
+    assert len(queries) == len(generations[0])
+    enc = tiktoken.encoding_for_model("gpt-2")
+
+    # Set up LLM
+    llm = dspy.LM(f"openai/{cmp_model}", temperature=0.2)
+    dspy.settings.configure(lm=llm)
+    judge = dspy.ChainOfThought(
+        dspy.Signature(
+            "query, answer1, answer2 -> better_answer_idx: int",
+            "1 or 2. Criteria: grammar, internal consistency, consistency with query.",
+        )
+    )
+    results = {
+        "name": [],
+        "tokens_in": [],
+        "tokens_out": [],
+        "sample_idx": [],
+        names[0]: [],
+        names[1]: [],
+    }
+    loop = tqdm(range(len(generations[0])))
+    for query_idx in loop:
+        completion0 = generations[0][query_idx]
+        completion1 = None
+        for completion in generations[1]:
+            if completion["name"] == completion0["name"]:
+                completion1 = completion
+                break
+        assert completion1 is not None
+        assert completion0["tokens_in"] == completion1["tokens_in"]
+        assert len(completion0["responses"]) == len(completion1["responses"])
+        assert completion0["name"] == completion1["name"]
+        query = queries[query_idx]["text"]
+
+        for toks_in_idx, toks_in in enumerate(set(completion0["tokens_in"])):
+            query = enc.decode(enc.encode(query)[:toks_in])
+            candidates0 = [completion0["responses"][i] for i in range(len(completion0["responses"])) if completion0["tokens_in"][i] == toks_in]
+            candidates1 = [completion1["responses"][i] for i in range(len(completion1["responses"])) if completion1["tokens_in"][i] == toks_in]
+            for sample_idx in range(n_samples_per_completion):
+                response0 = random.choice(candidates0)
+                response1 = random.choice(candidates1)
+                for toks_out_idx, toks_out in enumerate(tokens_out):
+                    resp0 = enc.decode(enc.encode(response0)[:toks_out])
+                    resp1 = enc.decode(enc.encode(response1)[:toks_out])
+                    switched = bool(random.randint(0, 1))
+                    if switched:
+                        resp0, resp1 = resp1, resp0
+                    better = judge(query=query, answer1=resp0, answer2=resp1).better_answer_idx - 1
+                    if switched:
+                        better = 1 - better
+                    resp0_is_better = better == 0
+                    resp1_is_better = better == 1
+                    results["name"].append(completion0["name"])
+                    results["tokens_in"].append(toks_in)
+                    results["tokens_out"].append(toks_out)
+                    results["sample_idx"].append(sample_idx)
+                    results[names[0]].append(resp0_is_better)
+                    results[names[1]].append(resp1_is_better)
+
+                    df = pl.DataFrame(results)
+                    df.write_csv(f"results/generation/{save_to}.csv")
+
+                    mot, baseline = results[names[0]].sum().item(), results[names[1]].sum().item()
+                    description = f"toks_in: {toks_in_idx+1}/{len(set(completion0['tokens_in']))}, "
+                    description += f"sample: {sample_idx+1}/{n_samples_per_completion}, "
+                    description += f"toks_out: {toks_out_idx+1}/{len(tokens_out)}; "
+                    description += f"MoT: {mot}, Baseline: {baseline} ({100*mot/(mot+baseline):.2f}% MoT)"
+                    loop.set_description(description)
+    
+    summary = {
+        "domain": [],
+        names[0]: [],
+        names[1]: [],
+        "% MoT": [],
+    }
+    for name in df["name"].unique():
+        df_name = df.filter(pl.col("name") == name)
+        summary["domain"].append(name)
+        mot, baseline = df_name[names[0]].sum().item(), df_name[names[1]].sum().item()
+        summary[names[0]].append(mot)
+        summary[names[1]].append(baseline)
+        summary["% MoT"].append(100*mot/(mot+baseline))
+    for toks_in in df["tokens_in"].unique():
+        df_toks_in = df.filter(pl.col("tokens_in") == toks_in)
+        summary["domain"].append(f"toks_in: {toks_in}")
+        mot, baseline = df_toks_in[names[0]].sum().item(), df_toks_in[names[1]].sum().item()
+        summary[names[0]].append(mot)
+        summary[names[1]].append(baseline)
+        summary["% MoT"].append(100*mot/(mot+baseline))
+    for toks_out in df["tokens_out"].unique():
+        df_toks_out = df.filter(pl.col("tokens_out") == toks_out)
+        summary["domain"].append(f"toks_out: {toks_out}")
+        mot, baseline = df_toks_out[names[0]].sum().item(), df_toks_out[names[1]].sum().item()
+        summary[names[0]].append(mot)
+        summary[names[1]].append(baseline)
+        summary["% MoT"].append(100*mot/(mot+baseline))
+    summary["domain"].append("total")
+    mot, baseline = df[names[0]].sum().item(), df[names[1]].sum().item()
+    summary[names[0]].append(mot)
+    summary[names[1]].append(baseline)
+    summary["% MoT"].append(100*mot/(mot+baseline))
+    df = pl.DataFrame(summary)
+    df.write_csv(f"results/generation/{save_to}-summary.csv")
 
 
 if __name__ == "__main__":
