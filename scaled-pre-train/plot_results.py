@@ -235,16 +235,27 @@ def compare_generations(
                 response0 = random.choice(candidates0)
                 response1 = random.choice(candidates1)
                 for toks_out_idx, toks_out in enumerate(tokens_out):
+                    # Get the responses to compare
                     resp0 = enc.decode(enc.encode(response0)[:toks_out])
                     resp1 = enc.decode(enc.encode(response1)[:toks_out])
                     switched = bool(random.randint(0, 1))
                     if switched:
                         resp0, resp1 = resp1, resp0
-                    better = judge(query=query, answer1=resp0, answer2=resp1).better_answer_idx - 1
+
+                    # Generate the judgement
+                    for _ in range(5):  # maximum of 5 tries per judgement
+                        better = judge(query=query, answer1=resp0, answer2=resp1).better_answer_idx - 1
+                        if better in (0, 1):
+                            break
+                    if better not in (0, 1):
+                        continue
+
+                    # Record the results
                     if switched:
                         better = 1 - better
                     resp0_is_better = better == 0
                     resp1_is_better = better == 1
+
                     results["name"].append(completion0["name"])
                     results["tokens_in"].append(toks_in)
                     results["tokens_out"].append(toks_out)
@@ -252,16 +263,18 @@ def compare_generations(
                     results[names[0]].append(resp0_is_better)
                     results[names[1]].append(resp1_is_better)
 
+                    # Save the results
                     df = pl.DataFrame(results)
                     df.write_csv(f"results/generation/{save_to}.csv")
 
+                    # Give feedback
                     mot, baseline = results[names[0]].sum().item(), results[names[1]].sum().item()
                     description = f"toks_in: {toks_in_idx+1}/{len(set(completion0['tokens_in']))}, "
                     description += f"sample: {sample_idx+1}/{n_samples_per_completion}, "
                     description += f"toks_out: {toks_out_idx+1}/{len(tokens_out)}; "
                     description += f"MoT: {mot}, Baseline: {baseline} ({100*mot/(mot+baseline):.2f}% MoT)"
                     loop.set_description(description)
-    
+
     summary = {
         "domain": [],
         names[0]: [],
