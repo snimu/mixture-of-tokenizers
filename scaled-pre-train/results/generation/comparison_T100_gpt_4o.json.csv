@@ -1,0 +1,721 @@
+name,tokens_in,tokens_out,sample_idx,bytes-tokens-100,tokens-tokens-100,chosen_idx,order_switched
+Ensemble Everything Everywhere,100,20,0,false,true,0,1
+Ensemble Everything Everywhere,100,100,0,false,true,1,0
+Ensemble Everything Everywhere,100,500,0,false,true,1,0
+Ensemble Everything Everywhere,100,20,1,true,false,0,0
+Ensemble Everything Everywhere,100,100,1,true,false,0,0
+Ensemble Everything Everywhere,100,500,1,false,true,1,0
+Ensemble Everything Everywhere,100,20,2,true,false,0,0
+Ensemble Everything Everywhere,100,100,2,false,true,1,0
+Ensemble Everything Everywhere,100,500,2,false,true,1,0
+Ensemble Everything Everywhere,100,20,3,true,false,0,0
+Ensemble Everything Everywhere,100,100,3,true,false,0,0
+Ensemble Everything Everywhere,100,500,3,true,false,0,0
+Ensemble Everything Everywhere,100,20,4,true,false,1,1
+Ensemble Everything Everywhere,100,100,4,true,false,1,1
+Ensemble Everything Everywhere,100,500,4,true,false,0,0
+Ensemble Everything Everywhere,100,20,5,false,true,1,0
+Ensemble Everything Everywhere,100,100,5,true,false,1,1
+Ensemble Everything Everywhere,100,500,5,false,true,1,0
+Ensemble Everything Everywhere,100,20,6,true,false,0,0
+Ensemble Everything Everywhere,100,100,6,true,false,0,0
+Ensemble Everything Everywhere,100,500,6,true,false,1,1
+Ensemble Everything Everywhere,100,20,7,false,true,0,1
+Ensemble Everything Everywhere,100,100,7,false,true,0,1
+Ensemble Everything Everywhere,100,500,7,false,true,0,1
+Ensemble Everything Everywhere,100,20,8,true,false,0,0
+Ensemble Everything Everywhere,100,100,8,false,true,1,0
+Ensemble Everything Everywhere,100,500,8,false,true,1,0
+Ensemble Everything Everywhere,100,20,9,true,false,0,0
+Ensemble Everything Everywhere,100,100,9,true,false,1,1
+Ensemble Everything Everywhere,100,500,9,true,false,1,1
+Ensemble Everything Everywhere,20,20,0,true,false,1,1
+Ensemble Everything Everywhere,20,100,0,false,true,1,0
+Ensemble Everything Everywhere,20,500,0,false,true,1,0
+Ensemble Everything Everywhere,20,20,1,true,false,0,0
+Ensemble Everything Everywhere,20,100,1,false,true,0,1
+Ensemble Everything Everywhere,20,500,1,true,false,1,1
+Ensemble Everything Everywhere,20,20,2,false,true,0,1
+Ensemble Everything Everywhere,20,100,2,true,false,1,1
+Ensemble Everything Everywhere,20,500,2,false,true,1,0
+Ensemble Everything Everywhere,20,20,3,false,true,0,1
+Ensemble Everything Everywhere,20,100,3,true,false,1,1
+Ensemble Everything Everywhere,20,500,3,false,true,0,1
+Ensemble Everything Everywhere,20,20,4,true,false,0,0
+Ensemble Everything Everywhere,20,100,4,true,false,1,1
+Ensemble Everything Everywhere,20,500,4,false,true,1,0
+Ensemble Everything Everywhere,20,20,5,true,false,1,1
+Ensemble Everything Everywhere,20,100,5,false,true,1,0
+Ensemble Everything Everywhere,20,500,5,true,false,1,1
+Ensemble Everything Everywhere,20,20,6,true,false,0,0
+Ensemble Everything Everywhere,20,100,6,true,false,1,1
+Ensemble Everything Everywhere,20,500,6,false,true,1,0
+Ensemble Everything Everywhere,20,20,7,true,false,0,0
+Ensemble Everything Everywhere,20,100,7,true,false,1,1
+Ensemble Everything Everywhere,20,500,7,false,true,1,0
+Ensemble Everything Everywhere,20,20,8,true,false,1,1
+Ensemble Everything Everywhere,20,100,8,false,true,1,0
+Ensemble Everything Everywhere,20,500,8,false,true,1,0
+Ensemble Everything Everywhere,20,20,9,false,true,1,0
+Ensemble Everything Everywhere,20,100,9,true,false,1,1
+Ensemble Everything Everywhere,20,500,9,true,false,1,1
+Ensemble Everything Everywhere,500,20,0,true,false,0,0
+Ensemble Everything Everywhere,500,100,0,true,false,1,1
+Ensemble Everything Everywhere,500,500,0,true,false,1,1
+Ensemble Everything Everywhere,500,20,1,true,false,1,1
+Ensemble Everything Everywhere,500,100,1,true,false,1,1
+Ensemble Everything Everywhere,500,500,1,true,false,1,1
+Ensemble Everything Everywhere,500,20,2,true,false,1,1
+Ensemble Everything Everywhere,500,100,2,true,false,1,1
+Ensemble Everything Everywhere,500,500,2,true,false,0,0
+Ensemble Everything Everywhere,500,20,3,true,false,1,1
+Ensemble Everything Everywhere,500,100,3,false,true,0,1
+Ensemble Everything Everywhere,500,500,3,false,true,1,0
+Ensemble Everything Everywhere,500,20,4,true,false,0,0
+Ensemble Everything Everywhere,500,100,4,true,false,0,0
+Ensemble Everything Everywhere,500,500,4,true,false,0,0
+Ensemble Everything Everywhere,500,20,5,true,false,0,0
+Ensemble Everything Everywhere,500,100,5,true,false,1,1
+Ensemble Everything Everywhere,500,500,5,true,false,1,1
+Ensemble Everything Everywhere,500,20,6,true,false,0,0
+Ensemble Everything Everywhere,500,100,6,true,false,0,0
+Ensemble Everything Everywhere,500,500,6,true,false,1,1
+Ensemble Everything Everywhere,500,20,7,true,false,1,1
+Ensemble Everything Everywhere,500,100,7,true,false,1,1
+Ensemble Everything Everywhere,500,500,7,true,false,0,0
+Ensemble Everything Everywhere,500,20,8,true,false,0,0
+Ensemble Everything Everywhere,500,100,8,true,false,0,0
+Ensemble Everything Everywhere,500,500,8,true,false,1,1
+Ensemble Everything Everywhere,500,20,9,true,false,1,1
+Ensemble Everything Everywhere,500,100,9,true,false,1,1
+Ensemble Everything Everywhere,500,500,9,true,false,1,1
+King James Bible,100,20,0,true,false,1,1
+King James Bible,100,100,0,true,false,1,1
+King James Bible,100,500,0,false,true,1,0
+King James Bible,100,20,1,true,false,1,1
+King James Bible,100,100,1,true,false,1,1
+King James Bible,100,500,1,false,true,1,0
+King James Bible,100,20,2,true,false,0,0
+King James Bible,100,100,2,false,true,1,0
+King James Bible,100,500,2,true,false,1,1
+King James Bible,100,20,3,true,false,1,1
+King James Bible,100,100,3,true,false,1,1
+King James Bible,100,500,3,false,true,1,0
+King James Bible,100,20,4,true,false,1,1
+King James Bible,100,100,4,true,false,1,1
+King James Bible,100,500,4,false,true,1,0
+King James Bible,100,20,5,true,false,1,1
+King James Bible,100,100,5,true,false,1,1
+King James Bible,100,500,5,false,true,1,0
+King James Bible,100,20,6,true,false,0,0
+King James Bible,100,100,6,true,false,1,1
+King James Bible,100,500,6,false,true,1,0
+King James Bible,100,20,7,true,false,1,1
+King James Bible,100,100,7,false,true,1,0
+King James Bible,100,500,7,true,false,1,1
+King James Bible,100,20,8,true,false,0,0
+King James Bible,100,100,8,true,false,1,1
+King James Bible,100,500,8,true,false,1,1
+King James Bible,100,20,9,true,false,1,1
+King James Bible,100,100,9,true,false,1,1
+King James Bible,100,500,9,true,false,1,1
+King James Bible,20,20,0,false,true,0,1
+King James Bible,20,100,0,true,false,1,1
+King James Bible,20,500,0,true,false,1,1
+King James Bible,20,20,1,false,true,1,0
+King James Bible,20,100,1,true,false,1,1
+King James Bible,20,500,1,true,false,1,1
+King James Bible,20,20,2,true,false,1,1
+King James Bible,20,100,2,true,false,1,1
+King James Bible,20,500,2,true,false,1,1
+King James Bible,20,20,3,false,true,1,0
+King James Bible,20,100,3,true,false,1,1
+King James Bible,20,500,3,true,false,1,1
+King James Bible,20,20,4,true,false,0,0
+King James Bible,20,100,4,true,false,1,1
+King James Bible,20,500,4,true,false,0,0
+King James Bible,20,20,5,true,false,0,0
+King James Bible,20,100,5,true,false,0,0
+King James Bible,20,500,5,true,false,1,1
+King James Bible,20,20,6,true,false,0,0
+King James Bible,20,100,6,true,false,0,0
+King James Bible,20,500,6,true,false,1,1
+King James Bible,20,20,7,true,false,0,0
+King James Bible,20,100,7,true,false,0,0
+King James Bible,20,500,7,false,true,1,0
+King James Bible,20,20,8,false,true,0,1
+King James Bible,20,100,8,false,true,1,0
+King James Bible,20,500,8,false,true,1,0
+King James Bible,20,20,9,true,false,0,0
+King James Bible,20,100,9,false,true,0,1
+King James Bible,20,500,9,false,true,0,1
+King James Bible,500,20,0,true,false,1,1
+King James Bible,500,100,0,true,false,1,1
+King James Bible,500,500,0,true,false,1,1
+King James Bible,500,20,1,true,false,1,1
+King James Bible,500,100,1,true,false,0,0
+King James Bible,500,500,1,true,false,1,1
+King James Bible,500,20,2,true,false,0,0
+King James Bible,500,100,2,true,false,0,0
+King James Bible,500,500,2,false,true,1,0
+King James Bible,500,20,3,false,true,1,0
+King James Bible,500,100,3,false,true,1,0
+King James Bible,500,500,3,true,false,1,1
+King James Bible,500,20,4,true,false,1,1
+King James Bible,500,100,4,true,false,0,0
+King James Bible,500,500,4,true,false,0,0
+King James Bible,500,20,5,false,true,0,1
+King James Bible,500,100,5,true,false,1,1
+King James Bible,500,500,5,true,false,0,0
+King James Bible,500,20,6,false,true,0,1
+King James Bible,500,100,6,true,false,1,1
+King James Bible,500,500,6,true,false,1,1
+King James Bible,500,20,7,false,true,1,0
+King James Bible,500,100,7,true,false,1,1
+King James Bible,500,500,7,true,false,1,1
+King James Bible,500,20,8,false,true,0,1
+King James Bible,500,100,8,false,true,0,1
+King James Bible,500,500,8,false,true,1,0
+King James Bible,500,20,9,true,false,0,0
+King James Bible,500,100,9,true,false,1,1
+King James Bible,500,500,9,true,false,0,0
+uv,100,20,0,true,false,0,0
+uv,100,100,0,true,false,1,1
+uv,100,500,0,true,false,1,1
+uv,100,20,1,false,true,0,1
+uv,100,100,1,false,true,0,1
+uv,100,500,1,false,true,1,0
+uv,100,20,2,true,false,0,0
+uv,100,100,2,false,true,0,1
+uv,100,500,2,false,true,1,0
+uv,100,20,3,false,true,1,0
+uv,100,100,3,false,true,0,1
+uv,100,500,3,true,false,1,1
+uv,100,20,4,false,true,0,1
+uv,100,100,4,false,true,1,0
+uv,100,500,4,false,true,1,0
+uv,100,20,5,false,true,1,0
+uv,100,100,5,true,false,0,0
+uv,100,500,5,true,false,0,0
+uv,100,20,6,false,true,0,1
+uv,100,100,6,false,true,1,0
+uv,100,500,6,false,true,1,0
+uv,100,20,7,false,true,1,0
+uv,100,100,7,false,true,0,1
+uv,100,500,7,false,true,1,0
+uv,100,20,8,false,true,1,0
+uv,100,100,8,false,true,0,1
+uv,100,500,8,false,true,0,1
+uv,100,20,9,true,false,1,1
+uv,100,100,9,true,false,1,1
+uv,100,500,9,true,false,1,1
+uv,20,20,0,false,true,0,1
+uv,20,100,0,false,true,1,0
+uv,20,500,0,true,false,1,1
+uv,20,20,1,true,false,1,1
+uv,20,100,1,false,true,1,0
+uv,20,500,1,true,false,1,1
+uv,20,20,2,true,false,0,0
+uv,20,100,2,true,false,0,0
+uv,20,500,2,false,true,1,0
+uv,20,20,3,false,true,0,1
+uv,20,100,3,false,true,0,1
+uv,20,500,3,false,true,0,1
+uv,20,20,4,true,false,1,1
+uv,20,100,4,true,false,1,1
+uv,20,500,4,true,false,1,1
+uv,20,20,5,true,false,0,0
+uv,20,100,5,false,true,0,1
+uv,20,500,5,true,false,1,1
+uv,20,20,6,false,true,0,1
+uv,20,100,6,false,true,0,1
+uv,20,500,6,true,false,1,1
+uv,20,20,7,false,true,0,1
+uv,20,100,7,false,true,1,0
+uv,20,500,7,false,true,1,0
+uv,20,20,8,false,true,1,0
+uv,20,100,8,false,true,0,1
+uv,20,500,8,false,true,0,1
+uv,20,20,9,true,false,0,0
+uv,20,100,9,false,true,1,0
+uv,20,500,9,false,true,1,0
+uv,500,20,0,true,false,0,0
+uv,500,100,0,false,true,1,0
+uv,500,500,0,true,false,1,1
+uv,500,20,1,true,false,1,1
+uv,500,100,1,true,false,0,0
+uv,500,500,1,true,false,1,1
+uv,500,20,2,false,true,1,0
+uv,500,100,2,false,true,1,0
+uv,500,500,2,true,false,1,1
+uv,500,20,3,true,false,1,1
+uv,500,100,3,false,true,0,1
+uv,500,500,3,true,false,1,1
+uv,500,20,4,false,true,1,0
+uv,500,100,4,false,true,0,1
+uv,500,500,4,false,true,0,1
+uv,500,20,5,true,false,1,1
+uv,500,100,5,true,false,0,0
+uv,500,500,5,false,true,1,0
+uv,500,20,6,false,true,1,0
+uv,500,100,6,false,true,1,0
+uv,500,500,6,false,true,1,0
+uv,500,20,7,true,false,1,1
+uv,500,100,7,false,true,1,0
+uv,500,500,7,false,true,1,0
+uv,500,20,8,false,true,1,0
+uv,500,100,8,false,true,0,1
+uv,500,500,8,false,true,1,0
+uv,500,20,9,false,true,1,0
+uv,500,100,9,true,false,1,1
+uv,500,500,9,false,true,1,0
+Tokens vs. Bytes,100,20,0,true,false,0,0
+Tokens vs. Bytes,100,100,0,true,false,0,0
+Tokens vs. Bytes,100,500,0,false,true,1,0
+Tokens vs. Bytes,100,20,1,false,true,1,0
+Tokens vs. Bytes,100,100,1,false,true,0,1
+Tokens vs. Bytes,100,500,1,true,false,1,1
+Tokens vs. Bytes,100,20,2,true,false,0,0
+Tokens vs. Bytes,100,100,2,false,true,1,0
+Tokens vs. Bytes,100,500,2,true,false,1,1
+Tokens vs. Bytes,100,20,3,true,false,0,0
+Tokens vs. Bytes,100,100,3,true,false,0,0
+Tokens vs. Bytes,100,500,3,false,true,1,0
+Tokens vs. Bytes,100,20,4,true,false,0,0
+Tokens vs. Bytes,100,100,4,true,false,0,0
+Tokens vs. Bytes,100,500,4,true,false,0,0
+Tokens vs. Bytes,100,20,5,false,true,1,0
+Tokens vs. Bytes,100,100,5,false,true,1,0
+Tokens vs. Bytes,100,500,5,false,true,1,0
+Tokens vs. Bytes,100,20,6,false,true,1,0
+Tokens vs. Bytes,100,100,6,false,true,1,0
+Tokens vs. Bytes,100,500,6,true,false,1,1
+Tokens vs. Bytes,100,20,7,true,false,0,0
+Tokens vs. Bytes,100,100,7,true,false,0,0
+Tokens vs. Bytes,100,500,7,true,false,1,1
+Tokens vs. Bytes,100,20,8,true,false,0,0
+Tokens vs. Bytes,100,100,8,false,true,1,0
+Tokens vs. Bytes,100,500,8,false,true,1,0
+Tokens vs. Bytes,100,20,9,true,false,1,1
+Tokens vs. Bytes,100,100,9,false,true,1,0
+Tokens vs. Bytes,100,500,9,false,true,1,0
+Tokens vs. Bytes,20,20,0,false,true,0,1
+Tokens vs. Bytes,20,100,0,false,true,0,1
+Tokens vs. Bytes,20,500,0,false,true,1,0
+Tokens vs. Bytes,20,20,1,true,false,0,0
+Tokens vs. Bytes,20,100,1,true,false,1,1
+Tokens vs. Bytes,20,500,1,true,false,1,1
+Tokens vs. Bytes,20,20,2,false,true,0,1
+Tokens vs. Bytes,20,100,2,true,false,0,0
+Tokens vs. Bytes,20,500,2,false,true,1,0
+Tokens vs. Bytes,20,20,3,false,true,1,0
+Tokens vs. Bytes,20,100,3,true,false,0,0
+Tokens vs. Bytes,20,500,3,true,false,0,0
+Tokens vs. Bytes,20,20,4,true,false,1,1
+Tokens vs. Bytes,20,100,4,true,false,0,0
+Tokens vs. Bytes,20,500,4,true,false,0,0
+Tokens vs. Bytes,20,20,5,false,true,0,1
+Tokens vs. Bytes,20,100,5,true,false,0,0
+Tokens vs. Bytes,20,500,5,true,false,1,1
+Tokens vs. Bytes,20,20,6,false,true,1,0
+Tokens vs. Bytes,20,100,6,false,true,0,1
+Tokens vs. Bytes,20,500,6,false,true,0,1
+Tokens vs. Bytes,20,20,7,false,true,0,1
+Tokens vs. Bytes,20,100,7,true,false,1,1
+Tokens vs. Bytes,20,500,7,true,false,1,1
+Tokens vs. Bytes,20,20,8,true,false,0,0
+Tokens vs. Bytes,20,100,8,true,false,0,0
+Tokens vs. Bytes,20,500,8,false,true,1,0
+Tokens vs. Bytes,20,20,9,false,true,0,1
+Tokens vs. Bytes,20,100,9,false,true,0,1
+Tokens vs. Bytes,20,500,9,false,true,1,0
+Tokens vs. Bytes,500,20,0,false,true,0,1
+Tokens vs. Bytes,500,100,0,false,true,1,0
+Tokens vs. Bytes,500,500,0,false,true,0,1
+Tokens vs. Bytes,500,20,1,false,true,1,0
+Tokens vs. Bytes,500,100,1,false,true,1,0
+Tokens vs. Bytes,500,500,1,false,true,0,1
+Tokens vs. Bytes,500,20,2,true,false,0,0
+Tokens vs. Bytes,500,100,2,true,false,1,1
+Tokens vs. Bytes,500,500,2,false,true,1,0
+Tokens vs. Bytes,500,20,3,false,true,0,1
+Tokens vs. Bytes,500,100,3,true,false,1,1
+Tokens vs. Bytes,500,500,3,true,false,1,1
+Tokens vs. Bytes,500,20,4,true,false,1,1
+Tokens vs. Bytes,500,100,4,true,false,1,1
+Tokens vs. Bytes,500,500,4,false,true,1,0
+Tokens vs. Bytes,500,20,5,false,true,1,0
+Tokens vs. Bytes,500,100,5,false,true,1,0
+Tokens vs. Bytes,500,500,5,false,true,1,0
+Tokens vs. Bytes,500,20,6,true,false,1,1
+Tokens vs. Bytes,500,100,6,false,true,1,0
+Tokens vs. Bytes,500,500,6,false,true,1,0
+Tokens vs. Bytes,500,20,7,true,false,1,1
+Tokens vs. Bytes,500,100,7,true,false,1,1
+Tokens vs. Bytes,500,500,7,false,true,1,0
+Tokens vs. Bytes,500,20,8,false,true,0,1
+Tokens vs. Bytes,500,100,8,false,true,1,0
+Tokens vs. Bytes,500,500,8,true,false,1,1
+Tokens vs. Bytes,500,20,9,true,false,0,0
+Tokens vs. Bytes,500,100,9,false,true,1,0
+Tokens vs. Bytes,500,500,9,false,true,0,1
+Wikipedia: Chester Cathedral,100,20,0,true,false,0,0
+Wikipedia: Chester Cathedral,100,100,0,true,false,0,0
+Wikipedia: Chester Cathedral,100,500,0,true,false,0,0
+Wikipedia: Chester Cathedral,100,20,1,false,true,1,0
+Wikipedia: Chester Cathedral,100,100,1,true,false,0,0
+Wikipedia: Chester Cathedral,100,500,1,true,false,1,1
+Wikipedia: Chester Cathedral,100,20,2,false,true,0,1
+Wikipedia: Chester Cathedral,100,100,2,false,true,0,1
+Wikipedia: Chester Cathedral,100,500,2,false,true,1,0
+Wikipedia: Chester Cathedral,100,20,3,true,false,0,0
+Wikipedia: Chester Cathedral,100,100,3,false,true,0,1
+Wikipedia: Chester Cathedral,100,500,3,false,true,1,0
+Wikipedia: Chester Cathedral,100,20,4,false,true,1,0
+Wikipedia: Chester Cathedral,100,100,4,false,true,1,0
+Wikipedia: Chester Cathedral,100,500,4,true,false,1,1
+Wikipedia: Chester Cathedral,100,20,5,true,false,0,0
+Wikipedia: Chester Cathedral,100,100,5,false,true,0,1
+Wikipedia: Chester Cathedral,100,500,5,false,true,1,0
+Wikipedia: Chester Cathedral,100,20,6,true,false,1,1
+Wikipedia: Chester Cathedral,100,100,6,true,false,1,1
+Wikipedia: Chester Cathedral,100,500,6,false,true,1,0
+Wikipedia: Chester Cathedral,100,20,7,true,false,0,0
+Wikipedia: Chester Cathedral,100,100,7,false,true,0,1
+Wikipedia: Chester Cathedral,100,500,7,false,true,1,0
+Wikipedia: Chester Cathedral,100,20,8,false,true,0,1
+Wikipedia: Chester Cathedral,100,100,8,false,true,1,0
+Wikipedia: Chester Cathedral,100,500,8,false,true,1,0
+Wikipedia: Chester Cathedral,100,20,9,false,true,1,0
+Wikipedia: Chester Cathedral,100,100,9,false,true,1,0
+Wikipedia: Chester Cathedral,100,500,9,false,true,1,0
+Wikipedia: Chester Cathedral,20,20,0,false,true,0,1
+Wikipedia: Chester Cathedral,20,100,0,false,true,1,0
+Wikipedia: Chester Cathedral,20,500,0,true,false,1,1
+Wikipedia: Chester Cathedral,20,20,1,true,false,0,0
+Wikipedia: Chester Cathedral,20,100,1,true,false,1,1
+Wikipedia: Chester Cathedral,20,500,1,true,false,1,1
+Wikipedia: Chester Cathedral,20,20,2,true,false,0,0
+Wikipedia: Chester Cathedral,20,100,2,true,false,0,0
+Wikipedia: Chester Cathedral,20,500,2,true,false,0,0
+Wikipedia: Chester Cathedral,20,20,3,false,true,0,1
+Wikipedia: Chester Cathedral,20,100,3,false,true,0,1
+Wikipedia: Chester Cathedral,20,500,3,false,true,0,1
+Wikipedia: Chester Cathedral,20,20,4,true,false,1,1
+Wikipedia: Chester Cathedral,20,100,4,false,true,1,0
+Wikipedia: Chester Cathedral,20,500,4,true,false,1,1
+Wikipedia: Chester Cathedral,20,20,5,true,false,0,0
+Wikipedia: Chester Cathedral,20,100,5,true,false,1,1
+Wikipedia: Chester Cathedral,20,500,5,true,false,0,0
+Wikipedia: Chester Cathedral,20,20,6,true,false,1,1
+Wikipedia: Chester Cathedral,20,100,6,true,false,1,1
+Wikipedia: Chester Cathedral,20,500,6,true,false,1,1
+Wikipedia: Chester Cathedral,20,20,7,true,false,1,1
+Wikipedia: Chester Cathedral,20,100,7,true,false,0,0
+Wikipedia: Chester Cathedral,20,500,7,true,false,1,1
+Wikipedia: Chester Cathedral,20,20,8,true,false,1,1
+Wikipedia: Chester Cathedral,20,100,8,true,false,1,1
+Wikipedia: Chester Cathedral,20,500,8,true,false,1,1
+Wikipedia: Chester Cathedral,20,20,9,true,false,1,1
+Wikipedia: Chester Cathedral,20,100,9,true,false,1,1
+Wikipedia: Chester Cathedral,20,500,9,true,false,0,0
+Wikipedia: Chester Cathedral,500,20,0,true,false,1,1
+Wikipedia: Chester Cathedral,500,100,0,false,true,0,1
+Wikipedia: Chester Cathedral,500,500,0,false,true,1,0
+Wikipedia: Chester Cathedral,500,20,1,true,false,0,0
+Wikipedia: Chester Cathedral,500,100,1,true,false,0,0
+Wikipedia: Chester Cathedral,500,500,1,true,false,1,1
+Wikipedia: Chester Cathedral,500,20,2,true,false,0,0
+Wikipedia: Chester Cathedral,500,100,2,false,true,0,1
+Wikipedia: Chester Cathedral,500,500,2,false,true,1,0
+Wikipedia: Chester Cathedral,500,20,3,false,true,1,0
+Wikipedia: Chester Cathedral,500,100,3,false,true,0,1
+Wikipedia: Chester Cathedral,500,500,3,false,true,1,0
+Wikipedia: Chester Cathedral,500,20,4,false,true,0,1
+Wikipedia: Chester Cathedral,500,100,4,true,false,0,0
+Wikipedia: Chester Cathedral,500,500,4,false,true,1,0
+Wikipedia: Chester Cathedral,500,20,5,false,true,0,1
+Wikipedia: Chester Cathedral,500,100,5,true,false,1,1
+Wikipedia: Chester Cathedral,500,500,5,true,false,0,0
+Wikipedia: Chester Cathedral,500,20,6,true,false,0,0
+Wikipedia: Chester Cathedral,500,100,6,true,false,0,0
+Wikipedia: Chester Cathedral,500,500,6,true,false,1,1
+Wikipedia: Chester Cathedral,500,20,7,false,true,0,1
+Wikipedia: Chester Cathedral,500,100,7,true,false,1,1
+Wikipedia: Chester Cathedral,500,500,7,false,true,1,0
+Wikipedia: Chester Cathedral,500,20,8,true,false,0,0
+Wikipedia: Chester Cathedral,500,100,8,false,true,0,1
+Wikipedia: Chester Cathedral,500,500,8,true,false,1,1
+Wikipedia: Chester Cathedral,500,20,9,true,false,0,0
+Wikipedia: Chester Cathedral,500,100,9,true,false,0,0
+Wikipedia: Chester Cathedral,500,500,9,false,true,1,0
+Wikipedia: Malcolm X,100,20,0,true,false,1,1
+Wikipedia: Malcolm X,100,100,0,false,true,1,0
+Wikipedia: Malcolm X,100,500,0,false,true,1,0
+Wikipedia: Malcolm X,100,20,1,true,false,1,1
+Wikipedia: Malcolm X,100,100,1,true,false,0,0
+Wikipedia: Malcolm X,100,500,1,false,true,1,0
+Wikipedia: Malcolm X,100,20,2,false,true,0,1
+Wikipedia: Malcolm X,100,100,2,true,false,0,0
+Wikipedia: Malcolm X,100,500,2,false,true,1,0
+Wikipedia: Malcolm X,100,20,3,false,true,0,1
+Wikipedia: Malcolm X,100,100,3,false,true,1,0
+Wikipedia: Malcolm X,100,500,3,false,true,0,1
+Wikipedia: Malcolm X,100,20,4,false,true,1,0
+Wikipedia: Malcolm X,100,100,4,true,false,1,1
+Wikipedia: Malcolm X,100,500,4,true,false,1,1
+Wikipedia: Malcolm X,100,20,5,false,true,1,0
+Wikipedia: Malcolm X,100,100,5,true,false,1,1
+Wikipedia: Malcolm X,100,500,5,true,false,1,1
+Wikipedia: Malcolm X,100,20,6,true,false,0,0
+Wikipedia: Malcolm X,100,100,6,false,true,0,1
+Wikipedia: Malcolm X,100,500,6,true,false,1,1
+Wikipedia: Malcolm X,100,20,7,false,true,0,1
+Wikipedia: Malcolm X,100,100,7,true,false,0,0
+Wikipedia: Malcolm X,100,500,7,false,true,1,0
+Wikipedia: Malcolm X,100,20,8,false,true,0,1
+Wikipedia: Malcolm X,100,100,8,false,true,0,1
+Wikipedia: Malcolm X,100,500,8,true,false,1,1
+Wikipedia: Malcolm X,100,20,9,true,false,0,0
+Wikipedia: Malcolm X,100,100,9,true,false,0,0
+Wikipedia: Malcolm X,100,500,9,false,true,1,0
+Wikipedia: Malcolm X,20,20,0,true,false,1,1
+Wikipedia: Malcolm X,20,100,0,false,true,1,0
+Wikipedia: Malcolm X,20,500,0,true,false,1,1
+Wikipedia: Malcolm X,20,20,1,false,true,1,0
+Wikipedia: Malcolm X,20,100,1,false,true,0,1
+Wikipedia: Malcolm X,20,500,1,true,false,1,1
+Wikipedia: Malcolm X,20,20,2,false,true,0,1
+Wikipedia: Malcolm X,20,100,2,false,true,0,1
+Wikipedia: Malcolm X,20,500,2,true,false,1,1
+Wikipedia: Malcolm X,20,20,3,false,true,0,1
+Wikipedia: Malcolm X,20,100,3,true,false,0,0
+Wikipedia: Malcolm X,20,500,3,false,true,0,1
+Wikipedia: Malcolm X,20,20,4,false,true,1,0
+Wikipedia: Malcolm X,20,100,4,false,true,1,0
+Wikipedia: Malcolm X,20,500,4,false,true,1,0
+Wikipedia: Malcolm X,20,20,5,false,true,1,0
+Wikipedia: Malcolm X,20,100,5,false,true,1,0
+Wikipedia: Malcolm X,20,500,5,true,false,0,0
+Wikipedia: Malcolm X,20,20,6,false,true,1,0
+Wikipedia: Malcolm X,20,100,6,false,true,0,1
+Wikipedia: Malcolm X,20,500,6,false,true,1,0
+Wikipedia: Malcolm X,20,20,7,false,true,0,1
+Wikipedia: Malcolm X,20,100,7,false,true,0,1
+Wikipedia: Malcolm X,20,500,7,false,true,1,0
+Wikipedia: Malcolm X,20,20,8,false,true,0,1
+Wikipedia: Malcolm X,20,100,8,false,true,0,1
+Wikipedia: Malcolm X,20,500,8,false,true,0,1
+Wikipedia: Malcolm X,20,20,9,true,false,0,0
+Wikipedia: Malcolm X,20,100,9,true,false,0,0
+Wikipedia: Malcolm X,20,500,9,true,false,1,1
+Wikipedia: Malcolm X,500,20,0,false,true,0,1
+Wikipedia: Malcolm X,500,100,0,false,true,1,0
+Wikipedia: Malcolm X,500,500,0,true,false,1,1
+Wikipedia: Malcolm X,500,20,1,true,false,0,0
+Wikipedia: Malcolm X,500,100,1,false,true,0,1
+Wikipedia: Malcolm X,500,500,1,true,false,1,1
+Wikipedia: Malcolm X,500,20,2,true,false,1,1
+Wikipedia: Malcolm X,500,100,2,false,true,1,0
+Wikipedia: Malcolm X,500,500,2,false,true,1,0
+Wikipedia: Malcolm X,500,20,3,true,false,0,0
+Wikipedia: Malcolm X,500,100,3,false,true,0,1
+Wikipedia: Malcolm X,500,500,3,true,false,1,1
+Wikipedia: Malcolm X,500,20,4,false,true,0,1
+Wikipedia: Malcolm X,500,100,4,true,false,0,0
+Wikipedia: Malcolm X,500,500,4,true,false,1,1
+Wikipedia: Malcolm X,500,20,5,false,true,0,1
+Wikipedia: Malcolm X,500,100,5,false,true,0,1
+Wikipedia: Malcolm X,500,500,5,false,true,1,0
+Wikipedia: Malcolm X,500,20,6,true,false,0,0
+Wikipedia: Malcolm X,500,100,6,true,false,1,1
+Wikipedia: Malcolm X,500,500,6,false,true,1,0
+Wikipedia: Malcolm X,500,20,7,true,false,1,1
+Wikipedia: Malcolm X,500,100,7,false,true,1,0
+Wikipedia: Malcolm X,500,500,7,true,false,1,1
+Wikipedia: Malcolm X,500,20,8,true,false,0,0
+Wikipedia: Malcolm X,500,100,8,true,false,0,0
+Wikipedia: Malcolm X,500,500,8,false,true,1,0
+Wikipedia: Malcolm X,500,20,9,false,true,1,0
+Wikipedia: Malcolm X,500,100,9,true,false,0,0
+Wikipedia: Malcolm X,500,500,9,false,true,1,0
+Wikipedia: Copyright Act 1911,100,20,0,true,false,1,1
+Wikipedia: Copyright Act 1911,100,100,0,true,false,1,1
+Wikipedia: Copyright Act 1911,100,500,0,false,true,1,0
+Wikipedia: Copyright Act 1911,100,20,1,true,false,1,1
+Wikipedia: Copyright Act 1911,100,100,1,false,true,1,0
+Wikipedia: Copyright Act 1911,100,500,1,true,false,1,1
+Wikipedia: Copyright Act 1911,100,20,2,false,true,0,1
+Wikipedia: Copyright Act 1911,100,100,2,false,true,0,1
+Wikipedia: Copyright Act 1911,100,500,2,false,true,0,1
+Wikipedia: Copyright Act 1911,100,20,3,false,true,0,1
+Wikipedia: Copyright Act 1911,100,100,3,false,true,1,0
+Wikipedia: Copyright Act 1911,100,500,3,false,true,1,0
+Wikipedia: Copyright Act 1911,100,20,4,true,false,0,0
+Wikipedia: Copyright Act 1911,100,100,4,true,false,1,1
+Wikipedia: Copyright Act 1911,100,500,4,true,false,0,0
+Wikipedia: Copyright Act 1911,100,20,5,false,true,0,1
+Wikipedia: Copyright Act 1911,100,100,5,true,false,0,0
+Wikipedia: Copyright Act 1911,100,500,5,true,false,0,0
+Wikipedia: Copyright Act 1911,100,20,6,false,true,1,0
+Wikipedia: Copyright Act 1911,100,100,6,false,true,0,1
+Wikipedia: Copyright Act 1911,100,500,6,false,true,1,0
+Wikipedia: Copyright Act 1911,100,20,7,false,true,0,1
+Wikipedia: Copyright Act 1911,100,100,7,true,false,1,1
+Wikipedia: Copyright Act 1911,100,500,7,true,false,1,1
+Wikipedia: Copyright Act 1911,100,20,8,true,false,0,0
+Wikipedia: Copyright Act 1911,100,100,8,true,false,0,0
+Wikipedia: Copyright Act 1911,100,500,8,true,false,0,0
+Wikipedia: Copyright Act 1911,100,20,9,true,false,0,0
+Wikipedia: Copyright Act 1911,100,100,9,true,false,0,0
+Wikipedia: Copyright Act 1911,100,500,9,true,false,1,1
+Wikipedia: Copyright Act 1911,20,20,0,false,true,0,1
+Wikipedia: Copyright Act 1911,20,100,0,true,false,1,1
+Wikipedia: Copyright Act 1911,20,500,0,true,false,0,0
+Wikipedia: Copyright Act 1911,20,20,1,true,false,0,0
+Wikipedia: Copyright Act 1911,20,100,1,true,false,0,0
+Wikipedia: Copyright Act 1911,20,500,1,true,false,1,1
+Wikipedia: Copyright Act 1911,20,20,2,true,false,1,1
+Wikipedia: Copyright Act 1911,20,100,2,false,true,1,0
+Wikipedia: Copyright Act 1911,20,500,2,true,false,1,1
+Wikipedia: Copyright Act 1911,20,20,3,true,false,0,0
+Wikipedia: Copyright Act 1911,20,100,3,false,true,1,0
+Wikipedia: Copyright Act 1911,20,500,3,true,false,0,0
+Wikipedia: Copyright Act 1911,20,20,4,false,true,0,1
+Wikipedia: Copyright Act 1911,20,100,4,false,true,1,0
+Wikipedia: Copyright Act 1911,20,500,4,false,true,1,0
+Wikipedia: Copyright Act 1911,20,20,5,true,false,1,1
+Wikipedia: Copyright Act 1911,20,100,5,true,false,1,1
+Wikipedia: Copyright Act 1911,20,500,5,true,false,1,1
+Wikipedia: Copyright Act 1911,20,20,6,false,true,0,1
+Wikipedia: Copyright Act 1911,20,100,6,false,true,0,1
+Wikipedia: Copyright Act 1911,20,500,6,true,false,1,1
+Wikipedia: Copyright Act 1911,20,20,7,true,false,1,1
+Wikipedia: Copyright Act 1911,20,100,7,true,false,0,0
+Wikipedia: Copyright Act 1911,20,500,7,false,true,1,0
+Wikipedia: Copyright Act 1911,20,20,8,true,false,1,1
+Wikipedia: Copyright Act 1911,20,100,8,false,true,1,0
+Wikipedia: Copyright Act 1911,20,500,8,true,false,1,1
+Wikipedia: Copyright Act 1911,20,20,9,true,false,1,1
+Wikipedia: Copyright Act 1911,20,100,9,true,false,0,0
+Wikipedia: Copyright Act 1911,20,500,9,false,true,1,0
+Wikipedia: Copyright Act 1911,500,20,0,true,false,1,1
+Wikipedia: Copyright Act 1911,500,100,0,true,false,0,0
+Wikipedia: Copyright Act 1911,500,500,0,true,false,1,1
+Wikipedia: Copyright Act 1911,500,20,1,true,false,0,0
+Wikipedia: Copyright Act 1911,500,100,1,false,true,1,0
+Wikipedia: Copyright Act 1911,500,500,1,false,true,0,1
+Wikipedia: Copyright Act 1911,500,20,2,true,false,1,1
+Wikipedia: Copyright Act 1911,500,100,2,false,true,0,1
+Wikipedia: Copyright Act 1911,500,500,2,true,false,1,1
+Wikipedia: Copyright Act 1911,500,20,3,true,false,0,0
+Wikipedia: Copyright Act 1911,500,100,3,false,true,1,0
+Wikipedia: Copyright Act 1911,500,500,3,false,true,1,0
+Wikipedia: Copyright Act 1911,500,20,4,true,false,1,1
+Wikipedia: Copyright Act 1911,500,100,4,true,false,1,1
+Wikipedia: Copyright Act 1911,500,500,4,true,false,1,1
+Wikipedia: Copyright Act 1911,500,20,5,false,true,1,0
+Wikipedia: Copyright Act 1911,500,100,5,false,true,1,0
+Wikipedia: Copyright Act 1911,500,500,5,false,true,1,0
+Wikipedia: Copyright Act 1911,500,20,6,true,false,1,1
+Wikipedia: Copyright Act 1911,500,100,6,false,true,1,0
+Wikipedia: Copyright Act 1911,500,500,6,false,true,1,0
+Wikipedia: Copyright Act 1911,500,20,7,true,false,1,1
+Wikipedia: Copyright Act 1911,500,100,7,true,false,0,0
+Wikipedia: Copyright Act 1911,500,500,7,true,false,0,0
+Wikipedia: Copyright Act 1911,500,20,8,false,true,1,0
+Wikipedia: Copyright Act 1911,500,100,8,true,false,0,0
+Wikipedia: Copyright Act 1911,500,500,8,true,false,1,1
+Wikipedia: Copyright Act 1911,500,20,9,false,true,1,0
+Wikipedia: Copyright Act 1911,500,100,9,false,true,0,1
+Wikipedia: Copyright Act 1911,500,500,9,false,true,0,1
+Wikipedia: BAT99-98,100,20,0,false,true,1,0
+Wikipedia: BAT99-98,100,100,0,false,true,1,0
+Wikipedia: BAT99-98,100,500,0,false,true,1,0
+Wikipedia: BAT99-98,100,20,1,true,false,1,1
+Wikipedia: BAT99-98,100,100,1,true,false,0,0
+Wikipedia: BAT99-98,100,500,1,false,true,1,0
+Wikipedia: BAT99-98,100,20,2,true,false,1,1
+Wikipedia: BAT99-98,100,100,2,true,false,1,1
+Wikipedia: BAT99-98,100,500,2,true,false,1,1
+Wikipedia: BAT99-98,100,20,3,false,true,0,1
+Wikipedia: BAT99-98,100,100,3,false,true,0,1
+Wikipedia: BAT99-98,100,500,3,true,false,1,1
+Wikipedia: BAT99-98,100,20,4,false,true,1,0
+Wikipedia: BAT99-98,100,100,4,false,true,1,0
+Wikipedia: BAT99-98,100,500,4,true,false,1,1
+Wikipedia: BAT99-98,100,20,5,false,true,0,1
+Wikipedia: BAT99-98,100,100,5,true,false,1,1
+Wikipedia: BAT99-98,100,500,5,false,true,1,0
+Wikipedia: BAT99-98,100,20,6,true,false,0,0
+Wikipedia: BAT99-98,100,100,6,false,true,0,1
+Wikipedia: BAT99-98,100,500,6,true,false,1,1
+Wikipedia: BAT99-98,100,20,7,true,false,1,1
+Wikipedia: BAT99-98,100,100,7,false,true,1,0
+Wikipedia: BAT99-98,100,500,7,true,false,1,1
+Wikipedia: BAT99-98,100,20,8,true,false,1,1
+Wikipedia: BAT99-98,100,100,8,false,true,1,0
+Wikipedia: BAT99-98,100,500,8,true,false,1,1
+Wikipedia: BAT99-98,100,20,9,false,true,1,0
+Wikipedia: BAT99-98,100,100,9,true,false,1,1
+Wikipedia: BAT99-98,100,500,9,true,false,1,1
+Wikipedia: BAT99-98,20,20,0,true,false,1,1
+Wikipedia: BAT99-98,20,100,0,false,true,0,1
+Wikipedia: BAT99-98,20,500,0,true,false,1,1
+Wikipedia: BAT99-98,20,20,1,true,false,0,0
+Wikipedia: BAT99-98,20,100,1,true,false,0,0
+Wikipedia: BAT99-98,20,500,1,true,false,0,0
+Wikipedia: BAT99-98,20,20,2,false,true,1,0
+Wikipedia: BAT99-98,20,100,2,false,true,0,1
+Wikipedia: BAT99-98,20,500,2,false,true,0,1
+Wikipedia: BAT99-98,20,20,3,true,false,0,0
+Wikipedia: BAT99-98,20,100,3,true,false,1,1
+Wikipedia: BAT99-98,20,500,3,false,true,1,0
+Wikipedia: BAT99-98,20,20,4,false,true,0,1
+Wikipedia: BAT99-98,20,100,4,true,false,0,0
+Wikipedia: BAT99-98,20,500,4,false,true,1,0
+Wikipedia: BAT99-98,20,20,5,false,true,0,1
+Wikipedia: BAT99-98,20,100,5,false,true,0,1
+Wikipedia: BAT99-98,20,500,5,false,true,0,1
+Wikipedia: BAT99-98,20,20,6,false,true,0,1
+Wikipedia: BAT99-98,20,100,6,false,true,0,1
+Wikipedia: BAT99-98,20,500,6,false,true,1,0
+Wikipedia: BAT99-98,20,20,7,true,false,0,0
+Wikipedia: BAT99-98,20,100,7,true,false,1,1
+Wikipedia: BAT99-98,20,500,7,false,true,1,0
+Wikipedia: BAT99-98,20,20,8,true,false,1,1
+Wikipedia: BAT99-98,20,100,8,true,false,0,0
+Wikipedia: BAT99-98,20,500,8,true,false,1,1
+Wikipedia: BAT99-98,20,20,9,false,true,0,1
+Wikipedia: BAT99-98,20,100,9,false,true,0,1
+Wikipedia: BAT99-98,20,500,9,true,false,1,1
+Wikipedia: BAT99-98,500,20,0,true,false,1,1
+Wikipedia: BAT99-98,500,100,0,true,false,1,1
+Wikipedia: BAT99-98,500,500,0,false,true,1,0
+Wikipedia: BAT99-98,500,20,1,false,true,1,0
+Wikipedia: BAT99-98,500,100,1,false,true,0,1
+Wikipedia: BAT99-98,500,500,1,true,false,1,1
+Wikipedia: BAT99-98,500,20,2,true,false,1,1
+Wikipedia: BAT99-98,500,100,2,true,false,1,1
+Wikipedia: BAT99-98,500,500,2,false,true,1,0
+Wikipedia: BAT99-98,500,20,3,false,true,0,1
+Wikipedia: BAT99-98,500,100,3,false,true,1,0
+Wikipedia: BAT99-98,500,500,3,false,true,1,0
+Wikipedia: BAT99-98,500,20,4,true,false,1,1
+Wikipedia: BAT99-98,500,100,4,true,false,1,1
+Wikipedia: BAT99-98,500,500,4,true,false,1,1
+Wikipedia: BAT99-98,500,20,5,false,true,1,0
+Wikipedia: BAT99-98,500,100,5,true,false,1,1
+Wikipedia: BAT99-98,500,500,5,true,false,1,1
+Wikipedia: BAT99-98,500,20,6,false,true,1,0
+Wikipedia: BAT99-98,500,100,6,true,false,1,1
+Wikipedia: BAT99-98,500,500,6,true,false,1,1
+Wikipedia: BAT99-98,500,20,7,false,true,1,0
+Wikipedia: BAT99-98,500,100,7,false,true,0,1
+Wikipedia: BAT99-98,500,500,7,true,false,1,1
+Wikipedia: BAT99-98,500,20,8,false,true,0,1
+Wikipedia: BAT99-98,500,100,8,false,true,0,1
+Wikipedia: BAT99-98,500,500,8,false,true,0,1
+Wikipedia: BAT99-98,500,20,9,true,false,0,0
+Wikipedia: BAT99-98,500,100,9,true,false,1,1
+Wikipedia: BAT99-98,500,500,9,true,false,1,1
