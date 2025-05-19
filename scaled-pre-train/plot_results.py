@@ -183,17 +183,17 @@ def compare_generations(
         queries_file: str = "queries.json",
 ):
     names = names or [file.replace(".json", "") for file in files]
-    assert len(files) == len(names)
+    assert len(files) == len(names), f"{len(files)=}, {len(names)=}"
     tokens_out = tokens_out or [20, 100, 500]
     generations = []
     for file in files:
         with open(f"results/generation/{file}", "r") as f:
             generations.append(json.loads(f.read()))
-    assert len(generations[0]) == len(generations[1])
+    assert len(generations[0]) == len(generations[1]), f"{len(generations[0])=}, {len(generations[1])=}"
 
     with open(queries_file, "r") as f:
         queries = json.loads(f.read())
-    assert len(queries) == len(generations[0])
+    assert len(queries) == len(generations[0]), f"{len(queries)=}, {len(generations[0])=}"
     enc = tiktoken.encoding_for_model("gpt-2")
 
     # Set up LLM
@@ -212,6 +212,8 @@ def compare_generations(
         "sample_idx": [],
         names[0]: [],
         names[1]: [],
+        "chosen_idx": [],
+        "order_switched": [],
     }
     loop = tqdm(range(len(generations[0])))
     for query_idx in loop:
@@ -223,8 +225,8 @@ def compare_generations(
                 break
         assert completion1 is not None
         assert completion0["tokens_in"] == completion1["tokens_in"]
-        assert len(completion0["responses"]) == len(completion1["responses"])
-        assert completion0["name"] == completion1["name"]
+        assert len(completion0["responses"]) == len(completion1["responses"]), f"{len(completion0['responses'])=}, {len(completion1['responses'])=}"
+        assert completion0["name"] == completion1["name"], f"{completion0['name']=}, {completion1['name']=}"
         query = queries[query_idx]["text"]
 
         for toks_in_idx, toks_in in enumerate(set(completion0["tokens_in"])):
@@ -244,17 +246,19 @@ def compare_generations(
 
                     # Generate the judgement
                     for _ in range(5):  # maximum of 5 tries per judgement
-                        better = judge(query=query, answer1=resp0, answer2=resp1).better_answer_idx - 1
-                        if better in (0, 1):
+                        chosen_idx = judge(query=query, answer1=resp0, answer2=resp1).better_answer_idx - 1
+                        if chosen_idx in (0, 1):
                             break
-                    if better not in (0, 1):
+                    if chosen_idx not in (0, 1):
                         continue
 
                     # Record the results
+                    results["chosen_idx"].append(chosen_idx)  # is to track if the first or second response is chosen; for normalizing
+                    results["order_switched"].append(int(switched))
                     if switched:
-                        better = 1 - better
-                    resp0_is_better = better == 0
-                    resp1_is_better = better == 1
+                        chosen_idx = 1 - chosen_idx
+                    resp0_is_better = chosen_idx == 0
+                    resp1_is_better = chosen_idx == 1
 
                     results["name"].append(completion0["name"])
                     results["tokens_in"].append(toks_in)
@@ -268,11 +272,12 @@ def compare_generations(
                     df.write_csv(f"results/generation/{save_to}.csv")
 
                     # Give feedback
-                    mot, baseline = results[names[0]].sum().item(), results[names[1]].sum().item()
+                    mot, baseline = df[names[0]].sum(), df[names[1]].sum()
                     description = f"toks_in: {toks_in_idx+1}/{len(set(completion0['tokens_in']))}, "
                     description += f"sample: {sample_idx+1}/{n_samples_per_completion}, "
                     description += f"toks_out: {toks_out_idx+1}/{len(tokens_out)}; "
-                    description += f"MoT: {mot}, Baseline: {baseline} ({100*mot/(mot+baseline):.2f}% MoT)"
+                    description += f"MoT: {mot}, Baseline: {baseline} ({100*mot/(mot+baseline):.2f}% MoT) "
+                    description += f"mean_position: {df['chosen_idx'].mean():.2f}"
                     loop.set_description(description)
 
     summary = {
@@ -280,33 +285,38 @@ def compare_generations(
         names[0]: [],
         names[1]: [],
         "% MoT": [],
+        "mean chosen_idx": [],
     }
     for name in df["name"].unique():
         df_name = df.filter(pl.col("name") == name)
         summary["domain"].append(name)
-        mot, baseline = df_name[names[0]].sum().item(), df_name[names[1]].sum().item()
+        mot, baseline = df_name[names[0]].sum(), df_name[names[1]].sum()
         summary[names[0]].append(mot)
         summary[names[1]].append(baseline)
         summary["% MoT"].append(100*mot/(mot+baseline))
+        summary["mean chosen_idx"].append(df_name["chosen_idx"].mean())
     for toks_in in df["tokens_in"].unique():
         df_toks_in = df.filter(pl.col("tokens_in") == toks_in)
         summary["domain"].append(f"toks_in: {toks_in}")
-        mot, baseline = df_toks_in[names[0]].sum().item(), df_toks_in[names[1]].sum().item()
+        mot, baseline = df_toks_in[names[0]].sum(), df_toks_in[names[1]].sum()
         summary[names[0]].append(mot)
         summary[names[1]].append(baseline)
         summary["% MoT"].append(100*mot/(mot+baseline))
+        summary["mean chosen_idx"].append(df_toks_in["chosen_idx"].mean())
     for toks_out in df["tokens_out"].unique():
         df_toks_out = df.filter(pl.col("tokens_out") == toks_out)
         summary["domain"].append(f"toks_out: {toks_out}")
-        mot, baseline = df_toks_out[names[0]].sum().item(), df_toks_out[names[1]].sum().item()
+        mot, baseline = df_toks_out[names[0]].sum(), df_toks_out[names[1]].sum()
         summary[names[0]].append(mot)
         summary[names[1]].append(baseline)
         summary["% MoT"].append(100*mot/(mot+baseline))
+        summary["mean chosen_idx"].append(df_toks_out["chosen_idx"].mean())
     summary["domain"].append("total")
-    mot, baseline = df[names[0]].sum().item(), df[names[1]].sum().item()
+    mot, baseline = df[names[0]].sum(), df[names[1]].sum()
     summary[names[0]].append(mot)
     summary[names[1]].append(baseline)
     summary["% MoT"].append(100*mot/(mot+baseline))
+    summary["mean chosen_idx"].append(df["chosen_idx"].mean())
     df = pl.DataFrame(summary)
     df.write_csv(f"results/generation/{save_to}-summary.csv")
 
@@ -336,8 +346,8 @@ if __name__ == "__main__":
     # )
     for model in ["gpt-4o-mini", "gpt-4o", "gpt-4.1"]:
         compare_generations(
-            ["bytes-tokens.json", "tokens-tokens.json"],
-            save_to=f"results/generation/comparison_{model.replace('-', '_')}.json",
+            files=["bytes-tokens-000.json", "tokens-tokens-000.json"],
+            save_to=f"comparison_T000_{model.replace('-', '_')}",
             cmp_model=model,
-            n_samples=500,
+            n_samples_per_completion=2,
         )
