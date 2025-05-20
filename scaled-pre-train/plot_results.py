@@ -1,5 +1,6 @@
 
 import json
+import os
 import random
 from typing import Literal
 
@@ -224,8 +225,7 @@ def compare_generations(
                 completion1 = completion
                 break
         assert completion1 is not None
-        assert completion0["tokens_in"] == completion1["tokens_in"]
-        assert len(completion0["responses"]) == len(completion1["responses"]), f"{len(completion0['responses'])=}, {len(completion1['responses'])=}"
+        assert set(completion0["tokens_in"]) == set(completion1["tokens_in"])
         assert completion0["name"] == completion1["name"], f"{completion0['name']=}, {completion1['name']=}"
         query = queries[query_idx]["text"]
 
@@ -272,11 +272,11 @@ def compare_generations(
                     df.write_csv(f"results/generation/{save_to}.csv")
 
                     # Give feedback
-                    mot, baseline = df[names[0]].sum(), df[names[1]].sum()
+                    first, second = df[names[0]].sum(), df[names[1]].sum()
                     description = f"toks_in: {toks_in_idx+1}/{len(set(completion0['tokens_in']))}, "
                     description += f"sample: {sample_idx+1}/{n_samples_per_completion}, "
                     description += f"toks_out: {toks_out_idx+1}/{len(tokens_out)}; "
-                    description += f"MoT: {mot}, Baseline: {baseline} ({100*mot/(mot+baseline):.2f}% MoT) "
+                    description += f"{names[0]}: {first}, {names[1]}: {second} ({100*first/(first+second):.2f}% {names[0]}) "
                     description += f"mean_position: {df['chosen_idx'].mean():.2f}"
                     loop.set_description(description)
 
@@ -284,41 +284,73 @@ def compare_generations(
         "domain": [],
         names[0]: [],
         names[1]: [],
-        "% MoT": [],
+        f"% {names[0]}": [],
         "mean chosen_idx": [],
     }
     for name in df["name"].unique():
         df_name = df.filter(pl.col("name") == name)
         summary["domain"].append(name)
-        mot, baseline = df_name[names[0]].sum(), df_name[names[1]].sum()
-        summary[names[0]].append(mot)
-        summary[names[1]].append(baseline)
-        summary["% MoT"].append(100*mot/(mot+baseline))
+        first, second = df_name[names[0]].sum(), df_name[names[1]].sum()
+        summary[names[0]].append(first)
+        summary[names[1]].append(second)
+        summary[f"% {names[0]}"].append(100*first/(first+second))
         summary["mean chosen_idx"].append(df_name["chosen_idx"].mean())
     for toks_in in df["tokens_in"].unique():
         df_toks_in = df.filter(pl.col("tokens_in") == toks_in)
         summary["domain"].append(f"toks_in: {toks_in}")
-        mot, baseline = df_toks_in[names[0]].sum(), df_toks_in[names[1]].sum()
-        summary[names[0]].append(mot)
-        summary[names[1]].append(baseline)
-        summary["% MoT"].append(100*mot/(mot+baseline))
+        first, second = df_toks_in[names[0]].sum(), df_toks_in[names[1]].sum()
+        summary[names[0]].append(first)
+        summary[names[1]].append(second)
+        summary[f"% {names[0]}"].append(100*first/(first+second))
         summary["mean chosen_idx"].append(df_toks_in["chosen_idx"].mean())
     for toks_out in df["tokens_out"].unique():
         df_toks_out = df.filter(pl.col("tokens_out") == toks_out)
         summary["domain"].append(f"toks_out: {toks_out}")
-        mot, baseline = df_toks_out[names[0]].sum(), df_toks_out[names[1]].sum()
-        summary[names[0]].append(mot)
-        summary[names[1]].append(baseline)
-        summary["% MoT"].append(100*mot/(mot+baseline))
+        first, second = df_toks_out[names[0]].sum(), df_toks_out[names[1]].sum()
+        summary[names[0]].append(first)
+        summary[names[1]].append(second)
+        summary[f"% {names[0]}"].append(100*first/(first+second))
         summary["mean chosen_idx"].append(df_toks_out["chosen_idx"].mean())
     summary["domain"].append("total")
-    mot, baseline = df[names[0]].sum(), df[names[1]].sum()
-    summary[names[0]].append(mot)
-    summary[names[1]].append(baseline)
-    summary["% MoT"].append(100*mot/(mot+baseline))
+    first, second = df[names[0]].sum(), df[names[1]].sum()
+    summary[names[0]].append(first)
+    summary[names[1]].append(second)
+    summary[f"% {names[0]}"].append(100*first/(first+second))
     summary["mean chosen_idx"].append(df["chosen_idx"].mean())
     df = pl.DataFrame(summary)
     df.write_csv(f"results/generation/{save_to}-summary.csv")
+
+
+def tabulate_comparisons(temperature: float):
+    if temperature == 0:
+        temp = "T000"
+    elif temperature < 1:
+        temp = f"T0{int(temperature*100)}"
+    else:
+        temp = f"T{int(temperature*100)}"
+    file_titles = [
+        file
+        for file in os.listdir("results/generation")
+        if file.endswith("-summary.csv") and temp in file
+        
+    ]
+    dfs = []
+    for file in file_titles:
+        dfs.append(pl.read_csv(f"results/generation/{file}"))
+    df: pl.DataFrame = pl.concat(dfs)
+    results = {col: [] for col in df.columns}
+    for domain in dfs[0]["domain"]:
+        df_domain = df.filter(pl.col("domain") == domain)
+        for col in df.columns:
+            if col == "domain":
+                continue
+            if col in ("% MoT", "mean chosen_idx"):
+                results[col].append(df_domain[col].mean())
+            else:
+                results[col].append(df_domain[col].sum())
+    results["domain"] = dfs[0]["domain"]
+    table = tabulate(results, headers="keys", floatfmt=".4f", tablefmt="pipe")
+    print(table)
 
 
 if __name__ == "__main__":
@@ -344,10 +376,18 @@ if __name__ == "__main__":
     #     extra_forbidden_evals=["arithmetic", "cola", "lambada_openai", "mrpc", "rte", "wnli"],
     #     tablefmt="pipe",
     # )
-    for model in ["gpt-4o-mini", "gpt-4o", "gpt-4.1"]:
-        compare_generations(
-            files=["bytes-tokens-000.json", "tokens-tokens-000.json"],
-            save_to=f"comparison_T000_{model.replace('-', '_')}",
-            cmp_model=model,
-            n_samples_per_completion=2,
-        )
+    for modality in ["bytes", "tokens"]:
+        for model in ["gpt-4.1"]:
+            for cmp, tmps, n_samples_per_completion in zip(
+                [("000", "050"), ("000", "100"), ("050", "100")],
+                [(0.0, 0.5), (0.0, 1.0), (0.5, 1.0)],
+                [5, 5, 10],
+            ):
+                compare_generations(
+                    files=[f"{modality}-tokens-{cmp[0]}.json", f"{modality}-tokens-{cmp[1]}.json"],
+                    names=[f"{modality[0].upper()} ({tmps[0]})", f"{modality[0].upper()} ({tmps[1]})"],
+                    save_to=f"comparison_{modality}_T{cmp[0]}_T{cmp[1]}_{model.replace('-', '_')}",
+                    cmp_model=model,
+                    n_samples_per_completion=10,
+                )
+    # tabulate_comparisons(1)
