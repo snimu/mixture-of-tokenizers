@@ -2,7 +2,9 @@
 import json
 import os
 import random
+import itertools
 from typing import Literal
+from concurrent.futures import ThreadPoolExecutor
 
 import dspy
 import numpy as np
@@ -174,6 +176,30 @@ def tabulate_evals(
     print(f"\n\n{table}\n\n")
 
 
+def judge_completions(model: str, response1: str, response2: str) -> tuple[int, int, bool]:
+    llm = dspy.LM(f"openai/{model}", temperature=0.2)
+    dspy.settings.configure(lm=llm)
+    switched = bool(random.randint(0, 1))
+    if switched:
+        response1, response2 = response2, response1
+    judge = dspy.ChainOfThought(
+        dspy.Signature(
+            "query, answer1, answer2 -> better_answer_idx: int",
+            "1 or 2. Criteria: grammar, internal consistency, consistency with query.",
+        )
+    )
+    for _ in range(5):  # maximum of 5 tries per judgement
+        chosen_idx = judge(query=response1, answer1=response1, answer2=response2).better_answer_idx - 1
+        if chosen_idx in (0, 1):
+            break
+    if chosen_idx not in (0, 1):
+        return (-1, -1, False)
+    position = chosen_idx
+    if switched:
+        chosen_idx = 1 - chosen_idx
+    return chosen_idx, position, switched
+
+
 def compare_generations(
         files: list[str],
         names: list[str] | None = None,
@@ -197,15 +223,6 @@ def compare_generations(
     assert len(queries) == len(generations[0]), f"{len(queries)=}, {len(generations[0])=}"
     enc = tiktoken.encoding_for_model("gpt-2")
 
-    # Set up LLM
-    llm = dspy.LM(f"openai/{cmp_model}", temperature=0.2)
-    dspy.settings.configure(lm=llm)
-    judge = dspy.ChainOfThought(
-        dspy.Signature(
-            "query, answer1, answer2 -> better_answer_idx: int",
-            "1 or 2. Criteria: grammar, internal consistency, consistency with query.",
-        )
-    )
     results = {
         "name": [],
         "tokens_in": [],
@@ -233,30 +250,24 @@ def compare_generations(
             query = enc.decode(enc.encode(query)[:toks_in])
             candidates0 = [completion0["responses"][i] for i in range(len(completion0["responses"])) if completion0["tokens_in"][i] == toks_in]
             candidates1 = [completion1["responses"][i] for i in range(len(completion1["responses"])) if completion1["tokens_in"][i] == toks_in]
-            for sample_idx in range(n_samples_per_completion):
-                response0 = random.choice(candidates0)
-                response1 = random.choice(candidates1)
-                for toks_out_idx, toks_out in enumerate(tokens_out):
-                    # Get the responses to compare
-                    resp0 = enc.decode(enc.encode(response0)[:toks_out])
-                    resp1 = enc.decode(enc.encode(response1)[:toks_out])
-                    switched = bool(random.randint(0, 1))
-                    if switched:
-                        resp0, resp1 = resp1, resp0
-
-                    # Generate the judgement
-                    for _ in range(5):  # maximum of 5 tries per judgement
-                        chosen_idx = judge(query=query, answer1=resp0, answer2=resp1).better_answer_idx - 1
-                        if chosen_idx in (0, 1):
-                            break
-                    if chosen_idx not in (0, 1):
+            random.shuffle(candidates0)
+            random.shuffle(candidates1)
+            for toks_out_idx, toks_out in enumerate(tokens_out):
+                samples0 = itertools.cycle([enc.decode(enc.encode(resp)[:toks_out]) for resp in candidates0])
+                samples1 = itertools.cycle([enc.decode(enc.encode(resp)[:toks_out]) for resp in candidates1])
+                judgements = []
+                with ThreadPoolExecutor(max_workers=n_samples_per_completion) as executor:
+                    futures = [executor.submit(judge_completions, cmp_model, next(samples0), next(samples1)) for _ in range(n_samples_per_completion)]
+                    for future in futures:
+                        judgements.append(future.result())
+                for sample_idx, (chosen_idx, position, switched) in enumerate(judgements):
+                    if chosen_idx == -1:
                         continue
 
                     # Record the results
-                    results["chosen_idx"].append(chosen_idx)  # is to track if the first or second response is chosen; for normalizing
+                    results["chosen_idx"].append(position)  # is to track if the first or second response is chosen; for normalizing
                     results["order_switched"].append(int(switched))
-                    if switched:
-                        chosen_idx = 1 - chosen_idx
+
                     resp0_is_better = chosen_idx == 0
                     resp1_is_better = chosen_idx == 1
 
@@ -274,10 +285,10 @@ def compare_generations(
                     # Give feedback
                     first, second = df[names[0]].sum(), df[names[1]].sum()
                     description = f"toks_in: {toks_in_idx+1}/{len(set(completion0['tokens_in']))}, "
-                    description += f"sample: {sample_idx+1}/{n_samples_per_completion}, "
                     description += f"toks_out: {toks_out_idx+1}/{len(tokens_out)}; "
-                    description += f"{names[0]}: {first}, {names[1]}: {second} ({100*first/(first+second):.2f}% {names[0]}) "
-                    description += f"mean_position: {df['chosen_idx'].mean():.2f}"
+                    description += f"{names[0]}: {first}, {names[1]}: {second} ({100*first/(first+second):.2f}% {names[0]}); "
+                    description += f"mean idx: {df['chosen_idx'].mean():.2f}; "
+                    description += f"mean shuffle: {df['order_switched'].mean():.2f}"
                     loop.set_description(description)
 
     summary = {
@@ -376,18 +387,27 @@ if __name__ == "__main__":
     #     extra_forbidden_evals=["arithmetic", "cola", "lambada_openai", "mrpc", "rte", "wnli"],
     #     tablefmt="pipe",
     # )
-    for modality in ["bytes", "tokens"]:
-        for model in ["gpt-4.1"]:
-            for cmp, tmps, n_samples_per_completion in zip(
-                [("000", "050"), ("000", "100"), ("050", "100")],
-                [(0.0, 0.5), (0.0, 1.0), (0.5, 1.0)],
-                [5, 5, 10],
-            ):
-                compare_generations(
-                    files=[f"{modality}-tokens-{cmp[0]}.json", f"{modality}-tokens-{cmp[1]}.json"],
-                    names=[f"{modality[0].upper()} ({tmps[0]})", f"{modality[0].upper()} ({tmps[1]})"],
-                    save_to=f"comparison_{modality}_T{cmp[0]}_T{cmp[1]}_{model.replace('-', '_')}",
-                    cmp_model=model,
-                    n_samples_per_completion=10,
-                )
+    # for modality in ["bytes", "tokens"]:
+    #     for model in ["gpt-4.1"]:
+    #         for cmp, tmps, n_samples_per_completion in zip(
+    #             [("000", "050"), ("000", "100"), ("050", "100")],
+    #             [(0.0, 0.5), (0.0, 1.0), (0.5, 1.0)],
+    #             [5, 5, 10],
+    #         ):
+    #             compare_generations(
+    #                 files=[f"{modality}-tokens-{cmp[0]}.json", f"{modality}-tokens-{cmp[1]}.json"],
+    #                 names=[f"{modality[0].upper()} ({tmps[0]})", f"{modality[0].upper()} ({tmps[1]})"],
+    #                 save_to=f"comparison_{modality}_T{cmp[0]}_T{cmp[1]}_{model.replace('-', '_')}",
+    #                 cmp_model=model,
+    #                 n_samples_per_completion=10,
+    #             )
+    for model in ["gpt-4o-mini", "gpt-4o", "gpt-4.1"]:
+        T = "030"
+        compare_generations(
+            files=[f"bytes-tokens-{T}.json", f"tokens-tokens-{T}.json"],
+            names=["MoT", "Baseline"],
+            save_to=f"comparison_T{T}_{model.replace('-', '_')}",
+            cmp_model=model,
+            n_samples_per_completion=10,
+        )
     # tabulate_comparisons(1)
