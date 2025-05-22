@@ -59,31 +59,31 @@
       "alias": "hellaswag",
       "acc,none": 0.2674765982871938,
       "acc_stderr,none": 0.004417384102398657,
-      "acc_norm,none": 0.27962557259510057,
-      "acc_norm_stderr,none": 0.004478979795506759
+      "acc_norm,none": 0.279326827325234,
+      "acc_norm_stderr,none": 0.004477514681328167
     },
     "lambada_openai": {
       "alias": "lambada_openai",
-      "perplexity,none": 1957.2602168146125,
-      "perplexity_stderr,none": 286.8028135745736,
-      "acc,none": 0.3163205899476033,
-      "acc_stderr,none": 0.006478911597012892
+      "perplexity,none": 1957.231544982268,
+      "perplexity_stderr,none": 286.80084334154475,
+      "acc,none": 0.31651465165922765,
+      "acc_stderr,none": 0.00647997882492519
     },
     "lambada_standard": {
       "alias": "lambada_standard",
-      "perplexity,none": 102953.52841728274,
-      "perplexity_stderr,none": 15754.121337892055,
-      "acc,none": 0.23597904133514458,
-      "acc_stderr,none": 0.005915635755096153
+      "perplexity,none": 102940.05010446598,
+      "perplexity_stderr,none": 15751.906719711335,
+      "acc,none": 0.23617310304676886,
+      "acc_stderr,none": 0.0059173160274041976
     },
     "mmlu": {
-      "acc,none": 0.2617148554336989,
-      "acc_stderr,none": 0.003697371843319879,
+      "acc,none": 0.2619997151402934,
+      "acc_stderr,none": 0.003698723256976203,
       "alias": "mmlu"
     },
     "mmlu_humanities": {
-      "acc,none": 0.25802337938363445,
-      "acc_stderr,none": 0.00637471774528809,
+      "acc,none": 0.25823591923485656,
+      "acc_stderr,none": 0.006376456279618649,
       "alias": " - humanities"
     },
     "mmlu_formal_logic": {
@@ -128,8 +128,8 @@
     },
     "mmlu_moral_scenarios": {
       "alias": "  - moral_scenarios",
-      "acc,none": 0.2547486033519553,
-      "acc_stderr,none": 0.014572650383409155
+      "acc,none": 0.2558659217877095,
+      "acc_stderr,none": 0.014593620923210739
     },
     "mmlu_philosophy": {
       "alias": "  - philosophy",
@@ -152,8 +152,8 @@
       "acc_stderr,none": 0.036155076303109365
     },
     "mmlu_other": {
-      "acc,none": 0.26359832635983266,
-      "acc_stderr,none": 0.007896134880368897,
+      "acc,none": 0.2639201802381719,
+      "acc_stderr,none": 0.007899513810388165,
       "alias": " - other"
     },
     "mmlu_business_ethics": {
@@ -203,8 +203,8 @@
     },
     "mmlu_nutrition": {
       "alias": "  - nutrition",
-      "acc,none": 0.24183006535947713,
-      "acc_stderr,none": 0.024518195641879334
+      "acc,none": 0.24509803921568626,
+      "acc_stderr,none": 0.024630048979824765
     },
     "mmlu_professional_accounting": {
       "alias": "  - professional_accounting",
@@ -222,8 +222,8 @@
       "acc_stderr,none": 0.03357351982064536
     },
     "mmlu_social_sciences": {
-      "acc,none": 0.27689307767305815,
-      "acc_stderr,none": 0.008008752442779415,
+      "acc,none": 0.2772180695482613,
+      "acc_stderr,none": 0.008011913531134543,
       "alias": " - social sciences"
     },
     "mmlu_econometrics": {
@@ -278,8 +278,8 @@
     },
     "mmlu_sociology": {
       "alias": "  - sociology",
-      "acc,none": 0.25870646766169153,
-      "acc_stderr,none": 0.03096590312357303
+      "acc,none": 0.263681592039801,
+      "acc_stderr,none": 0.031157150869355575
     },
     "mmlu_us_foreign_policy": {
       "alias": "  - us_foreign_policy",
@@ -287,8 +287,8 @@
       "acc_stderr,none": 0.044084400227680794
     },
     "mmlu_stem": {
-      "acc,none": 0.2505550269584523,
-      "acc_stderr,none": 0.007682546292252012,
+      "acc,none": 0.250872185220425,
+      "acc_stderr,none": 0.007685725230194833,
       "alias": " - stem"
     },
     "mmlu_abstract_algebra": {
@@ -358,8 +358,8 @@
     },
     "mmlu_high_school_chemistry": {
       "alias": "  - high_school_chemistry",
-      "acc,none": 0.2561576354679803,
-      "acc_stderr,none": 0.0307127300709826
+      "acc,none": 0.26108374384236455,
+      "acc_stderr,none": 0.03090379695211449
     },
     "mmlu_high_school_computer_science": {
       "alias": "  - high_school_computer_science",
@@ -393,8 +393,8 @@
     },
     "mnli_mismatch": {
       "alias": "mnli_mismatch",
-      "acc,none": 0.33930024410089504,
-      "acc_stderr,none": 0.004775241180741132
+      "acc,none": 0.33909682668836455,
+      "acc_stderr,none": 0.004774544366839507
     },
     "mrpc": {
       "alias": "mrpc",
@@ -405,22 +405,22 @@
     },
     "piqa": {
       "alias": "piqa",
-      "acc,none": 0.5712731229597389,
-      "acc_stderr,none": 0.011546694435712197,
-      "acc_norm,none": 0.5380848748639826,
-      "acc_norm_stderr,none": 0.011631933367846709
+      "acc,none": 0.5707290533188248,
+      "acc_stderr,none": 0.01154851547125801,
+      "acc_norm,none": 0.5375408052230686,
+      "acc_norm_stderr,none": 0.011632896120570524
     },
     "qnli": {
       "alias": "qnli",
-      "acc,none": 0.4973457807065715,
-      "acc_stderr,none": 0.006765315228093258
+      "acc,none": 0.4975288303130148,
+      "acc_stderr,none": 0.006765327922882513
     },
     "qqp": {
       "alias": "qqp",
-      "acc,none": 0.5728419490477368,
-      "acc_stderr,none": 0.002460170493025709,
-      "f1,none": 0.2704460966542751,
-      "f1_stderr,none": 0.003792608075666675
+      "acc,none": 0.5728914172644076,
+      "acc_stderr,none": 0.002460134252019273,
+      "f1,none": 0.2703456435392546,
+      "f1_stderr,none": 0.0037921219296136247
     },
     "rte": {
       "alias": "rte",
@@ -429,35 +429,35 @@
     },
     "sst2": {
       "alias": "sst2",
-      "acc,none": 0.5688073394495413,
-      "acc_stderr,none": 0.016780666190387036
+      "acc,none": 0.5676605504587156,
+      "acc_stderr,none": 0.016786019068816535
     },
     "truthfulqa_gen": {
       "alias": "truthfulqa_gen",
-      "bleu_max,none": 3.187153229241988,
-      "bleu_max_stderr,none": 0.05864361459510102,
-      "bleu_acc,none": 0.6829865361077111,
-      "bleu_acc_stderr,none": 0.016289203374403413,
-      "bleu_diff,none": 0.6147906229418321,
-      "bleu_diff_stderr,none": 0.054704299305514695,
-      "rouge1_max,none": 11.336603383602467,
-      "rouge1_max_stderr,none": 0.14535723836908473,
-      "rouge1_acc,none": 0.5189718482252142,
-      "rouge1_acc_stderr,none": 0.017490896405762346,
-      "rouge1_diff,none": 0.21210982885764937,
-      "rouge1_diff_stderr,none": 0.12076821113995563,
-      "rouge2_max,none": 7.425220071165035,
-      "rouge2_max_stderr,none": 0.12649587074558813,
-      "rouge2_acc,none": 0.605875152998776,
-      "rouge2_acc_stderr,none": 0.017106588140700325,
-      "rouge2_diff,none": 0.6838983452184771,
-      "rouge2_diff_stderr,none": 0.11899743501977823,
-      "rougeL_max,none": 10.829470739452224,
-      "rougeL_max_stderr,none": 0.14245455648894928,
-      "rougeL_acc,none": 0.5569155446756426,
-      "rougeL_acc_stderr,none": 0.0173897303468771,
-      "rougeL_diff,none": 0.26907423306741857,
-      "rougeL_diff_stderr,none": 0.11782077395364034
+      "bleu_max,none": 0.0,
+      "bleu_max_stderr,none": 0.0,
+      "bleu_acc,none": 0.0,
+      "bleu_acc_stderr,none": 0.0,
+      "bleu_diff,none": 0.0,
+      "bleu_diff_stderr,none": 0.0,
+      "rouge1_max,none": 0.0,
+      "rouge1_max_stderr,none": 0.0,
+      "rouge1_acc,none": 0.0,
+      "rouge1_acc_stderr,none": 0.0,
+      "rouge1_diff,none": 0.0,
+      "rouge1_diff_stderr,none": 0.0,
+      "rouge2_max,none": 0.0,
+      "rouge2_max_stderr,none": 0.0,
+      "rouge2_acc,none": 0.0,
+      "rouge2_acc_stderr,none": 0.0,
+      "rouge2_diff,none": 0.0,
+      "rouge2_diff_stderr,none": 0.0,
+      "rougeL_max,none": 0.0,
+      "rougeL_max_stderr,none": 0.0,
+      "rougeL_acc,none": 0.0,
+      "rougeL_acc_stderr,none": 0.0,
+      "rougeL_diff,none": 0.0,
+      "rougeL_diff_stderr,none": 0.0
     },
     "truthfulqa_mc1": {
       "alias": "truthfulqa_mc1",
@@ -466,8 +466,8 @@
     },
     "truthfulqa_mc2": {
       "alias": "truthfulqa_mc2",
-      "acc,none": 0.447159126499513,
-      "acc_stderr,none": 0.016511399094162355
+      "acc,none": 0.4471292527556528,
+      "acc_stderr,none": 0.01651178230570314
     },
     "wnli": {
       "alias": "wnli",
@@ -477,28 +477,28 @@
   },
   "groups": {
     "mmlu": {
-      "acc,none": 0.2617148554336989,
-      "acc_stderr,none": 0.003697371843319879,
+      "acc,none": 0.2619997151402934,
+      "acc_stderr,none": 0.003698723256976203,
       "alias": "mmlu"
     },
     "mmlu_humanities": {
-      "acc,none": 0.25802337938363445,
-      "acc_stderr,none": 0.00637471774528809,
+      "acc,none": 0.25823591923485656,
+      "acc_stderr,none": 0.006376456279618649,
       "alias": " - humanities"
     },
     "mmlu_other": {
-      "acc,none": 0.26359832635983266,
-      "acc_stderr,none": 0.007896134880368897,
+      "acc,none": 0.2639201802381719,
+      "acc_stderr,none": 0.007899513810388165,
       "alias": " - other"
     },
     "mmlu_social_sciences": {
-      "acc,none": 0.27689307767305815,
-      "acc_stderr,none": 0.008008752442779415,
+      "acc,none": 0.2772180695482613,
+      "acc_stderr,none": 0.008011913531134543,
       "alias": " - social sciences"
     },
     "mmlu_stem": {
-      "acc,none": 0.2505550269584523,
-      "acc_stderr,none": 0.007682546292252012,
+      "acc,none": 0.250872185220425,
+      "acc_stderr,none": 0.007685725230194833,
       "alias": " - stem"
     }
   },
@@ -4734,8 +4734,8 @@
     "torch_seed": 1234,
     "fewshot_seed": 1234
   },
-  "git_hash": "ce11c577",
-  "date": 1747399164.4810083,
+  "git_hash": "657b30c7",
+  "date": 1747771979.0238228,
   "pretty_env_info": "'NoneType' object has no attribute 'splitlines'",
   "transformers_version": "4.51.3",
   "lm_eval_version": "0.4.8",
@@ -4749,7 +4749,7 @@
   "fewshot_as_multiturn": false,
   "chat_template": null,
   "chat_template_sha": null,
-  "start_time": 18073.977583426,
-  "end_time": 28222.935228286,
-  "total_evaluation_time_seconds": "10148.957644860002"
+  "start_time": 34079.539897378,
+  "end_time": 46210.032421002,
+  "total_evaluation_time_seconds": "12130.492523623994"
 }

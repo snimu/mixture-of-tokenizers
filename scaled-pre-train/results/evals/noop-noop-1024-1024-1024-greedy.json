@@ -59,31 +59,31 @@
       "alias": "hellaswag",
       "acc,none": 0.2664807807209719,
       "acc_stderr,none": 0.004412149415717917,
-      "acc_norm,none": 0.2819159529974109,
-      "acc_norm_stderr,none": 0.004490130691020435
+      "acc_norm,none": 0.2822146982672774,
+      "acc_norm_stderr,none": 0.004491574539441883
     },
     "lambada_openai": {
       "alias": "lambada_openai",
-      "perplexity,none": 2321.085207650412,
-      "perplexity_stderr,none": 341.3839313850981,
-      "acc,none": 0.3824956336114885,
-      "acc_stderr,none": 0.006770883325053251
+      "perplexity,none": 2321.014697013234,
+      "perplexity_stderr,none": 341.3757768717182,
+      "acc,none": 0.38230157189986413,
+      "acc_stderr,none": 0.006770229062388669
     },
     "lambada_standard": {
       "alias": "lambada_standard",
-      "perplexity,none": 148762.6171104917,
-      "perplexity_stderr,none": 23479.92010997265,
-      "acc,none": 0.36503007956530176,
-      "acc_stderr,none": 0.006707380989588294
+      "perplexity,none": 148764.58849056307,
+      "perplexity_stderr,none": 23480.273081784228,
+      "acc,none": 0.36522414127692604,
+      "acc_stderr,none": 0.006708138364946151
     },
     "mmlu": {
-      "acc,none": 0.27018943170488535,
-      "acc_stderr,none": 0.0037306667879883734,
+      "acc,none": 0.2700470018515881,
+      "acc_stderr,none": 0.003729980688598504,
       "alias": "mmlu"
     },
     "mmlu_humanities": {
-      "acc,none": 0.2454835281615303,
-      "acc_stderr,none": 0.006276696246966433,
+      "acc,none": 0.2452709883103082,
+      "acc_stderr,none": 0.006274825876044935,
       "alias": " - humanities"
     },
     "mmlu_formal_logic": {
@@ -143,8 +143,8 @@
     },
     "mmlu_professional_law": {
       "alias": "  - professional_law",
-      "acc,none": 0.24119947848761408,
-      "acc_stderr,none": 0.010926496102034946
+      "acc,none": 0.2405475880052151,
+      "acc_stderr,none": 0.010916406735478949
     },
     "mmlu_world_religions": {
       "alias": "  - world_religions",
@@ -152,8 +152,8 @@
       "acc_stderr,none": 0.03246721765117826
     },
     "mmlu_other": {
-      "acc,none": 0.2639201802381719,
-      "acc_stderr,none": 0.007870039115142646,
+      "acc,none": 0.26359832635983266,
+      "acc_stderr,none": 0.0078663581826482,
       "alias": " - other"
     },
     "mmlu_business_ethics": {
@@ -198,8 +198,8 @@
     },
     "mmlu_miscellaneous": {
       "alias": "  - miscellaneous",
-      "acc,none": 0.2222222222222222,
-      "acc_stderr,none": 0.014866821664709607
+      "acc,none": 0.22094508301404853,
+      "acc_stderr,none": 0.014836205167333569
     },
     "mmlu_nutrition": {
       "alias": "  - nutrition",
@@ -288,7 +288,7 @@
     },
     "mmlu_stem": {
       "acc,none": 0.28322232794164287,
-      "acc_stderr,none": 0.00798756782629053,
+      "acc_stderr,none": 0.007988010488233945,
       "alias": " - stem"
     },
     "mmlu_abstract_algebra": {
@@ -368,13 +368,13 @@
     },
     "mmlu_high_school_mathematics": {
       "alias": "  - high_school_mathematics",
-      "acc,none": 0.2777777777777778,
-      "acc_stderr,none": 0.027309140588230175
+      "acc,none": 0.2814814814814815,
+      "acc_stderr,none": 0.02742001935094527
     },
     "mmlu_high_school_physics": {
       "alias": "  - high_school_physics",
-      "acc,none": 0.31788079470198677,
-      "acc_stderr,none": 0.038020397601079024
+      "acc,none": 0.31125827814569534,
+      "acc_stderr,none": 0.03780445850526733
     },
     "mmlu_high_school_statistics": {
       "alias": "  - high_school_statistics",
@@ -393,8 +393,8 @@
     },
     "mnli_mismatch": {
       "alias": "mnli_mismatch",
-      "acc,none": 0.3731692432872254,
-      "acc_stderr,none": 0.004877858768909855
+      "acc,none": 0.37357607811228644,
+      "acc_stderr,none": 0.0048789329335928245
     },
     "mrpc": {
       "alias": "mrpc",
@@ -405,22 +405,22 @@
     },
     "piqa": {
       "alias": "piqa",
-      "acc,none": 0.5783460282916213,
-      "acc_stderr,none": 0.011521722161800274,
+      "acc,none": 0.5788900979325353,
+      "acc_stderr,none": 0.011519701059151491,
       "acc_norm,none": 0.5538628944504896,
       "acc_norm_stderr,none": 0.011597936590301245
     },
     "qnli": {
       "alias": "qnli",
-      "acc,none": 0.5079626578802856,
-      "acc_stderr,none": 0.006764552590269392
+      "acc,none": 0.5081457074867289,
+      "acc_stderr,none": 0.006764512687707302
     },
     "qqp": {
       "alias": "qqp",
-      "acc,none": 0.46317091268859756,
-      "acc_stderr,none": 0.0024799456265448033,
-      "f1,none": 0.4879441324965791,
-      "f1_stderr,none": 0.0029758581773063537
+      "acc,none": 0.46312144447192677,
+      "acc_stderr,none": 0.0024799274431383357,
+      "f1,none": 0.4879452701108752,
+      "f1_stderr,none": 0.002975774900228702
     },
     "rte": {
       "alias": "rte",
@@ -434,30 +434,30 @@
     },
     "truthfulqa_gen": {
       "alias": "truthfulqa_gen",
-      "bleu_max,none": 3.187153229241988,
-      "bleu_max_stderr,none": 0.05864361459510102,
-      "bleu_acc,none": 0.6829865361077111,
-      "bleu_acc_stderr,none": 0.016289203374403413,
-      "bleu_diff,none": 0.6147906229418321,
-      "bleu_diff_stderr,none": 0.054704299305514695,
-      "rouge1_max,none": 11.336603383602467,
-      "rouge1_max_stderr,none": 0.14535723836908473,
-      "rouge1_acc,none": 0.5189718482252142,
-      "rouge1_acc_stderr,none": 0.017490896405762346,
-      "rouge1_diff,none": 0.21210982885764937,
-      "rouge1_diff_stderr,none": 0.12076821113995563,
-      "rouge2_max,none": 7.425220071165035,
-      "rouge2_max_stderr,none": 0.12649587074558813,
-      "rouge2_acc,none": 0.605875152998776,
-      "rouge2_acc_stderr,none": 0.017106588140700325,
-      "rouge2_diff,none": 0.6838983452184771,
-      "rouge2_diff_stderr,none": 0.11899743501977823,
-      "rougeL_max,none": 10.829470739452224,
-      "rougeL_max_stderr,none": 0.14245455648894928,
-      "rougeL_acc,none": 0.5569155446756426,
-      "rougeL_acc_stderr,none": 0.0173897303468771,
-      "rougeL_diff,none": 0.26907423306741857,
-      "rougeL_diff_stderr,none": 0.11782077395364034
+      "bleu_max,none": 0.0,
+      "bleu_max_stderr,none": 0.0,
+      "bleu_acc,none": 0.0,
+      "bleu_acc_stderr,none": 0.0,
+      "bleu_diff,none": 0.0,
+      "bleu_diff_stderr,none": 0.0,
+      "rouge1_max,none": 0.0,
+      "rouge1_max_stderr,none": 0.0,
+      "rouge1_acc,none": 0.0,
+      "rouge1_acc_stderr,none": 0.0,
+      "rouge1_diff,none": 0.0,
+      "rouge1_diff_stderr,none": 0.0,
+      "rouge2_max,none": 0.0,
+      "rouge2_max_stderr,none": 0.0,
+      "rouge2_acc,none": 0.0,
+      "rouge2_acc_stderr,none": 0.0,
+      "rouge2_diff,none": 0.0,
+      "rouge2_diff_stderr,none": 0.0,
+      "rougeL_max,none": 0.0,
+      "rougeL_max_stderr,none": 0.0,
+      "rougeL_acc,none": 0.0,
+      "rougeL_acc_stderr,none": 0.0,
+      "rougeL_diff,none": 0.0,
+      "rougeL_diff_stderr,none": 0.0
     },
     "truthfulqa_mc1": {
       "alias": "truthfulqa_mc1",
@@ -466,8 +466,8 @@
     },
     "truthfulqa_mc2": {
       "alias": "truthfulqa_mc2",
-      "acc,none": 0.4440842679743362,
-      "acc_stderr,none": 0.016647774588358023
+      "acc,none": 0.44407657383122817,
+      "acc_stderr,none": 0.016647653811665344
     },
     "wnli": {
       "alias": "wnli",
@@ -477,18 +477,18 @@
   },
   "groups": {
     "mmlu": {
-      "acc,none": 0.27018943170488535,
-      "acc_stderr,none": 0.0037306667879883734,
+      "acc,none": 0.2700470018515881,
+      "acc_stderr,none": 0.003729980688598504,
       "alias": "mmlu"
     },
     "mmlu_humanities": {
-      "acc,none": 0.2454835281615303,
-      "acc_stderr,none": 0.006276696246966433,
+      "acc,none": 0.2452709883103082,
+      "acc_stderr,none": 0.006274825876044935,
       "alias": " - humanities"
     },
     "mmlu_other": {
-      "acc,none": 0.2639201802381719,
-      "acc_stderr,none": 0.007870039115142646,
+      "acc,none": 0.26359832635983266,
+      "acc_stderr,none": 0.0078663581826482,
       "alias": " - other"
     },
     "mmlu_social_sciences": {
@@ -498,7 +498,7 @@
     },
     "mmlu_stem": {
       "acc,none": 0.28322232794164287,
-      "acc_stderr,none": 0.00798756782629053,
+      "acc_stderr,none": 0.007988010488233945,
       "alias": " - stem"
     }
   },
@@ -4734,8 +4734,8 @@
     "torch_seed": 1234,
     "fewshot_seed": 1234
   },
-  "git_hash": "ce11c577",
-  "date": 1747389431.2576087,
+  "git_hash": "657b30c7",
+  "date": 1747760268.0606544,
   "pretty_env_info": "'NoneType' object has no attribute 'splitlines'",
   "transformers_version": "4.51.3",
   "lm_eval_version": "0.4.8",
@@ -4749,7 +4749,7 @@
   "fewshot_as_multiturn": false,
   "chat_template": null,
   "chat_template_sha": null,
-  "start_time": 8340.760851752,
-  "end_time": 18047.683818173,
-  "total_evaluation_time_seconds": "9706.922966421002"
+  "start_time": 22368.563582476,
+  "end_time": 34056.513942007,
+  "total_evaluation_time_seconds": "11687.950359530998"
 }
