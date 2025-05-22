@@ -186,7 +186,8 @@ def judge_completions(model: str, response1: str, response2: str) -> tuple[int, 
         dspy.Signature(
             "query, answer1, answer2 -> better_answer_idx: int",
             "1 or 2. Criteria: grammar, internal consistency, consistency with query.",
-        )
+        ),
+        cache=False,
     )
     for _ in range(5):  # maximum of 5 tries per judgement
         chosen_idx = judge(query=response1, answer1=response1, answer2=response2).better_answer_idx - 1
@@ -291,7 +292,8 @@ def compare_two_generations(
 
                     # Save the results
                     df = pl.DataFrame(results)
-                    df.write_csv(f"results/generation/{save_to}.csv")
+                    with open(f"results/generation/{save_to}", "w") as f:
+                        df.write_csv(f)
 
                     # Give feedback
                     first, second = df[names[0]].sum(), df[names[1]].sum()
@@ -317,6 +319,7 @@ def compare_generations(
     for (file1, file2), (name1, name2) in zip(file_pairs, name_pairs):
         assert file1.endswith(".json") and file2.endswith(".json")
         for cmp_model in cmp_models:
+            print(f"\n{file1=}, {file2=}, {cmp_model=}")
             compare_two_generations(
                 files=[file1, file2],
                 names=[name1, name2],
@@ -326,7 +329,7 @@ def compare_generations(
                 n_samples_per_completion=n_samples_per_completion,
                 queries_file=queries_file,
             )
-            df_local = pl.read_csv("_tmp.csv")
+            df_local = pl.read_csv("results/generation/_tmp.csv")
             if df is None:
                 df = df_local
             else:
