@@ -200,17 +200,20 @@ def judge_completions(model: str, response1: str, response2: str) -> tuple[int, 
     return chosen_idx, position, switched
 
 
-def compare_generations(
+def extract_temperature(file: str) -> float:
+    return float(file.split("-")[-1].split(".")[0]) / 100  # float('050') == 50.0 -> divide by 100
+
+
+def compare_two_generations(
         files: list[str],
-        names: list[str] | None = None,
+        names: list[Literal["MoT", "Baseline"]],
         tokens_out: list[int] | None = None,
         save_to: str | None = None,
         cmp_model: str = "gpt-4o-mini",
         n_samples_per_completion: int = 10,
         queries_file: str = "queries.json",
 ):
-    names = names or [file.replace(".json", "") for file in files]
-    assert len(files) == len(names), f"{len(files)=}, {len(names)=}"
+    assert len(files) == len(names) == 2, f"{len(files)=}, {len(names)=}"
     tokens_out = tokens_out or [20, 100, 500]
     generations = []
     for file in files:
@@ -222,6 +225,8 @@ def compare_generations(
         queries = json.loads(f.read())
     assert len(queries) == len(generations[0]), f"{len(queries)=}, {len(generations[0])=}"
     enc = tiktoken.encoding_for_model("gpt-2")
+    temperature0 = extract_temperature(files[0])
+    temperature1 = extract_temperature(files[1])
 
     results = {
         "name": [],
@@ -232,6 +237,9 @@ def compare_generations(
         names[1]: [],
         "chosen_idx": [],
         "order_switched": [],
+        "temperature1": [],
+        "temperature2": [],
+        "cmp_model": [],
     }
     loop = tqdm(range(len(generations[0])))
     for query_idx in loop:
@@ -277,6 +285,9 @@ def compare_generations(
                     results["sample_idx"].append(sample_idx)
                     results[names[0]].append(resp0_is_better)
                     results[names[1]].append(resp1_is_better)
+                    results["temperature1"].append(temperature0)
+                    results["temperature2"].append(temperature1)
+                    results["cmp_model"].append(cmp_model)
 
                     # Save the results
                     df = pl.DataFrame(results)
@@ -291,45 +302,36 @@ def compare_generations(
                     description += f"mean shuffle: {df['order_switched'].mean():.2f}"
                     loop.set_description(description)
 
-    summary = {
-        "domain": [],
-        names[0]: [],
-        names[1]: [],
-        f"% {names[0]}": [],
-        "mean chosen_idx": [],
-    }
-    for name in df["name"].unique():
-        df_name = df.filter(pl.col("name") == name)
-        summary["domain"].append(name)
-        first, second = df_name[names[0]].sum(), df_name[names[1]].sum()
-        summary[names[0]].append(first)
-        summary[names[1]].append(second)
-        summary[f"% {names[0]}"].append(100*first/(first+second))
-        summary["mean chosen_idx"].append(df_name["chosen_idx"].mean())
-    for toks_in in df["tokens_in"].unique():
-        df_toks_in = df.filter(pl.col("tokens_in") == toks_in)
-        summary["domain"].append(f"toks_in: {toks_in}")
-        first, second = df_toks_in[names[0]].sum(), df_toks_in[names[1]].sum()
-        summary[names[0]].append(first)
-        summary[names[1]].append(second)
-        summary[f"% {names[0]}"].append(100*first/(first+second))
-        summary["mean chosen_idx"].append(df_toks_in["chosen_idx"].mean())
-    for toks_out in df["tokens_out"].unique():
-        df_toks_out = df.filter(pl.col("tokens_out") == toks_out)
-        summary["domain"].append(f"toks_out: {toks_out}")
-        first, second = df_toks_out[names[0]].sum(), df_toks_out[names[1]].sum()
-        summary[names[0]].append(first)
-        summary[names[1]].append(second)
-        summary[f"% {names[0]}"].append(100*first/(first+second))
-        summary["mean chosen_idx"].append(df_toks_out["chosen_idx"].mean())
-    summary["domain"].append("total")
-    first, second = df[names[0]].sum(), df[names[1]].sum()
-    summary[names[0]].append(first)
-    summary[names[1]].append(second)
-    summary[f"% {names[0]}"].append(100*first/(first+second))
-    summary["mean chosen_idx"].append(df["chosen_idx"].mean())
-    df = pl.DataFrame(summary)
-    df.write_csv(f"results/generation/{save_to}-summary.csv")
+
+def compare_generations(
+        file_pairs: list[tuple[str, str]],
+        name_pairs: list[tuple[Literal["MoT", "Baseline"], Literal["MoT", "Baseline"]]],
+        cmp_models: list[str],
+        save_to: str,
+        tokens_out: list[int] | None = None,
+        n_samples_per_completion: int = 10,
+        queries_file: str = "queries.json",
+):
+    assert len(file_pairs) == len(name_pairs), f"{len(file_pairs)=}, {len(name_pairs)=}"
+    df = None
+    for (file1, file2), (name1, name2) in zip(file_pairs, name_pairs):
+        assert file1.endswith(".json") and file2.endswith(".json")
+        for cmp_model in cmp_models:
+            compare_two_generations(
+                files=[file1, file2],
+                names=[name1, name2],
+                tokens_out=tokens_out,
+                save_to="_tmp.csv",
+                cmp_model=cmp_model,
+                n_samples_per_completion=n_samples_per_completion,
+                queries_file=queries_file,
+            )
+            df_local = pl.read_csv("_tmp.csv")
+            if df is None:
+                df = df_local
+            else:
+                df = pl.cat([df, df_local])
+            df.write_csv(f"results/generation/{save_to}.csv")
 
 
 def tabulate_comparisons(temperature: float):
@@ -374,40 +376,70 @@ if __name__ == "__main__":
     #     tablefmt="pipe",
     #     info_columns=["mean", "std", "n_params", "step_time"],
     # )
+
     # tabulate_evals(
     #     files=[
     #         "noop-noop-1024-1024-1024-greedy.json",
-    #         "noop-noop-1024-1024-1024-temp-050.json",
-    #         "noop-noop-1024-1024-1024-temp-100.json",
     #         "concat-noop-48-256-1024-greedy.json",
-    #         "concat-noop-48-256-1024-temp-050.json",
-    #         "concat-noop-48-256-1024-temp-100.json",
     #     ],
-    #     names=["T (0.0)", "T (0.5)", "T (1.0)", "B (0.0)", "B (0.5)", "B (1.0)"],
-    #     extra_forbidden_evals=["arithmetic", "cola", "lambada_openai", "mrpc", "rte", "wnli"],
+    #     names=["Baseline", "MoT"],
+    #     extra_forbidden_evals=["truthfulqa"],
     #     tablefmt="pipe",
     # )
-    # for modality in ["bytes", "tokens"]:
-    #     for model in ["gpt-4.1"]:
-    #         for cmp, tmps, n_samples_per_completion in zip(
-    #             [("000", "050"), ("000", "100"), ("050", "100")],
-    #             [(0.0, 0.5), (0.0, 1.0), (0.5, 1.0)],
-    #             [5, 5, 10],
-    #         ):
-    #             compare_generations(
-    #                 files=[f"{modality}-tokens-{cmp[0]}.json", f"{modality}-tokens-{cmp[1]}.json"],
-    #                 names=[f"{modality[0].upper()} ({tmps[0]})", f"{modality[0].upper()} ({tmps[1]})"],
-    #                 save_to=f"comparison_{modality}_T{cmp[0]}_T{cmp[1]}_{model.replace('-', '_')}",
-    #                 cmp_model=model,
-    #                 n_samples_per_completion=10,
-    #             )
-    for model in ["gpt-4o-mini", "gpt-4o", "gpt-4.1"]:
-        T = "030"
-        compare_generations(
-            files=[f"bytes-tokens-{T}.json", f"tokens-tokens-{T}.json"],
-            names=["MoT", "Baseline"],
-            save_to=f"comparison_T{T}_{model.replace('-', '_')}",
-            cmp_model=model,
-            n_samples_per_completion=10,
-        )
-    # tabulate_comparisons(1)
+
+    file_pairs=[
+        ("bytes-tokens-000.json", "tokens-tokens-000.json"),
+        ("bytes-tokens-010.json", "tokens-tokens-010.json"),
+        ("bytes-tokens-020.json", "tokens-tokens-020.json"),
+        ("bytes-tokens-030.json", "tokens-tokens-030.json"),
+        ("bytes-tokens-040.json", "tokens-tokens-040.json"),
+        ("bytes-tokens-050.json", "tokens-tokens-050.json"),
+        ("bytes-tokens-060.json", "tokens-tokens-060.json"),
+        ("bytes-tokens-070.json", "tokens-tokens-070.json"),
+        ("bytes-tokens-080.json", "tokens-tokens-080.json"),
+        ("bytes-tokens-090.json", "tokens-tokens-090.json"),
+        ("bytes-tokens-100.json", "tokens-tokens-100.json"),
+    ]
+    name_pairs=[("MoT", "Baseline")] * len(file_pairs)
+    cmp_models=["gpt-4.1"]
+    compare_generations(
+        file_pairs=file_pairs,
+        name_pairs=name_pairs,
+        cmp_models=cmp_models,
+        save_to="comparison-between-models.csv",
+        tokens_out=[20, 100, 500],
+    )
+
+    file_pairs=[]
+    for i in range(10):
+        T1 = f"0{i}" + ("0" if i < 10 else "")
+        for j in range(i+1, 11):
+            T2 = f"0{j}" + ("0" if j < 10 else "")
+            file_pairs.append((f"bytes-tokens-{T1}.json", f"bytes-tokens-{T2}.json"))
+    name_pairs=[("MoT", "MoT")] * len(file_pairs)
+    cmp_models=["gpt-4.1"]
+    compare_generations(
+        file_pairs=file_pairs,
+        name_pairs=name_pairs,
+        cmp_models=cmp_models,
+        save_to="comparison-temperatures_MoT.csv",
+        tokens_out=[20, 100, 500],
+        n_samples_per_completion=5,
+    )
+
+    file_pairs=[]
+    for i in range(10):
+        T1 = f"0{i}" + ("0" if i < 10 else "")
+        for j in range(i+1, 11):
+            T2 = f"0{j}" + ("0" if j < 10 else "")
+            file_pairs.append((f"tokens-tokens-{T1}.json", f"tokens-tokens-{T2}.json"))
+    name_pairs=[("Baseline", "Baseline")] * len(file_pairs)
+    cmp_models=["gpt-4.1"]
+    compare_generations(
+        file_pairs=file_pairs,
+        name_pairs=name_pairs,
+        cmp_models=cmp_models,
+        save_to="comparison-temperatures_Baseline.csv",
+        tokens_out=[20, 100, 500],
+        n_samples_per_completion=5,
+    )
