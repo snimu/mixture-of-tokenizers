@@ -234,8 +234,10 @@ def compare_two_generations(
         "tokens_in": [],
         "tokens_out": [],
         "sample_idx": [],
-        names[0]: [],
-        names[1]: [],
+        "win0": [],
+        "win1": [],
+        "model_type0": [],
+        "model_type1": [],
         "chosen_idx": [],
         "order_switched": [],
         "temperature1": [],
@@ -284,8 +286,11 @@ def compare_two_generations(
                     results["tokens_in"].append(toks_in)
                     results["tokens_out"].append(toks_out)
                     results["sample_idx"].append(sample_idx)
-                    results[names[0]].append(resp0_is_better)
-                    results[names[1]].append(resp1_is_better)
+                    results["win0"].append(resp0_is_better)
+                    results["win1"].append(resp1_is_better)
+                    results["model_type0"].append(names[0])
+                    results["model_type1"].append(names[1])
+                    results["name1"].append(completion1["name"])
                     results["temperature1"].append(temperature0)
                     results["temperature2"].append(temperature1)
                     results["cmp_model"].append(cmp_model)
@@ -315,7 +320,10 @@ def compare_generations(
         queries_file: str = "queries.json",
 ):
     assert len(file_pairs) == len(name_pairs), f"{len(file_pairs)=}, {len(name_pairs)=}"
-    df = None
+    try:
+        df = pl.read_csv(f"results/generation/{save_to}")
+    except FileNotFoundError:
+        df = None
     for (file1, file2), (name1, name2) in zip(file_pairs, name_pairs):
         assert file1.endswith(".json") and file2.endswith(".json")
         for cmp_model in cmp_models:
@@ -333,8 +341,8 @@ def compare_generations(
             if df is None:
                 df = df_local
             else:
-                df = pl.cat([df, df_local])
-            df.write_csv(f"results/generation/{save_to}.csv")
+                df = pl.concat([df, df_local])
+            df.write_csv(f"results/generation/{save_to}" + ("" if save_to.endswith(".csv") else ".csv"))
 
 
 def tabulate_comparisons(temperature: float):
