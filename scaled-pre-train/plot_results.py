@@ -290,7 +290,6 @@ def compare_two_generations(
                     results["win1"].append(resp1_is_better)
                     results["model_type0"].append(names[0])
                     results["model_type1"].append(names[1])
-                    results["name1"].append(completion1["name"])
                     results["temperature1"].append(temperature0)
                     results["temperature2"].append(temperature1)
                     results["cmp_model"].append(cmp_model)
