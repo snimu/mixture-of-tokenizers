@@ -1,6 +1,5 @@
 
 import json
-import os
 import random
 import itertools
 from typing import Literal
@@ -12,6 +11,7 @@ import tiktoken
 from tqdm import tqdm
 from tabulate import tabulate
 import polars as pl
+import matplotlib.pyplot as plt
 
 
 def load_data(
@@ -261,14 +261,21 @@ def compare_two_generations(
             query = enc.decode(enc.encode(query)[:toks_in])
             candidates0 = [completion0["responses"][i] for i in range(len(completion0["responses"])) if completion0["tokens_in"][i] == toks_in]
             candidates1 = [completion1["responses"][i] for i in range(len(completion1["responses"])) if completion1["tokens_in"][i] == toks_in]
-            random.shuffle(candidates0)
-            random.shuffle(candidates1)
             for toks_out_idx, toks_out in enumerate(tokens_out):
-                samples0 = itertools.cycle([enc.decode(enc.encode(resp)[:toks_out]) for resp in candidates0])
-                samples1 = itertools.cycle([enc.decode(enc.encode(resp)[:toks_out]) for resp in candidates1])
+                candidates0 = [enc.decode(enc.encode(resp)[:toks_out]) for resp in candidates0]
+                candidates1 = [enc.decode(enc.encode(resp)[:toks_out]) for resp in candidates1]
+                samples0, samples1 = [], []
+                for _ in range(n_samples_per_completion //len(candidates0) + 1):
+                    random.shuffle(candidates0)
+                    samples0.extend(candidates0)
+                for _ in range(n_samples_per_completion // len(candidates1) + 1):
+                    random.shuffle(candidates1)
+                    samples1.extend(candidates1)
+                samples0 = samples0[:n_samples_per_completion]
+                samples1 = samples1[:n_samples_per_completion]
                 judgements = []
-                with ThreadPoolExecutor(max_workers=n_samples_per_completion) as executor:
-                    futures = [executor.submit(judge_completions, cmp_model, next(samples0), next(samples1)) for _ in range(n_samples_per_completion)]
+                with ThreadPoolExecutor(max_workers=min(10, n_samples_per_completion)) as executor:
+                    futures = [executor.submit(judge_completions, cmp_model, sample0, sample1) for sample0, sample1 in zip(samples0, samples1)]
                     for future in futures:
                         judgements.append(future.result())
                 for sample_idx, (chosen_idx, position, switched) in enumerate(judgements):
@@ -300,10 +307,10 @@ def compare_two_generations(
                         df.write_csv(f)
 
                     # Give feedback
-                    first, second = df[names[0]].sum(), df[names[1]].sum()
+                    first, second = df['win0'].sum(), df['win1'].sum()
                     description = f"toks_in: {toks_in_idx+1}/{len(set(completion0['tokens_in']))}, "
                     description += f"toks_out: {toks_out_idx+1}/{len(tokens_out)}; "
-                    description += f"{names[0]}: {first}, {names[1]}: {second} ({100*first/(first+second):.2f}% {names[0]}); "
+                    description += f"{'win0'}: {first}, {'win1'}: {second} ({100*first/(first+second):.2f}% {names[0]}); "
                     description += f"mean idx: {df['chosen_idx'].mean():.2f}; "
                     description += f"mean shuffle: {df['order_switched'].mean():.2f}"
                     loop.set_description(description)
@@ -344,36 +351,87 @@ def compare_generations(
             df.write_csv(f"results/generation/{save_to}" + ("" if save_to.endswith(".csv") else ".csv"))
 
 
-def tabulate_comparisons(temperature: float):
-    if temperature == 0:
-        temp = "T000"
-    elif temperature < 1:
-        temp = f"T0{int(temperature*100)}"
-    else:
-        temp = f"T{int(temperature*100)}"
-    file_titles = [
-        file
-        for file in os.listdir("results/generation")
-        if file.endswith("-summary.csv") and temp in file
-        
-    ]
-    dfs = []
-    for file in file_titles:
-        dfs.append(pl.read_csv(f"results/generation/{file}"))
-    df: pl.DataFrame = pl.concat(dfs)
-    results = {col: [] for col in df.columns}
-    for domain in dfs[0]["domain"]:
-        df_domain = df.filter(pl.col("domain") == domain)
-        for col in df.columns:
-            if col == "domain":
-                continue
-            if col in ("% MoT", "mean chosen_idx"):
-                results[col].append(df_domain[col].mean())
-            else:
-                results[col].append(df_domain[col].sum())
-    results["domain"] = dfs[0]["domain"]
-    table = tabulate(results, headers="keys", floatfmt=".4f", tablefmt="pipe")
+def tabulate_comparisons_between_models(
+        file: str,
+        model_type0: str,
+        model_type1: str,
+):
+    df = pl.read_csv(f"results/generation/{file}")
+    df = df.filter(
+        (pl.col("model_type0") == model_type0)
+        & (pl.col("model_type1") == model_type1)
+    )
+    df = df.with_columns(
+        [pl.col("win0").cast(pl.Int32), pl.col("win1").cast(pl.Int32)],
+    )
+    results = {
+        "domain": [],
+        f"Wins ({model_type0})": [],
+        f"Wins ({model_type1})": [],
+        f"Win rate ({model_type0})": [],
+    }
+    def analyze_domain(df_domain: pl.DataFrame, domain: str):
+        results["domain"].append(domain)
+        wins0 = df_domain["win0"].sum()
+        wins1 = df_domain["win1"].sum()
+        results[f"Wins ({model_type0})"].append(wins0)
+        results[f"Wins ({model_type1})"].append(wins1)
+        win_rate0 = wins0 / (wins0 + wins1)
+        results[f"Win rate ({model_type0})"].append(win_rate0)
+
+    # Temperature combinations as domains
+    temperatures1 = df["temperature1"].unique().to_list()
+    temperatures2 = df["temperature2"].unique().to_list()
+    temperatures = list(itertools.product(temperatures1, temperatures2))
+    for temperature1, temperature2 in temperatures:
+        df_temp = df.filter(
+            (pl.col("temperature1") == temperature1)
+            & (pl.col("temperature2") == temperature2)
+        )
+        if len(df_temp) == 0:
+            continue
+        analyze_domain(df_temp, f"temperatures ({temperature1}, {temperature2})")
+
+    # Domains as domains
+    domains = df["name"].unique().to_list() + ["summary"]
+    for domain in domains:
+        df_domain = df.filter(pl.col("name") == domain) if domain != "summary" else df
+        analyze_domain(df_domain, domain)
+
+    # Tabulate
+    table = tabulate(
+        results,
+        headers="keys",
+        floatfmt=".4f",
+        tablefmt="pipe",
+    )
     print(table)
+
+
+def plot_temperature_preferences(file: str, name: str):
+    df = pl.read_csv(f"results/generation/{file}").with_columns(
+        [pl.col("win0").cast(pl.Int32), pl.col("win1").cast(pl.Int32)],
+    )
+    temperatures = sorted(list(set(
+        df["temperature1"].unique().to_list() + df["temperature2"].unique().to_list()
+    )))
+    win_rates = []
+    for temperature in temperatures:
+        df_temp_left = df.filter(pl.col("temperature1") == temperature)
+        df_temp_right = df.filter(pl.col("temperature2") == temperature)
+        wins_self = df_temp_left["win0"].sum() + df_temp_right["win1"].sum()
+        wins_other = df_temp_left["win1"].sum() + df_temp_right["win0"].sum()
+        win_rates.append(wins_self / (wins_self + wins_other))
+    max_win_rate = max(win_rates)
+    max_win_rate_idx = win_rates.index(max_win_rate)
+    max_win_rate_temp = temperatures[max_win_rate_idx]
+    print(f"\n\nMax win rate: {max_win_rate:.2f}; at temperature {max_win_rate_temp}")
+    plt.bar(temperatures, win_rates, width=0.04)
+    plt.xlabel("Temperature")
+    plt.ylabel("Win rate")
+    plt.title(f"Win rate for {name}")
+    plt.grid(axis="y")
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -397,59 +455,95 @@ if __name__ == "__main__":
     #     tablefmt="pipe",
     # )
 
-    file_pairs=[
-        ("bytes-tokens-000.json", "tokens-tokens-000.json"),
-        ("bytes-tokens-010.json", "tokens-tokens-010.json"),
-        ("bytes-tokens-020.json", "tokens-tokens-020.json"),
-        ("bytes-tokens-030.json", "tokens-tokens-030.json"),
-        ("bytes-tokens-040.json", "tokens-tokens-040.json"),
-        ("bytes-tokens-050.json", "tokens-tokens-050.json"),
-        ("bytes-tokens-060.json", "tokens-tokens-060.json"),
-        ("bytes-tokens-070.json", "tokens-tokens-070.json"),
-        ("bytes-tokens-080.json", "tokens-tokens-080.json"),
-        ("bytes-tokens-090.json", "tokens-tokens-090.json"),
-        ("bytes-tokens-100.json", "tokens-tokens-100.json"),
-    ]
-    name_pairs=[("MoT", "Baseline")] * len(file_pairs)
-    cmp_models=["gpt-4.1"]
-    compare_generations(
-        file_pairs=file_pairs,
-        name_pairs=name_pairs,
-        cmp_models=cmp_models,
-        save_to="comparison-between-models.csv",
-        tokens_out=[20, 100, 500],
-    )
+    # file_pairs=[
+    #     ("bytes-tokens-000.json", "tokens-tokens-000.json"),
+    #     ("bytes-tokens-010.json", "tokens-tokens-010.json"),
+    #     ("bytes-tokens-020.json", "tokens-tokens-020.json"),
+    #     ("bytes-tokens-030.json", "tokens-tokens-030.json"),
+    #     ("bytes-tokens-040.json", "tokens-tokens-040.json"),
+    #     ("bytes-tokens-050.json", "tokens-tokens-050.json"),
+    #     ("bytes-tokens-060.json", "tokens-tokens-060.json"),
+    #     ("bytes-tokens-070.json", "tokens-tokens-070.json"),
+    #     ("bytes-tokens-080.json", "tokens-tokens-080.json"),
+    #     ("bytes-tokens-090.json", "tokens-tokens-090.json"),
+    #     ("bytes-tokens-100.json", "tokens-tokens-100.json"),
+    # ]
+    # name_pairs=[("MoT", "Baseline")] * len(file_pairs)
+    # cmp_models=["gpt-4.1"]
+    # compare_generations(
+    #     file_pairs=file_pairs,
+    #     name_pairs=name_pairs,
+    #     cmp_models=cmp_models,
+    #     save_to="comparison-between-models.csv",
+    #     tokens_out=[20, 100, 500],
+    #     n_samples_per_completion=25,
+    # )
 
-    file_pairs=[]
-    for i in range(10):
-        T1 = f"0{i}" + ("0" if i < 10 else "")
-        for j in range(i+1, 11):
-            T2 = f"0{j}" + ("0" if j < 10 else "")
-            file_pairs.append((f"bytes-tokens-{T1}.json", f"bytes-tokens-{T2}.json"))
-    name_pairs=[("MoT", "MoT")] * len(file_pairs)
-    cmp_models=["gpt-4.1"]
-    compare_generations(
-        file_pairs=file_pairs,
-        name_pairs=name_pairs,
-        cmp_models=cmp_models,
-        save_to="comparison-temperatures_MoT.csv",
-        tokens_out=[20, 100, 500],
-        n_samples_per_completion=5,
-    )
+    # to_str = lambda x: f"0{round(x * 100)}" if x < 10 else str(round(x * 100))
+    # file_pairs=[]
+    # for i in range(10):
+    #     T1 = to_str(i)
+    #     for j in range(i+1, 11):
+    #         T2 = to_str(j)
+    #         file_pairs.append((f"bytes-tokens-{T1}.json", f"bytes-tokens-{T2}.json"))
+    # name_pairs=[("MoT", "MoT")] * len(file_pairs)
+    # cmp_models=["gpt-4.1"]
+    # compare_generations(
+    #     file_pairs=file_pairs,
+    #     name_pairs=name_pairs,
+    #     cmp_models=cmp_models,
+    #     save_to="comparison-temperatures_MoT.csv",
+    #     tokens_out=[20, 100, 500],
+    #     n_samples_per_completion=5,
+    # )
 
-    file_pairs=[]
-    for i in range(10):
-        T1 = f"0{i}" + ("0" if i < 10 else "")
-        for j in range(i+1, 11):
-            T2 = f"0{j}" + ("0" if j < 10 else "")
-            file_pairs.append((f"tokens-tokens-{T1}.json", f"tokens-tokens-{T2}.json"))
-    name_pairs=[("Baseline", "Baseline")] * len(file_pairs)
-    cmp_models=["gpt-4.1"]
-    compare_generations(
-        file_pairs=file_pairs,
-        name_pairs=name_pairs,
-        cmp_models=cmp_models,
-        save_to="comparison-temperatures_Baseline.csv",
-        tokens_out=[20, 100, 500],
-        n_samples_per_completion=5,
+    # file_pairs=[]
+    # for i in range(10):
+    #     T1 = f"0{i}" + ("0" if i < 10 else "")
+    #     for j in range(i+1, 11):
+    #         T2 = f"0{j}" + ("0" if j < 10 else "")
+    #         file_pairs.append((f"tokens-tokens-{T1}.json", f"tokens-tokens-{T2}.json"))
+    # name_pairs=[("Baseline", "Baseline")] * len(file_pairs)
+    # cmp_models=["gpt-4.1"]
+    # compare_generations(
+    #     file_pairs=file_pairs,
+    #     name_pairs=name_pairs,
+    #     cmp_models=cmp_models,
+    #     save_to="comparison-temperatures_Baseline.csv",
+    #     tokens_out=[20, 100, 500],
+    #     n_samples_per_completion=5,
+    # )
+
+    # file_pairs = [
+    #     ("tokens-tokens-010.json", "tokens-tokens-100.json"),
+    #     ("tokens-tokens-030.json", "tokens-tokens-100.json"),
+    # ]
+    # compare_generations(
+    #     file_pairs=file_pairs,
+    #     name_pairs=[("Baseline", "Baseline")] * len(file_pairs),
+    #     cmp_models=["gpt-4.1"],
+    #     save_to="comparison-temperatures_Baseline.csv",
+    #     tokens_out=[20, 100, 500],
+    #     n_samples_per_completion=5,
+    # )
+
+    # file_pairs = [
+    #     ("bytes-tokens-010.json", "bytes-tokens-100.json"),
+    #     ("bytes-tokens-030.json", "bytes-tokens-100.json"),
+    # ]
+    # compare_generations(
+    #     file_pairs=file_pairs,
+    #     name_pairs=[("MoT", "MoT")] * len(file_pairs),
+    #     cmp_models=["gpt-4.1"],
+    #     save_to="comparison-temperatures_MoT.csv",
+    #     tokens_out=[20, 100, 500],
+    #     n_samples_per_completion=5,
+    # )
+
+    tabulate_comparisons_between_models(
+        file="comparison-between-models.csv",
+        model_type0="MoT",
+        model_type1="Baseline",
     )
+    plot_temperature_preferences("comparison-temperatures_Baseline.csv", "Baseline")
+    plot_temperature_preferences("comparison-temperatures_MoT.csv", "MoT")
