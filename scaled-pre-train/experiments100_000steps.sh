@@ -120,6 +120,46 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --seed 773322 \
     --wandb-project MoT-scaled-pre-train-tests
 
+# 1.6 token-dim like in baseline, small byte-dim
+torchrun --nproc_per_node=8 train_gpt.py \
+    --num-iterations 100000 \
+    --cooldown-frac 0.6 \
+    --seq-len 1024 \
+    --batch-size-train 64 \
+    --batch-size-val 32 \
+    --val-loss-every 1000 \
+    --save-checkpoint-every 1000 \
+    --bytes-per-token 16 \
+    --byte-mixin-method concat \
+    --byte-mixout-method noop \
+    --padding-in left \
+    --pull-in \
+    --model-dim 1024 \
+    --byte-dim 64 \
+    --token-dim 1024 \
+    --seed 773322 \
+    --wandb-project MoT-scaled-pre-train-tests
+
+# 1.7 token-dim like in baseline, large byte-dim
+torchrun --nproc_per_node=8 train_gpt.py \
+    --num-iterations 100000 \
+    --cooldown-frac 0.6 \
+    --seq-len 1024 \
+    --batch-size-train 64 \
+    --batch-size-val 32 \
+    --val-loss-every 1000 \
+    --save-checkpoint-every 1000 \
+    --bytes-per-token 16 \
+    --byte-mixin-method concat \
+    --byte-mixout-method noop \
+    --padding-in left \
+    --pull-in \
+    --model-dim 1024 \
+    --byte-dim 128 \
+    --token-dim 1024 \
+    --seed 773322 \
+    --wandb-project MoT-scaled-pre-train-tests
+
 # 2. Compare different mixout methods
 
 # 2.1 Split with 0 self-attn layers
