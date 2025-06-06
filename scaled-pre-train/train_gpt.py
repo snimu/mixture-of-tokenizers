@@ -1130,6 +1130,21 @@ def main():
     args.num_params = sum(p.numel() for p in model.parameters())
     print0(f"\n\nNumber of parameters: {args.num_params:_}\n", console=True)
     if args.num_iterations <= 0:
+        params = dict(
+            num_params_blocks = sum(p.numel() for p in model.blocks.parameters()),
+            num_params_ve = sum(p.numel() for p in model.value_embeds.parameters()),
+            num_params_token_embs = sum(p.numel() for p in model.embed.embed_tokens.parameters()),
+            num_params_byte_embs = sum(p.numel() for p in model.embed.embed_bytes.parameters()),
+            num_params_mixin = sum(p.numel() for p in model.byte_mixin.parameters()),
+            num_params_mixout = sum(p.numel() for p in model.byte_mixout.parameters()),
+            num_params_lm_head = sum(p.numel() for p in model.lm_head.parameters()),
+            num_params_embs_total = sum(p.numel() for n, p in model.named_parameters() if "embed" in n),
+            num_params_total = args.num_params,
+        )
+        print("\n\n")
+        for name, num in params.items():
+            print(f"{name}: {num:_}")
+        print("\n\n")
         dist.destroy_process_group()
         return
 
