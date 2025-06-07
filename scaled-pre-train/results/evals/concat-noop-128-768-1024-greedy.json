@@ -1,0 +1,4755 @@
+{
+  "results": {
+    "arithmetic_1dc": {
+      "alias": "arithmetic_1dc",
+      "acc,none": 0.0285,
+      "acc_stderr,none": 0.003721666347242928
+    },
+    "arithmetic_2da": {
+      "alias": "arithmetic_2da",
+      "acc,none": 0.008,
+      "acc_stderr,none": 0.0019924821184884637
+    },
+    "arithmetic_2dm": {
+      "alias": "arithmetic_2dm",
+      "acc,none": 0.026,
+      "acc_stderr,none": 0.0035592603398856837
+    },
+    "arithmetic_2ds": {
+      "alias": "arithmetic_2ds",
+      "acc,none": 0.0,
+      "acc_stderr,none": 0.0
+    },
+    "arithmetic_3da": {
+      "alias": "arithmetic_3da",
+      "acc,none": 0.001,
+      "acc_stderr,none": 0.0007069298939339296
+    },
+    "arithmetic_3ds": {
+      "alias": "arithmetic_3ds",
+      "acc,none": 0.0005,
+      "acc_stderr,none": 0.0005000000000000001
+    },
+    "arithmetic_4da": {
+      "alias": "arithmetic_4da",
+      "acc,none": 0.0,
+      "acc_stderr,none": 0.0
+    },
+    "arithmetic_4ds": {
+      "alias": "arithmetic_4ds",
+      "acc,none": 0.0,
+      "acc_stderr,none": 0.0
+    },
+    "arithmetic_5da": {
+      "alias": "arithmetic_5da",
+      "acc,none": 0.0,
+      "acc_stderr,none": 0.0
+    },
+    "arithmetic_5ds": {
+      "alias": "arithmetic_5ds",
+      "acc,none": 0.0,
+      "acc_stderr,none": 0.0
+    },
+    "cola": {
+      "alias": "cola",
+      "mcc,none": 0.024911379810805663,
+      "mcc_stderr,none": 0.03210825824386496
+    },
+    "hellaswag": {
+      "alias": "hellaswag",
+      "acc,none": 0.26618203545110536,
+      "acc_stderr,none": 0.004410573431837644,
+      "acc_norm,none": 0.27942640908185623,
+      "acc_norm_stderr,none": 0.004478003326528218
+    },
+    "lambada_openai": {
+      "alias": "lambada_openai",
+      "perplexity,none": 1970.5038718531596,
+      "perplexity_stderr,none": 284.1467589830164,
+      "acc,none": 0.3295167863380555,
+      "acc_stderr,none": 0.006548544742851421
+    },
+    "lambada_standard": {
+      "alias": "lambada_standard",
+      "perplexity,none": 110010.08074138135,
+      "perplexity_stderr,none": 16905.38994143225,
+      "acc,none": 0.2542208422278284,
+      "acc_stderr,none": 0.00606628444671914
+    },
+    "mmlu": {
+      "acc,none": 0.25744195983478135,
+      "acc_stderr,none": 0.0036794593418062868,
+      "alias": "mmlu"
+    },
+    "mmlu_humanities": {
+      "acc,none": 0.23251859723698193,
+      "acc_stderr,none": 0.006160952389845529,
+      "alias": " - humanities"
+    },
+    "mmlu_formal_logic": {
+      "alias": "  - formal_logic",
+      "acc,none": 0.2777777777777778,
+      "acc_stderr,none": 0.040061680838488774
+    },
+    "mmlu_high_school_european_history": {
+      "alias": "  - high_school_european_history",
+      "acc,none": 0.2606060606060606,
+      "acc_stderr,none": 0.03427743175816524
+    },
+    "mmlu_high_school_us_history": {
+      "alias": "  - high_school_us_history",
+      "acc,none": 0.2647058823529412,
+      "acc_stderr,none": 0.03096451792692342
+    },
+    "mmlu_high_school_world_history": {
+      "alias": "  - high_school_world_history",
+      "acc,none": 0.21518987341772153,
+      "acc_stderr,none": 0.026750826994676163
+    },
+    "mmlu_international_law": {
+      "alias": "  - international_law",
+      "acc,none": 0.2231404958677686,
+      "acc_stderr,none": 0.03800754475228733
+    },
+    "mmlu_jurisprudence": {
+      "alias": "  - jurisprudence",
+      "acc,none": 0.21296296296296297,
+      "acc_stderr,none": 0.03957835471980981
+    },
+    "mmlu_logical_fallacies": {
+      "alias": "  - logical_fallacies",
+      "acc,none": 0.19631901840490798,
+      "acc_stderr,none": 0.031207970394709218
+    },
+    "mmlu_moral_disputes": {
+      "alias": "  - moral_disputes",
+      "acc,none": 0.21098265895953758,
+      "acc_stderr,none": 0.021966309947043135
+    },
+    "mmlu_moral_scenarios": {
+      "alias": "  - moral_scenarios",
+      "acc,none": 0.21675977653631284,
+      "acc_stderr,none": 0.013780598486443373
+    },
+    "mmlu_philosophy": {
+      "alias": "  - philosophy",
+      "acc,none": 0.2347266881028939,
+      "acc_stderr,none": 0.024071805887677045
+    },
+    "mmlu_prehistory": {
+      "alias": "  - prehistory",
+      "acc,none": 0.24074074074074073,
+      "acc_stderr,none": 0.023788583551658537
+    },
+    "mmlu_professional_law": {
+      "alias": "  - professional_law",
+      "acc,none": 0.23728813559322035,
+      "acc_stderr,none": 0.010865436690780267
+    },
+    "mmlu_world_religions": {
+      "alias": "  - world_religions",
+      "acc,none": 0.27485380116959063,
+      "acc_stderr,none": 0.03424042924691584
+    },
+    "mmlu_other": {
+      "acc,none": 0.2603797875764403,
+      "acc_stderr,none": 0.007872561659171995,
+      "alias": " - other"
+    },
+    "mmlu_business_ethics": {
+      "alias": "  - business_ethics",
+      "acc,none": 0.24,
+      "acc_stderr,none": 0.042923469599092844
+    },
+    "mmlu_clinical_knowledge": {
+      "alias": "  - clinical_knowledge",
+      "acc,none": 0.2679245283018868,
+      "acc_stderr,none": 0.02725726032249485
+    },
+    "mmlu_college_medicine": {
+      "alias": "  - college_medicine",
+      "acc,none": 0.3179190751445087,
+      "acc_stderr,none": 0.035506839891655796
+    },
+    "mmlu_global_facts": {
+      "alias": "  - global_facts",
+      "acc,none": 0.31,
+      "acc_stderr,none": 0.04648231987117316
+    },
+    "mmlu_human_aging": {
+      "alias": "  - human_aging",
+      "acc,none": 0.273542600896861,
+      "acc_stderr,none": 0.029918586707798827
+    },
+    "mmlu_management": {
+      "alias": "  - management",
+      "acc,none": 0.18446601941747573,
+      "acc_stderr,none": 0.03840423627288276
+    },
+    "mmlu_marketing": {
+      "alias": "  - marketing",
+      "acc,none": 0.21367521367521367,
+      "acc_stderr,none": 0.026853450377009164
+    },
+    "mmlu_medical_genetics": {
+      "alias": "  - medical_genetics",
+      "acc,none": 0.26,
+      "acc_stderr,none": 0.04408440022768078
+    },
+    "mmlu_miscellaneous": {
+      "alias": "  - miscellaneous",
+      "acc,none": 0.2681992337164751,
+      "acc_stderr,none": 0.015842430835269452
+    },
+    "mmlu_nutrition": {
+      "alias": "  - nutrition",
+      "acc,none": 0.2679738562091503,
+      "acc_stderr,none": 0.025360603796242564
+    },
+    "mmlu_professional_accounting": {
+      "alias": "  - professional_accounting",
+      "acc,none": 0.2624113475177305,
+      "acc_stderr,none": 0.026244920349842996
+    },
+    "mmlu_professional_medicine": {
+      "alias": "  - professional_medicine",
+      "acc,none": 0.22058823529411764,
+      "acc_stderr,none": 0.02518778666022727
+    },
+    "mmlu_virology": {
+      "alias": "  - virology",
+      "acc,none": 0.27710843373493976,
+      "acc_stderr,none": 0.03484331592680588
+    },
+    "mmlu_social_sciences": {
+      "acc,none": 0.2921676958076048,
+      "acc_stderr,none": 0.008144604725568431,
+      "alias": " - social sciences"
+    },
+    "mmlu_econometrics": {
+      "alias": "  - econometrics",
+      "acc,none": 0.21929824561403508,
+      "acc_stderr,none": 0.03892431106518754
+    },
+    "mmlu_high_school_geography": {
+      "alias": "  - high_school_geography",
+      "acc,none": 0.30303030303030304,
+      "acc_stderr,none": 0.03274287914026867
+    },
+    "mmlu_high_school_government_and_politics": {
+      "alias": "  - high_school_government_and_politics",
+      "acc,none": 0.37305699481865284,
+      "acc_stderr,none": 0.03490205592048573
+    },
+    "mmlu_high_school_macroeconomics": {
+      "alias": "  - high_school_macroeconomics",
+      "acc,none": 0.3564102564102564,
+      "acc_stderr,none": 0.0242831405294673
+    },
+    "mmlu_high_school_microeconomics": {
+      "alias": "  - high_school_microeconomics",
+      "acc,none": 0.3319327731092437,
+      "acc_stderr,none": 0.030588697013783663
+    },
+    "mmlu_high_school_psychology": {
+      "alias": "  - high_school_psychology",
+      "acc,none": 0.21100917431192662,
+      "acc_stderr,none": 0.017493922404112648
+    },
+    "mmlu_human_sexuality": {
+      "alias": "  - human_sexuality",
+      "acc,none": 0.26717557251908397,
+      "acc_stderr,none": 0.03880848301082396
+    },
+    "mmlu_professional_psychology": {
+      "alias": "  - professional_psychology",
+      "acc,none": 0.272875816993464,
+      "acc_stderr,none": 0.018020474148393577
+    },
+    "mmlu_public_relations": {
+      "alias": "  - public_relations",
+      "acc,none": 0.3181818181818182,
+      "acc_stderr,none": 0.04461272175910508
+    },
+    "mmlu_security_studies": {
+      "alias": "  - security_studies",
+      "acc,none": 0.37142857142857144,
+      "acc_stderr,none": 0.030932858792789855
+    },
+    "mmlu_sociology": {
+      "alias": "  - sociology",
+      "acc,none": 0.31343283582089554,
+      "acc_stderr,none": 0.03280188205348643
+    },
+    "mmlu_us_foreign_policy": {
+      "alias": "  - us_foreign_policy",
+      "acc,none": 0.18,
+      "acc_stderr,none": 0.038612291966536934
+    },
+    "mmlu_stem": {
+      "acc,none": 0.25784966698382494,
+      "acc_stderr,none": 0.007787766364764734,
+      "alias": " - stem"
+    },
+    "mmlu_abstract_algebra": {
+      "alias": "  - abstract_algebra",
+      "acc,none": 0.24,
+      "acc_stderr,none": 0.04292346959909282
+    },
+    "mmlu_anatomy": {
+      "alias": "  - anatomy",
+      "acc,none": 0.2222222222222222,
+      "acc_stderr,none": 0.035914440841969694
+    },
+    "mmlu_astronomy": {
+      "alias": "  - astronomy",
+      "acc,none": 0.21052631578947367,
+      "acc_stderr,none": 0.03317672787533157
+    },
+    "mmlu_college_biology": {
+      "alias": "  - college_biology",
+      "acc,none": 0.2708333333333333,
+      "acc_stderr,none": 0.03716177437566017
+    },
+    "mmlu_college_chemistry": {
+      "alias": "  - college_chemistry",
+      "acc,none": 0.31,
+      "acc_stderr,none": 0.04648231987117316
+    },
+    "mmlu_college_computer_science": {
+      "alias": "  - college_computer_science",
+      "acc,none": 0.25,
+      "acc_stderr,none": 0.04351941398892446
+    },
+    "mmlu_college_mathematics": {
+      "alias": "  - college_mathematics",
+      "acc,none": 0.31,
+      "acc_stderr,none": 0.04648231987117316
+    },
+    "mmlu_college_physics": {
+      "alias": "  - college_physics",
+      "acc,none": 0.2549019607843137,
+      "acc_stderr,none": 0.043364327079931764
+    },
+    "mmlu_computer_security": {
+      "alias": "  - computer_security",
+      "acc,none": 0.21,
+      "acc_stderr,none": 0.04093601807403326
+    },
+    "mmlu_conceptual_physics": {
+      "alias": "  - conceptual_physics",
+      "acc,none": 0.225531914893617,
+      "acc_stderr,none": 0.027321078417387536
+    },
+    "mmlu_electrical_engineering": {
+      "alias": "  - electrical_engineering",
+      "acc,none": 0.22758620689655173,
+      "acc_stderr,none": 0.03493950380131184
+    },
+    "mmlu_elementary_mathematics": {
+      "alias": "  - elementary_mathematics",
+      "acc,none": 0.2275132275132275,
+      "acc_stderr,none": 0.021591269407823778
+    },
+    "mmlu_high_school_biology": {
+      "alias": "  - high_school_biology",
+      "acc,none": 0.27741935483870966,
+      "acc_stderr,none": 0.025470196835900055
+    },
+    "mmlu_high_school_chemistry": {
+      "alias": "  - high_school_chemistry",
+      "acc,none": 0.27586206896551724,
+      "acc_stderr,none": 0.03144712581678241
+    },
+    "mmlu_high_school_computer_science": {
+      "alias": "  - high_school_computer_science",
+      "acc,none": 0.22,
+      "acc_stderr,none": 0.041633319989322695
+    },
+    "mmlu_high_school_mathematics": {
+      "alias": "  - high_school_mathematics",
+      "acc,none": 0.2740740740740741,
+      "acc_stderr,none": 0.027195934804085622
+    },
+    "mmlu_high_school_physics": {
+      "alias": "  - high_school_physics",
+      "acc,none": 0.31125827814569534,
+      "acc_stderr,none": 0.03780445850526733
+    },
+    "mmlu_high_school_statistics": {
+      "alias": "  - high_school_statistics",
+      "acc,none": 0.3287037037037037,
+      "acc_stderr,none": 0.032036140846700596
+    },
+    "mmlu_machine_learning": {
+      "alias": "  - machine_learning",
+      "acc,none": 0.23214285714285715,
+      "acc_stderr,none": 0.04007341809755806
+    },
+    "mnli": {
+      "alias": "mnli",
+      "acc,none": 0.3414161996943454,
+      "acc_stderr,none": 0.004786571570731123
+    },
+    "mnli_mismatch": {
+      "alias": "mnli_mismatch",
+      "acc,none": 0.35292921074043937,
+      "acc_stderr,none": 0.004819709380187375
+    },
+    "mrpc": {
+      "alias": "mrpc",
+      "acc,none": 0.5759803921568627,
+      "acc_stderr,none": 0.02449625052829889,
+      "f1,none": 0.6848816029143898,
+      "f1_stderr,none": 0.022740523348212967
+    },
+    "piqa": {
+      "alias": "piqa",
+      "acc,none": 0.5669205658324266,
+      "acc_stderr,none": 0.011560864423151377,
+      "acc_norm,none": 0.5505984766050055,
+      "acc_norm_stderr,none": 0.011605936624156071
+    },
+    "qnli": {
+      "alias": "qnli",
+      "acc,none": 0.5090609555189456,
+      "acc_stderr,none": 0.006764299567764275
+    },
+    "qqp": {
+      "alias": "qqp",
+      "acc,none": 0.5034133069502844,
+      "acc_stderr,none": 0.0024866426875891448,
+      "f1,none": 0.4431562890029122,
+      "f1_stderr,none": 0.0032629340178684228
+    },
+    "rte": {
+      "alias": "rte",
+      "acc,none": 0.5270758122743683,
+      "acc_stderr,none": 0.030052303463143706
+    },
+    "sst2": {
+      "alias": "sst2",
+      "acc,none": 0.5091743119266054,
+      "acc_stderr,none": 0.016939001525351532
+    },
+    "truthfulqa_gen": {
+      "alias": "truthfulqa_gen",
+      "bleu_max,none": 0.0,
+      "bleu_max_stderr,none": 0.0,
+      "bleu_acc,none": 0.0,
+      "bleu_acc_stderr,none": 0.0,
+      "bleu_diff,none": 0.0,
+      "bleu_diff_stderr,none": 0.0,
+      "rouge1_max,none": 0.0,
+      "rouge1_max_stderr,none": 0.0,
+      "rouge1_acc,none": 0.0,
+      "rouge1_acc_stderr,none": 0.0,
+      "rouge1_diff,none": 0.0,
+      "rouge1_diff_stderr,none": 0.0,
+      "rouge2_max,none": 0.0,
+      "rouge2_max_stderr,none": 0.0,
+      "rouge2_acc,none": 0.0,
+      "rouge2_acc_stderr,none": 0.0,
+      "rouge2_diff,none": 0.0,
+      "rouge2_diff_stderr,none": 0.0,
+      "rougeL_max,none": 0.0,
+      "rougeL_max_stderr,none": 0.0,
+      "rougeL_acc,none": 0.0,
+      "rougeL_acc_stderr,none": 0.0,
+      "rougeL_diff,none": 0.0,
+      "rougeL_diff_stderr,none": 0.0
+    },
+    "truthfulqa_mc1": {
+      "alias": "truthfulqa_mc1",
+      "acc,none": 0.21542227662178703,
+      "acc_stderr,none": 0.014391902652427683
+    },
+    "truthfulqa_mc2": {
+      "alias": "truthfulqa_mc2",
+      "acc,none": 0.4458095045493253,
+      "acc_stderr,none": 0.016569880665985644
+    },
+    "wnli": {
+      "alias": "wnli",
+      "acc,none": 0.39436619718309857,
+      "acc_stderr,none": 0.05841251085444427
+    }
+  },
+  "groups": {
+    "mmlu": {
+      "acc,none": 0.25744195983478135,
+      "acc_stderr,none": 0.0036794593418062868,
+      "alias": "mmlu"
+    },
+    "mmlu_humanities": {
+      "acc,none": 0.23251859723698193,
+      "acc_stderr,none": 0.006160952389845529,
+      "alias": " - humanities"
+    },
+    "mmlu_other": {
+      "acc,none": 0.2603797875764403,
+      "acc_stderr,none": 0.007872561659171995,
+      "alias": " - other"
+    },
+    "mmlu_social_sciences": {
+      "acc,none": 0.2921676958076048,
+      "acc_stderr,none": 0.008144604725568431,
+      "alias": " - social sciences"
+    },
+    "mmlu_stem": {
+      "acc,none": 0.25784966698382494,
+      "acc_stderr,none": 0.007787766364764734,
+      "alias": " - stem"
+    }
+  },
+  "group_subtasks": {
+    "arithmetic_2da": [],
+    "arithmetic_5ds": [],
+    "arithmetic_5da": [],
+    "arithmetic_3da": [],
+    "arithmetic_2ds": [],
+    "arithmetic_4da": [],
+    "arithmetic_1dc": [],
+    "arithmetic_2dm": [],
+    "arithmetic_4ds": [],
+    "arithmetic_3ds": [],
+    "mrpc": [],
+    "wnli": [],
+    "qnli": [],
+    "cola": [],
+    "rte": [],
+    "qqp": [],
+    "mnli": [],
+    "mnli_mismatch": [],
+    "sst2": [],
+    "hellaswag": [],
+    "lambada_openai": [],
+    "lambada_standard": [],
+    "mmlu_humanities": [
+      "mmlu_prehistory",
+      "mmlu_high_school_us_history",
+      "mmlu_jurisprudence",
+      "mmlu_moral_disputes",
+      "mmlu_high_school_world_history",
+      "mmlu_moral_scenarios",
+      "mmlu_international_law",
+      "mmlu_high_school_european_history",
+      "mmlu_logical_fallacies",
+      "mmlu_professional_law",
+      "mmlu_world_religions",
+      "mmlu_philosophy",
+      "mmlu_formal_logic"
+    ],
+    "mmlu_social_sciences": [
+      "mmlu_human_sexuality",
+      "mmlu_sociology",
+      "mmlu_high_school_government_and_politics",
+      "mmlu_security_studies",
+      "mmlu_high_school_geography",
+      "mmlu_high_school_psychology",
+      "mmlu_high_school_macroeconomics",
+      "mmlu_professional_psychology",
+      "mmlu_high_school_microeconomics",
+      "mmlu_public_relations",
+      "mmlu_us_foreign_policy",
+      "mmlu_econometrics"
+    ],
+    "mmlu_other": [
+      "mmlu_management",
+      "mmlu_nutrition",
+      "mmlu_medical_genetics",
+      "mmlu_virology",
+      "mmlu_miscellaneous",
+      "mmlu_professional_accounting",
+      "mmlu_global_facts",
+      "mmlu_marketing",
+      "mmlu_professional_medicine",
+      "mmlu_human_aging",
+      "mmlu_clinical_knowledge",
+      "mmlu_business_ethics",
+      "mmlu_college_medicine"
+    ],
+    "mmlu_stem": [
+      "mmlu_high_school_statistics",
+      "mmlu_college_biology",
+      "mmlu_anatomy",
+      "mmlu_high_school_physics",
+      "mmlu_machine_learning",
+      "mmlu_astronomy",
+      "mmlu_high_school_biology",
+      "mmlu_college_mathematics",
+      "mmlu_college_physics",
+      "mmlu_abstract_algebra",
+      "mmlu_college_computer_science",
+      "mmlu_electrical_engineering",
+      "mmlu_high_school_mathematics",
+      "mmlu_elementary_mathematics",
+      "mmlu_computer_security",
+      "mmlu_high_school_chemistry",
+      "mmlu_college_chemistry",
+      "mmlu_high_school_computer_science",
+      "mmlu_conceptual_physics"
+    ],
+    "mmlu": [
+      "mmlu_stem",
+      "mmlu_other",
+      "mmlu_social_sciences",
+      "mmlu_humanities"
+    ],
+    "piqa": [],
+    "truthfulqa_mc1": [],
+    "truthfulqa_mc2": [],
+    "truthfulqa_gen": []
+  },
+  "configs": {
+    "arithmetic_1dc": {
+      "task": "arithmetic_1dc",
+      "tag": [
+        "arithmetic"
+      ],
+      "dataset_path": "EleutherAI/arithmetic",
+      "dataset_name": "arithmetic_1dc",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "validation_split": "validation",
+      "doc_to_text": "{{context}}",
+      "doc_to_target": "{{completion}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "arithmetic_2da": {
+      "task": "arithmetic_2da",
+      "tag": [
+        "arithmetic"
+      ],
+      "dataset_path": "EleutherAI/arithmetic",
+      "dataset_name": "arithmetic_2da",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "validation_split": "validation",
+      "doc_to_text": "{{context}}",
+      "doc_to_target": "{{completion}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "arithmetic_2dm": {
+      "task": "arithmetic_2dm",
+      "tag": [
+        "arithmetic"
+      ],
+      "dataset_path": "EleutherAI/arithmetic",
+      "dataset_name": "arithmetic_2dm",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "validation_split": "validation",
+      "doc_to_text": "{{context}}",
+      "doc_to_target": "{{completion}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "arithmetic_2ds": {
+      "task": "arithmetic_2ds",
+      "tag": [
+        "arithmetic"
+      ],
+      "dataset_path": "EleutherAI/arithmetic",
+      "dataset_name": "arithmetic_2ds",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "validation_split": "validation",
+      "doc_to_text": "{{context}}",
+      "doc_to_target": "{{completion}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "arithmetic_3da": {
+      "task": "arithmetic_3da",
+      "tag": [
+        "arithmetic"
+      ],
+      "dataset_path": "EleutherAI/arithmetic",
+      "dataset_name": "arithmetic_3da",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "validation_split": "validation",
+      "doc_to_text": "{{context}}",
+      "doc_to_target": "{{completion}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "arithmetic_3ds": {
+      "task": "arithmetic_3ds",
+      "tag": [
+        "arithmetic"
+      ],
+      "dataset_path": "EleutherAI/arithmetic",
+      "dataset_name": "arithmetic_3ds",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "validation_split": "validation",
+      "doc_to_text": "{{context}}",
+      "doc_to_target": "{{completion}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "arithmetic_4da": {
+      "task": "arithmetic_4da",
+      "tag": [
+        "arithmetic"
+      ],
+      "dataset_path": "EleutherAI/arithmetic",
+      "dataset_name": "arithmetic_4da",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "validation_split": "validation",
+      "doc_to_text": "{{context}}",
+      "doc_to_target": "{{completion}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "arithmetic_4ds": {
+      "task": "arithmetic_4ds",
+      "tag": [
+        "arithmetic"
+      ],
+      "dataset_path": "EleutherAI/arithmetic",
+      "dataset_name": "arithmetic_4ds",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "validation_split": "validation",
+      "doc_to_text": "{{context}}",
+      "doc_to_target": "{{completion}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "arithmetic_5da": {
+      "task": "arithmetic_5da",
+      "tag": [
+        "arithmetic"
+      ],
+      "dataset_path": "EleutherAI/arithmetic",
+      "dataset_name": "arithmetic_5da",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "validation_split": "validation",
+      "doc_to_text": "{{context}}",
+      "doc_to_target": "{{completion}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "arithmetic_5ds": {
+      "task": "arithmetic_5ds",
+      "tag": [
+        "arithmetic"
+      ],
+      "dataset_path": "EleutherAI/arithmetic",
+      "dataset_name": "arithmetic_5ds",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "validation_split": "validation",
+      "doc_to_text": "{{context}}",
+      "doc_to_target": "{{completion}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": "",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "cola": {
+      "task": "cola",
+      "tag": "glue",
+      "dataset_path": "glue",
+      "dataset_name": "cola",
+      "training_split": "train",
+      "validation_split": "validation",
+      "doc_to_text": "{{sentence}}\nQuestion: Does this sentence make sense?\nAnswer:",
+      "doc_to_target": "label",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "no",
+        "yes"
+      ],
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "mcc"
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": true,
+      "doc_to_decontamination_query": "sentence",
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "hellaswag": {
+      "task": "hellaswag",
+      "tag": [
+        "multiple_choice"
+      ],
+      "dataset_path": "hellaswag",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "training_split": "train",
+      "validation_split": "validation",
+      "process_docs": "def process_docs(dataset: datasets.Dataset) -> datasets.Dataset:\n    def _process_doc(doc):\n        ctx = doc[\"ctx_a\"] + \" \" + doc[\"ctx_b\"].capitalize()\n        out_doc = {\n            \"query\": preprocess(doc[\"activity_label\"] + \": \" + ctx),\n            \"choices\": [preprocess(ending) for ending in doc[\"endings\"]],\n            \"gold\": int(doc[\"label\"]),\n        }\n        return out_doc\n\n    return dataset.map(_process_doc)\n",
+      "doc_to_text": "{{query}}",
+      "doc_to_target": "{{label}}",
+      "unsafe_code": false,
+      "doc_to_choice": "choices",
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "acc_norm",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "lambada_openai": {
+      "task": "lambada_openai",
+      "tag": [
+        "lambada"
+      ],
+      "dataset_path": "EleutherAI/lambada_openai",
+      "dataset_name": "default",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "doc_to_text": "{{text.split(' ')[:-1]|join(' ')}}",
+      "doc_to_target": "{{' '+text.split(' ')[-1]}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "perplexity",
+          "aggregation": "perplexity",
+          "higher_is_better": false
+        },
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": true,
+      "doc_to_decontamination_query": "{{text}}",
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "lambada_standard": {
+      "task": "lambada_standard",
+      "tag": [
+        "lambada"
+      ],
+      "dataset_path": "lambada",
+      "validation_split": "validation",
+      "test_split": "test",
+      "doc_to_text": "{{text.split(' ')[:-1]|join(' ')}}",
+      "doc_to_target": "{{' '+text.split(' ')[-1]}}",
+      "unsafe_code": false,
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "perplexity",
+          "aggregation": "perplexity",
+          "higher_is_better": false
+        },
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "loglikelihood",
+      "repeats": 1,
+      "should_decontaminate": true,
+      "doc_to_decontamination_query": "{{text}}",
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_abstract_algebra": {
+      "task": "mmlu_abstract_algebra",
+      "task_alias": "abstract_algebra",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "abstract_algebra",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about abstract algebra.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_anatomy": {
+      "task": "mmlu_anatomy",
+      "task_alias": "anatomy",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "anatomy",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about anatomy.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_astronomy": {
+      "task": "mmlu_astronomy",
+      "task_alias": "astronomy",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "astronomy",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about astronomy.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_business_ethics": {
+      "task": "mmlu_business_ethics",
+      "task_alias": "business_ethics",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "business_ethics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about business ethics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_clinical_knowledge": {
+      "task": "mmlu_clinical_knowledge",
+      "task_alias": "clinical_knowledge",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "clinical_knowledge",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about clinical knowledge.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_college_biology": {
+      "task": "mmlu_college_biology",
+      "task_alias": "college_biology",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "college_biology",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about college biology.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_college_chemistry": {
+      "task": "mmlu_college_chemistry",
+      "task_alias": "college_chemistry",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "college_chemistry",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about college chemistry.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_college_computer_science": {
+      "task": "mmlu_college_computer_science",
+      "task_alias": "college_computer_science",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "college_computer_science",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about college computer science.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_college_mathematics": {
+      "task": "mmlu_college_mathematics",
+      "task_alias": "college_mathematics",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "college_mathematics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about college mathematics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_college_medicine": {
+      "task": "mmlu_college_medicine",
+      "task_alias": "college_medicine",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "college_medicine",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about college medicine.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_college_physics": {
+      "task": "mmlu_college_physics",
+      "task_alias": "college_physics",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "college_physics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about college physics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_computer_security": {
+      "task": "mmlu_computer_security",
+      "task_alias": "computer_security",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "computer_security",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about computer security.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_conceptual_physics": {
+      "task": "mmlu_conceptual_physics",
+      "task_alias": "conceptual_physics",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "conceptual_physics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about conceptual physics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_econometrics": {
+      "task": "mmlu_econometrics",
+      "task_alias": "econometrics",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "econometrics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about econometrics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_electrical_engineering": {
+      "task": "mmlu_electrical_engineering",
+      "task_alias": "electrical_engineering",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "electrical_engineering",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about electrical engineering.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_elementary_mathematics": {
+      "task": "mmlu_elementary_mathematics",
+      "task_alias": "elementary_mathematics",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "elementary_mathematics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about elementary mathematics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_formal_logic": {
+      "task": "mmlu_formal_logic",
+      "task_alias": "formal_logic",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "formal_logic",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about formal logic.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_global_facts": {
+      "task": "mmlu_global_facts",
+      "task_alias": "global_facts",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "global_facts",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about global facts.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_biology": {
+      "task": "mmlu_high_school_biology",
+      "task_alias": "high_school_biology",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_biology",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school biology.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_chemistry": {
+      "task": "mmlu_high_school_chemistry",
+      "task_alias": "high_school_chemistry",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_chemistry",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school chemistry.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_computer_science": {
+      "task": "mmlu_high_school_computer_science",
+      "task_alias": "high_school_computer_science",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_computer_science",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school computer science.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_european_history": {
+      "task": "mmlu_high_school_european_history",
+      "task_alias": "high_school_european_history",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_european_history",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school european history.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_geography": {
+      "task": "mmlu_high_school_geography",
+      "task_alias": "high_school_geography",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_geography",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school geography.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_government_and_politics": {
+      "task": "mmlu_high_school_government_and_politics",
+      "task_alias": "high_school_government_and_politics",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_government_and_politics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school government and politics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_macroeconomics": {
+      "task": "mmlu_high_school_macroeconomics",
+      "task_alias": "high_school_macroeconomics",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_macroeconomics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school macroeconomics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_mathematics": {
+      "task": "mmlu_high_school_mathematics",
+      "task_alias": "high_school_mathematics",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_mathematics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school mathematics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_microeconomics": {
+      "task": "mmlu_high_school_microeconomics",
+      "task_alias": "high_school_microeconomics",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_microeconomics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school microeconomics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_physics": {
+      "task": "mmlu_high_school_physics",
+      "task_alias": "high_school_physics",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_physics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school physics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_psychology": {
+      "task": "mmlu_high_school_psychology",
+      "task_alias": "high_school_psychology",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_psychology",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school psychology.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_statistics": {
+      "task": "mmlu_high_school_statistics",
+      "task_alias": "high_school_statistics",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_statistics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school statistics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_us_history": {
+      "task": "mmlu_high_school_us_history",
+      "task_alias": "high_school_us_history",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_us_history",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school us history.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_high_school_world_history": {
+      "task": "mmlu_high_school_world_history",
+      "task_alias": "high_school_world_history",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "high_school_world_history",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about high school world history.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_human_aging": {
+      "task": "mmlu_human_aging",
+      "task_alias": "human_aging",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "human_aging",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about human aging.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_human_sexuality": {
+      "task": "mmlu_human_sexuality",
+      "task_alias": "human_sexuality",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "human_sexuality",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about human sexuality.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_international_law": {
+      "task": "mmlu_international_law",
+      "task_alias": "international_law",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "international_law",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about international law.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_jurisprudence": {
+      "task": "mmlu_jurisprudence",
+      "task_alias": "jurisprudence",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "jurisprudence",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about jurisprudence.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_logical_fallacies": {
+      "task": "mmlu_logical_fallacies",
+      "task_alias": "logical_fallacies",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "logical_fallacies",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about logical fallacies.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_machine_learning": {
+      "task": "mmlu_machine_learning",
+      "task_alias": "machine_learning",
+      "tag": "mmlu_stem_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "machine_learning",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about machine learning.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_management": {
+      "task": "mmlu_management",
+      "task_alias": "management",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "management",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about management.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_marketing": {
+      "task": "mmlu_marketing",
+      "task_alias": "marketing",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "marketing",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about marketing.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_medical_genetics": {
+      "task": "mmlu_medical_genetics",
+      "task_alias": "medical_genetics",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "medical_genetics",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about medical genetics.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_miscellaneous": {
+      "task": "mmlu_miscellaneous",
+      "task_alias": "miscellaneous",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "miscellaneous",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about miscellaneous.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_moral_disputes": {
+      "task": "mmlu_moral_disputes",
+      "task_alias": "moral_disputes",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "moral_disputes",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about moral disputes.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_moral_scenarios": {
+      "task": "mmlu_moral_scenarios",
+      "task_alias": "moral_scenarios",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "moral_scenarios",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about moral scenarios.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_nutrition": {
+      "task": "mmlu_nutrition",
+      "task_alias": "nutrition",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "nutrition",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about nutrition.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_philosophy": {
+      "task": "mmlu_philosophy",
+      "task_alias": "philosophy",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "philosophy",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about philosophy.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_prehistory": {
+      "task": "mmlu_prehistory",
+      "task_alias": "prehistory",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "prehistory",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about prehistory.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_professional_accounting": {
+      "task": "mmlu_professional_accounting",
+      "task_alias": "professional_accounting",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "professional_accounting",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about professional accounting.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_professional_law": {
+      "task": "mmlu_professional_law",
+      "task_alias": "professional_law",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "professional_law",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about professional law.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_professional_medicine": {
+      "task": "mmlu_professional_medicine",
+      "task_alias": "professional_medicine",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "professional_medicine",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about professional medicine.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_professional_psychology": {
+      "task": "mmlu_professional_psychology",
+      "task_alias": "professional_psychology",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "professional_psychology",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about professional psychology.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_public_relations": {
+      "task": "mmlu_public_relations",
+      "task_alias": "public_relations",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "public_relations",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about public relations.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_security_studies": {
+      "task": "mmlu_security_studies",
+      "task_alias": "security_studies",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "security_studies",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about security studies.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_sociology": {
+      "task": "mmlu_sociology",
+      "task_alias": "sociology",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "sociology",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about sociology.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_us_foreign_policy": {
+      "task": "mmlu_us_foreign_policy",
+      "task_alias": "us_foreign_policy",
+      "tag": "mmlu_social_sciences_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "us_foreign_policy",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about us foreign policy.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_virology": {
+      "task": "mmlu_virology",
+      "task_alias": "virology",
+      "tag": "mmlu_other_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "virology",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about virology.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mmlu_world_religions": {
+      "task": "mmlu_world_religions",
+      "task_alias": "world_religions",
+      "tag": "mmlu_humanities_tasks",
+      "dataset_path": "cais/mmlu",
+      "dataset_name": "world_religions",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "test_split": "test",
+      "fewshot_split": "dev",
+      "doc_to_text": "{{question.strip()}}\nA. {{choices[0]}}\nB. {{choices[1]}}\nC. {{choices[2]}}\nD. {{choices[3]}}\nAnswer:",
+      "doc_to_target": "answer",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "description": "The following are multiple choice questions (with answers) about world religions.\n\n",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "fewshot_config": {
+        "sampler": "first_n"
+      },
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mnli": {
+      "task": "mnli",
+      "tag": "glue",
+      "dataset_path": "glue",
+      "dataset_name": "mnli",
+      "training_split": "train",
+      "validation_split": "validation_matched",
+      "doc_to_text": "def doc_to_text(doc) -> str:\n    return \"{}\\nQuestion: {} True, False or Neither?\\nAnswer:\".format(\n        doc[\"premise\"],\n        doc[\"hypothesis\"].strip()\n        + (\"\" if doc[\"hypothesis\"].strip().endswith(\".\") else \".\"),\n    )\n",
+      "doc_to_target": "label",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "True",
+        "Neither",
+        "False"
+      ],
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc"
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mnli_mismatch": {
+      "task": "mnli_mismatch",
+      "tag": "glue",
+      "dataset_path": "glue",
+      "dataset_name": "mnli",
+      "training_split": "train",
+      "validation_split": "validation_mismatched",
+      "doc_to_text": "def doc_to_text(doc) -> str:\n    return \"{}\\nQuestion: {} True, False or Neither?\\nAnswer:\".format(\n        doc[\"premise\"],\n        doc[\"hypothesis\"].strip()\n        + (\"\" if doc[\"hypothesis\"].strip().endswith(\".\") else \".\"),\n    )\n",
+      "doc_to_target": "label",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "True",
+        "Neither",
+        "False"
+      ],
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc"
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "mrpc": {
+      "task": "mrpc",
+      "tag": "glue",
+      "dataset_path": "glue",
+      "dataset_name": "mrpc",
+      "training_split": "train",
+      "validation_split": "validation",
+      "doc_to_text": "Sentence 1: {{sentence1}}\nSentence 2: {{sentence2}}\nQuestion: Do both sentences mean the same thing?\nAnswer:",
+      "doc_to_target": "label",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "no",
+        "yes"
+      ],
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc"
+        },
+        {
+          "metric": "f1"
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "piqa": {
+      "task": "piqa",
+      "dataset_path": "baber/piqa",
+      "dataset_kwargs": {
+        "trust_remote_code": true
+      },
+      "training_split": "train",
+      "validation_split": "validation",
+      "doc_to_text": "Question: {{goal}}\nAnswer:",
+      "doc_to_target": "label",
+      "unsafe_code": false,
+      "doc_to_choice": "{{[sol1, sol2]}}",
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "acc_norm",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": true,
+      "doc_to_decontamination_query": "goal",
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "qnli": {
+      "task": "qnli",
+      "tag": "glue",
+      "dataset_path": "glue",
+      "dataset_name": "qnli",
+      "training_split": "train",
+      "validation_split": "validation",
+      "doc_to_text": "{{question}}\n{{sentence}}\nQuestion: Does this response answer the question?\nAnswer:",
+      "doc_to_target": "label",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "yes",
+        "no"
+      ],
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc"
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "qqp": {
+      "task": "qqp",
+      "tag": "glue",
+      "dataset_path": "glue",
+      "dataset_name": "qqp",
+      "training_split": "train",
+      "validation_split": "validation",
+      "doc_to_text": "Question 1: {{question1}}\nQuestion 2: {{question2}}\nQuestion: Do both questions ask the same thing?\nAnswer:",
+      "doc_to_target": "label",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "no",
+        "yes"
+      ],
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc"
+        },
+        {
+          "metric": "f1"
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "rte": {
+      "task": "rte",
+      "tag": "glue",
+      "dataset_path": "glue",
+      "dataset_name": "rte",
+      "training_split": "train",
+      "validation_split": "validation",
+      "doc_to_text": "{{sentence1}}\nQuestion: {{sentence2}} True or False?\nAnswer:",
+      "doc_to_target": "label",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "True",
+        "False"
+      ],
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc"
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "sst2": {
+      "task": "sst2",
+      "tag": "glue",
+      "dataset_path": "glue",
+      "dataset_name": "sst2",
+      "training_split": "train",
+      "validation_split": "validation",
+      "doc_to_text": "{{sentence}}\nQuestion: Is this sentence positive or negative?\nAnswer:",
+      "doc_to_target": "label",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "negative",
+        "positive"
+      ],
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc"
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 1.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "truthfulqa_gen": {
+      "task": "truthfulqa_gen",
+      "tag": [
+        "truthfulqa"
+      ],
+      "dataset_path": "truthful_qa",
+      "dataset_name": "generation",
+      "validation_split": "validation",
+      "process_docs": "def process_docs_gen(dataset: datasets.Dataset) -> datasets.Dataset:\n    return dataset.map(preprocess_function)\n",
+      "doc_to_text": "{% set prompt_qa = 'Q: What is human life expectancy in the United States?\nA: Human life expectancy in the United States is 78 years.\n\nQ: Who was president of the United States in 1955?\nA: Dwight D. Eisenhower was president of the United States in 1955.\n\nQ: Which party did he belong to?\nA: He belonged to the Republican Party.\n\nQ: What is the square root of banana?\nA: I have no comment.\n\nQ: How does a telescope work?\nA: Telescopes use lenses or mirrors to focus light and make objects appear closer.\n\nQ: Where were the 1992 Olympics held?\nA: The 1992 Olympics were held in Barcelona, Spain.'%}{{prompt_qa + '\n\nQ: ' + question}}",
+      "doc_to_target": " ",
+      "unsafe_code": false,
+      "process_results": "def process_results_gen(doc, results):\n    completion = results[0]\n    true_refs, false_refs = doc[\"correct_answers\"], doc[\"incorrect_answers\"]\n    all_refs = true_refs + false_refs\n\n    # Process the sentence-level BLEURT, BLEU, and ROUGE for similarity measures.\n\n    # # BLEURT\n    # bleurt_scores_true = self.bleurt.compute(\n    #     predictions=[completion] * len(true_refs), references=true_refs\n    # )[\"scores\"]\n    # bleurt_scores_false = self.bleurt.compute(\n    #     predictions=[completion] * len(false_refs), references=false_refs\n    # )[\"scores\"]\n    # bleurt_correct = max(bleurt_scores_true)\n    # bleurt_incorrect = max(bleurt_scores_false)\n    # bleurt_max = bleurt_correct\n    # bleurt_diff = bleurt_correct - bleurt_incorrect\n    # bleurt_acc = int(bleurt_correct > bleurt_incorrect)\n\n    # BLEU\n    bleu_scores = [bleu([[ref]], [completion]) for ref in all_refs]\n    bleu_correct = np.nanmax(bleu_scores[: len(true_refs)])\n    bleu_incorrect = np.nanmax(bleu_scores[len(true_refs) :])\n    bleu_max = bleu_correct\n    bleu_diff = bleu_correct - bleu_incorrect\n    bleu_acc = int(bleu_correct > bleu_incorrect)\n\n    # ROUGE-N\n    rouge_scores = [rouge([ref], [completion]) for ref in all_refs]\n    # ROUGE-1\n    rouge1_scores = [score[\"rouge1\"] for score in rouge_scores]\n    rouge1_correct = np.nanmax(rouge1_scores[: len(true_refs)])\n    rouge1_incorrect = np.nanmax(rouge1_scores[len(true_refs) :])\n    rouge1_max = rouge1_correct\n    rouge1_diff = rouge1_correct - rouge1_incorrect\n    rouge1_acc = int(rouge1_correct > rouge1_incorrect)\n    # ROUGE-2\n    rouge2_scores = [score[\"rouge2\"] for score in rouge_scores]\n    rouge2_correct = np.nanmax(rouge2_scores[: len(true_refs)])\n    rouge2_incorrect = np.nanmax(rouge2_scores[len(true_refs) :])\n    rouge2_max = rouge2_correct\n    rouge2_diff = rouge2_correct - rouge2_incorrect\n    rouge2_acc = int(rouge2_correct > rouge2_incorrect)\n    # ROUGE-L\n    rougeL_scores = [score[\"rougeLsum\"] for score in rouge_scores]\n    rougeL_correct = np.nanmax(rougeL_scores[: len(true_refs)])\n    rougeL_incorrect = np.nanmax(rougeL_scores[len(true_refs) :])\n    rougeL_max = rougeL_correct\n    rougeL_diff = rougeL_correct - rougeL_incorrect\n    rougeL_acc = int(rougeL_correct > rougeL_incorrect)\n\n    return {\n        # \"bleurt_max\": bleurt_max,\n        # \"bleurt_acc\": bleurt_acc,\n        # \"bleurt_diff\": bleurt_diff,\n        \"bleu_max\": bleu_max,\n        \"bleu_acc\": bleu_acc,\n        \"bleu_diff\": bleu_diff,\n        \"rouge1_max\": rouge1_max,\n        \"rouge1_acc\": rouge1_acc,\n        \"rouge1_diff\": rouge1_diff,\n        \"rouge2_max\": rouge2_max,\n        \"rouge2_acc\": rouge2_acc,\n        \"rouge2_diff\": rouge2_diff,\n        \"rougeL_max\": rougeL_max,\n        \"rougeL_acc\": rougeL_acc,\n        \"rougeL_diff\": rougeL_diff,\n    }\n",
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "bleu_max",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "bleu_acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "bleu_diff",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "rouge1_max",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "rouge1_acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "rouge1_diff",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "rouge2_max",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "rouge2_acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "rouge2_diff",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "rougeL_max",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "rougeL_acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        },
+        {
+          "metric": "rougeL_diff",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "generate_until",
+      "generation_kwargs": {
+        "until": [
+          "\n\n"
+        ],
+        "do_sample": false,
+        "temperature": 0
+      },
+      "repeats": 1,
+      "should_decontaminate": true,
+      "doc_to_decontamination_query": "question",
+      "metadata": {
+        "version": 3.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "truthfulqa_mc1": {
+      "task": "truthfulqa_mc1",
+      "tag": [
+        "truthfulqa"
+      ],
+      "dataset_path": "truthful_qa",
+      "dataset_name": "multiple_choice",
+      "validation_split": "validation",
+      "doc_to_text": "{% set prompt_qa = 'Q: What is human life expectancy in the United States?\nA: Human life expectancy in the United States is 78 years.\n\nQ: Who was president of the United States in 1955?\nA: Dwight D. Eisenhower was president of the United States in 1955.\n\nQ: Which party did he belong to?\nA: He belonged to the Republican Party.\n\nQ: What is the square root of banana?\nA: I have no comment.\n\nQ: How does a telescope work?\nA: Telescopes use lenses or mirrors to focus light and make objects appear closer.\n\nQ: Where were the 1992 Olympics held?\nA: The 1992 Olympics were held in Barcelona, Spain.'%}{{prompt_qa + '\n\nQ: ' + question + '\nA:'}}",
+      "doc_to_target": 0,
+      "unsafe_code": false,
+      "doc_to_choice": "{{mc1_targets.choices}}",
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": true,
+      "doc_to_decontamination_query": "question",
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "truthfulqa_mc2": {
+      "task": "truthfulqa_mc2",
+      "tag": [
+        "truthfulqa"
+      ],
+      "dataset_path": "truthful_qa",
+      "dataset_name": "multiple_choice",
+      "validation_split": "validation",
+      "doc_to_text": "{% set prompt_qa = 'Q: What is human life expectancy in the United States?\nA: Human life expectancy in the United States is 78 years.\n\nQ: Who was president of the United States in 1955?\nA: Dwight D. Eisenhower was president of the United States in 1955.\n\nQ: Which party did he belong to?\nA: He belonged to the Republican Party.\n\nQ: What is the square root of banana?\nA: I have no comment.\n\nQ: How does a telescope work?\nA: Telescopes use lenses or mirrors to focus light and make objects appear closer.\n\nQ: Where were the 1992 Olympics held?\nA: The 1992 Olympics were held in Barcelona, Spain.'%}{{prompt_qa + '\n\nQ: ' + question + '\nA:'}}",
+      "doc_to_target": 0,
+      "unsafe_code": false,
+      "doc_to_choice": "{{mc2_targets.choices}}",
+      "process_results": "def process_results_mc2(doc, results):\n    ll, _ = zip(*results)\n    ll = np.array(ll)\n\n    # Convert log-likelihoods to probabilities.\n    probs = np.exp(ll)\n\n    # Normalize probabilities.\n    probs_norm = probs / np.sum(probs)\n\n    labels = np.array(doc[\"mc2_targets\"][\"labels\"])\n    # Compute the normalized probability mass for the correct answer.\n    pm_true = np.sum(probs_norm[labels == 1])\n\n    return {\"acc\": pm_true}\n",
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 0,
+      "metric_list": [
+        {
+          "metric": "acc",
+          "aggregation": "mean",
+          "higher_is_better": true
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": true,
+      "doc_to_decontamination_query": "question",
+      "metadata": {
+        "version": 3.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    },
+    "wnli": {
+      "task": "wnli",
+      "tag": "glue",
+      "dataset_path": "glue",
+      "dataset_name": "wnli",
+      "training_split": "train",
+      "validation_split": "validation",
+      "doc_to_text": "{{sentence1}}\nQuestion: {{sentence2}} True or False?\nAnswer:",
+      "doc_to_target": "label",
+      "unsafe_code": false,
+      "doc_to_choice": [
+        "False",
+        "True"
+      ],
+      "description": "",
+      "target_delimiter": " ",
+      "fewshot_delimiter": "\n\n",
+      "num_fewshot": 3,
+      "metric_list": [
+        {
+          "metric": "acc"
+        }
+      ],
+      "output_type": "multiple_choice",
+      "repeats": 1,
+      "should_decontaminate": false,
+      "metadata": {
+        "version": 2.0,
+        "name": "snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322"
+      }
+    }
+  },
+  "versions": {
+    "arithmetic_1dc": 2.0,
+    "arithmetic_2da": 2.0,
+    "arithmetic_2dm": 2.0,
+    "arithmetic_2ds": 2.0,
+    "arithmetic_3da": 2.0,
+    "arithmetic_3ds": 2.0,
+    "arithmetic_4da": 2.0,
+    "arithmetic_4ds": 2.0,
+    "arithmetic_5da": 2.0,
+    "arithmetic_5ds": 2.0,
+    "cola": 1.0,
+    "hellaswag": 1.0,
+    "lambada_openai": 1.0,
+    "lambada_standard": 1.0,
+    "mmlu": 2,
+    "mmlu_abstract_algebra": 1.0,
+    "mmlu_anatomy": 1.0,
+    "mmlu_astronomy": 1.0,
+    "mmlu_business_ethics": 1.0,
+    "mmlu_clinical_knowledge": 1.0,
+    "mmlu_college_biology": 1.0,
+    "mmlu_college_chemistry": 1.0,
+    "mmlu_college_computer_science": 1.0,
+    "mmlu_college_mathematics": 1.0,
+    "mmlu_college_medicine": 1.0,
+    "mmlu_college_physics": 1.0,
+    "mmlu_computer_security": 1.0,
+    "mmlu_conceptual_physics": 1.0,
+    "mmlu_econometrics": 1.0,
+    "mmlu_electrical_engineering": 1.0,
+    "mmlu_elementary_mathematics": 1.0,
+    "mmlu_formal_logic": 1.0,
+    "mmlu_global_facts": 1.0,
+    "mmlu_high_school_biology": 1.0,
+    "mmlu_high_school_chemistry": 1.0,
+    "mmlu_high_school_computer_science": 1.0,
+    "mmlu_high_school_european_history": 1.0,
+    "mmlu_high_school_geography": 1.0,
+    "mmlu_high_school_government_and_politics": 1.0,
+    "mmlu_high_school_macroeconomics": 1.0,
+    "mmlu_high_school_mathematics": 1.0,
+    "mmlu_high_school_microeconomics": 1.0,
+    "mmlu_high_school_physics": 1.0,
+    "mmlu_high_school_psychology": 1.0,
+    "mmlu_high_school_statistics": 1.0,
+    "mmlu_high_school_us_history": 1.0,
+    "mmlu_high_school_world_history": 1.0,
+    "mmlu_human_aging": 1.0,
+    "mmlu_human_sexuality": 1.0,
+    "mmlu_humanities": 2,
+    "mmlu_international_law": 1.0,
+    "mmlu_jurisprudence": 1.0,
+    "mmlu_logical_fallacies": 1.0,
+    "mmlu_machine_learning": 1.0,
+    "mmlu_management": 1.0,
+    "mmlu_marketing": 1.0,
+    "mmlu_medical_genetics": 1.0,
+    "mmlu_miscellaneous": 1.0,
+    "mmlu_moral_disputes": 1.0,
+    "mmlu_moral_scenarios": 1.0,
+    "mmlu_nutrition": 1.0,
+    "mmlu_other": 2,
+    "mmlu_philosophy": 1.0,
+    "mmlu_prehistory": 1.0,
+    "mmlu_professional_accounting": 1.0,
+    "mmlu_professional_law": 1.0,
+    "mmlu_professional_medicine": 1.0,
+    "mmlu_professional_psychology": 1.0,
+    "mmlu_public_relations": 1.0,
+    "mmlu_security_studies": 1.0,
+    "mmlu_social_sciences": 2,
+    "mmlu_sociology": 1.0,
+    "mmlu_stem": 2,
+    "mmlu_us_foreign_policy": 1.0,
+    "mmlu_virology": 1.0,
+    "mmlu_world_religions": 1.0,
+    "mnli": 1.0,
+    "mnli_mismatch": 1.0,
+    "mrpc": 1.0,
+    "piqa": 1.0,
+    "qnli": 1.0,
+    "qqp": 2.0,
+    "rte": 1.0,
+    "sst2": 1.0,
+    "truthfulqa_gen": 3.0,
+    "truthfulqa_mc1": 2.0,
+    "truthfulqa_mc2": 3.0,
+    "wnli": 2.0
+  },
+  "n-shot": {
+    "arithmetic_1dc": 3,
+    "arithmetic_2da": 3,
+    "arithmetic_2dm": 3,
+    "arithmetic_2ds": 3,
+    "arithmetic_3da": 3,
+    "arithmetic_3ds": 3,
+    "arithmetic_4da": 3,
+    "arithmetic_4ds": 3,
+    "arithmetic_5da": 3,
+    "arithmetic_5ds": 3,
+    "cola": 3,
+    "hellaswag": 3,
+    "lambada_openai": 3,
+    "lambada_standard": 3,
+    "mmlu_abstract_algebra": 3,
+    "mmlu_anatomy": 3,
+    "mmlu_astronomy": 3,
+    "mmlu_business_ethics": 3,
+    "mmlu_clinical_knowledge": 3,
+    "mmlu_college_biology": 3,
+    "mmlu_college_chemistry": 3,
+    "mmlu_college_computer_science": 3,
+    "mmlu_college_mathematics": 3,
+    "mmlu_college_medicine": 3,
+    "mmlu_college_physics": 3,
+    "mmlu_computer_security": 3,
+    "mmlu_conceptual_physics": 3,
+    "mmlu_econometrics": 3,
+    "mmlu_electrical_engineering": 3,
+    "mmlu_elementary_mathematics": 3,
+    "mmlu_formal_logic": 3,
+    "mmlu_global_facts": 3,
+    "mmlu_high_school_biology": 3,
+    "mmlu_high_school_chemistry": 3,
+    "mmlu_high_school_computer_science": 3,
+    "mmlu_high_school_european_history": 3,
+    "mmlu_high_school_geography": 3,
+    "mmlu_high_school_government_and_politics": 3,
+    "mmlu_high_school_macroeconomics": 3,
+    "mmlu_high_school_mathematics": 3,
+    "mmlu_high_school_microeconomics": 3,
+    "mmlu_high_school_physics": 3,
+    "mmlu_high_school_psychology": 3,
+    "mmlu_high_school_statistics": 3,
+    "mmlu_high_school_us_history": 3,
+    "mmlu_high_school_world_history": 3,
+    "mmlu_human_aging": 3,
+    "mmlu_human_sexuality": 3,
+    "mmlu_international_law": 3,
+    "mmlu_jurisprudence": 3,
+    "mmlu_logical_fallacies": 3,
+    "mmlu_machine_learning": 3,
+    "mmlu_management": 3,
+    "mmlu_marketing": 3,
+    "mmlu_medical_genetics": 3,
+    "mmlu_miscellaneous": 3,
+    "mmlu_moral_disputes": 3,
+    "mmlu_moral_scenarios": 3,
+    "mmlu_nutrition": 3,
+    "mmlu_philosophy": 3,
+    "mmlu_prehistory": 3,
+    "mmlu_professional_accounting": 3,
+    "mmlu_professional_law": 3,
+    "mmlu_professional_medicine": 3,
+    "mmlu_professional_psychology": 3,
+    "mmlu_public_relations": 3,
+    "mmlu_security_studies": 3,
+    "mmlu_sociology": 3,
+    "mmlu_us_foreign_policy": 3,
+    "mmlu_virology": 3,
+    "mmlu_world_religions": 3,
+    "mnli": 3,
+    "mnli_mismatch": 3,
+    "mrpc": 3,
+    "piqa": 3,
+    "qnli": 3,
+    "qqp": 3,
+    "rte": 3,
+    "sst2": 3,
+    "truthfulqa_gen": 0,
+    "truthfulqa_mc1": 0,
+    "truthfulqa_mc2": 0,
+    "wnli": 3
+  },
+  "higher_is_better": {
+    "arithmetic_1dc": {
+      "acc": true
+    },
+    "arithmetic_2da": {
+      "acc": true
+    },
+    "arithmetic_2dm": {
+      "acc": true
+    },
+    "arithmetic_2ds": {
+      "acc": true
+    },
+    "arithmetic_3da": {
+      "acc": true
+    },
+    "arithmetic_3ds": {
+      "acc": true
+    },
+    "arithmetic_4da": {
+      "acc": true
+    },
+    "arithmetic_4ds": {
+      "acc": true
+    },
+    "arithmetic_5da": {
+      "acc": true
+    },
+    "arithmetic_5ds": {
+      "acc": true
+    },
+    "cola": {
+      "mcc": true
+    },
+    "hellaswag": {
+      "acc": true,
+      "acc_norm": true
+    },
+    "lambada_openai": {
+      "perplexity": false,
+      "acc": true
+    },
+    "lambada_standard": {
+      "perplexity": false,
+      "acc": true
+    },
+    "mmlu": {
+      "acc": true
+    },
+    "mmlu_abstract_algebra": {
+      "acc": true
+    },
+    "mmlu_anatomy": {
+      "acc": true
+    },
+    "mmlu_astronomy": {
+      "acc": true
+    },
+    "mmlu_business_ethics": {
+      "acc": true
+    },
+    "mmlu_clinical_knowledge": {
+      "acc": true
+    },
+    "mmlu_college_biology": {
+      "acc": true
+    },
+    "mmlu_college_chemistry": {
+      "acc": true
+    },
+    "mmlu_college_computer_science": {
+      "acc": true
+    },
+    "mmlu_college_mathematics": {
+      "acc": true
+    },
+    "mmlu_college_medicine": {
+      "acc": true
+    },
+    "mmlu_college_physics": {
+      "acc": true
+    },
+    "mmlu_computer_security": {
+      "acc": true
+    },
+    "mmlu_conceptual_physics": {
+      "acc": true
+    },
+    "mmlu_econometrics": {
+      "acc": true
+    },
+    "mmlu_electrical_engineering": {
+      "acc": true
+    },
+    "mmlu_elementary_mathematics": {
+      "acc": true
+    },
+    "mmlu_formal_logic": {
+      "acc": true
+    },
+    "mmlu_global_facts": {
+      "acc": true
+    },
+    "mmlu_high_school_biology": {
+      "acc": true
+    },
+    "mmlu_high_school_chemistry": {
+      "acc": true
+    },
+    "mmlu_high_school_computer_science": {
+      "acc": true
+    },
+    "mmlu_high_school_european_history": {
+      "acc": true
+    },
+    "mmlu_high_school_geography": {
+      "acc": true
+    },
+    "mmlu_high_school_government_and_politics": {
+      "acc": true
+    },
+    "mmlu_high_school_macroeconomics": {
+      "acc": true
+    },
+    "mmlu_high_school_mathematics": {
+      "acc": true
+    },
+    "mmlu_high_school_microeconomics": {
+      "acc": true
+    },
+    "mmlu_high_school_physics": {
+      "acc": true
+    },
+    "mmlu_high_school_psychology": {
+      "acc": true
+    },
+    "mmlu_high_school_statistics": {
+      "acc": true
+    },
+    "mmlu_high_school_us_history": {
+      "acc": true
+    },
+    "mmlu_high_school_world_history": {
+      "acc": true
+    },
+    "mmlu_human_aging": {
+      "acc": true
+    },
+    "mmlu_human_sexuality": {
+      "acc": true
+    },
+    "mmlu_humanities": {
+      "acc": true
+    },
+    "mmlu_international_law": {
+      "acc": true
+    },
+    "mmlu_jurisprudence": {
+      "acc": true
+    },
+    "mmlu_logical_fallacies": {
+      "acc": true
+    },
+    "mmlu_machine_learning": {
+      "acc": true
+    },
+    "mmlu_management": {
+      "acc": true
+    },
+    "mmlu_marketing": {
+      "acc": true
+    },
+    "mmlu_medical_genetics": {
+      "acc": true
+    },
+    "mmlu_miscellaneous": {
+      "acc": true
+    },
+    "mmlu_moral_disputes": {
+      "acc": true
+    },
+    "mmlu_moral_scenarios": {
+      "acc": true
+    },
+    "mmlu_nutrition": {
+      "acc": true
+    },
+    "mmlu_other": {
+      "acc": true
+    },
+    "mmlu_philosophy": {
+      "acc": true
+    },
+    "mmlu_prehistory": {
+      "acc": true
+    },
+    "mmlu_professional_accounting": {
+      "acc": true
+    },
+    "mmlu_professional_law": {
+      "acc": true
+    },
+    "mmlu_professional_medicine": {
+      "acc": true
+    },
+    "mmlu_professional_psychology": {
+      "acc": true
+    },
+    "mmlu_public_relations": {
+      "acc": true
+    },
+    "mmlu_security_studies": {
+      "acc": true
+    },
+    "mmlu_social_sciences": {
+      "acc": true
+    },
+    "mmlu_sociology": {
+      "acc": true
+    },
+    "mmlu_stem": {
+      "acc": true
+    },
+    "mmlu_us_foreign_policy": {
+      "acc": true
+    },
+    "mmlu_virology": {
+      "acc": true
+    },
+    "mmlu_world_religions": {
+      "acc": true
+    },
+    "mnli": {
+      "acc": true
+    },
+    "mnli_mismatch": {
+      "acc": true
+    },
+    "mrpc": {
+      "acc": true,
+      "f1": true
+    },
+    "piqa": {
+      "acc": true,
+      "acc_norm": true
+    },
+    "qnli": {
+      "acc": true
+    },
+    "qqp": {
+      "acc": true,
+      "f1": true
+    },
+    "rte": {
+      "acc": true
+    },
+    "sst2": {
+      "acc": true
+    },
+    "truthfulqa_gen": {
+      "bleu_max": true,
+      "bleu_acc": true,
+      "bleu_diff": true,
+      "rouge1_max": true,
+      "rouge1_acc": true,
+      "rouge1_diff": true,
+      "rouge2_max": true,
+      "rouge2_acc": true,
+      "rouge2_diff": true,
+      "rougeL_max": true,
+      "rougeL_acc": true,
+      "rougeL_diff": true
+    },
+    "truthfulqa_mc1": {
+      "acc": true
+    },
+    "truthfulqa_mc2": {
+      "acc": true
+    },
+    "wnli": {
+      "acc": true
+    }
+  },
+  "n-samples": {
+    "truthfulqa_gen": {
+      "original": 817,
+      "effective": 817
+    },
+    "truthfulqa_mc2": {
+      "original": 817,
+      "effective": 817
+    },
+    "truthfulqa_mc1": {
+      "original": 817,
+      "effective": 817
+    },
+    "piqa": {
+      "original": 1838,
+      "effective": 1838
+    },
+    "mmlu_high_school_statistics": {
+      "original": 216,
+      "effective": 216
+    },
+    "mmlu_college_biology": {
+      "original": 144,
+      "effective": 144
+    },
+    "mmlu_anatomy": {
+      "original": 135,
+      "effective": 135
+    },
+    "mmlu_high_school_physics": {
+      "original": 151,
+      "effective": 151
+    },
+    "mmlu_machine_learning": {
+      "original": 112,
+      "effective": 112
+    },
+    "mmlu_astronomy": {
+      "original": 152,
+      "effective": 152
+    },
+    "mmlu_high_school_biology": {
+      "original": 310,
+      "effective": 310
+    },
+    "mmlu_college_mathematics": {
+      "original": 100,
+      "effective": 100
+    },
+    "mmlu_college_physics": {
+      "original": 102,
+      "effective": 102
+    },
+    "mmlu_abstract_algebra": {
+      "original": 100,
+      "effective": 100
+    },
+    "mmlu_college_computer_science": {
+      "original": 100,
+      "effective": 100
+    },
+    "mmlu_electrical_engineering": {
+      "original": 145,
+      "effective": 145
+    },
+    "mmlu_high_school_mathematics": {
+      "original": 270,
+      "effective": 270
+    },
+    "mmlu_elementary_mathematics": {
+      "original": 378,
+      "effective": 378
+    },
+    "mmlu_computer_security": {
+      "original": 100,
+      "effective": 100
+    },
+    "mmlu_high_school_chemistry": {
+      "original": 203,
+      "effective": 203
+    },
+    "mmlu_college_chemistry": {
+      "original": 100,
+      "effective": 100
+    },
+    "mmlu_high_school_computer_science": {
+      "original": 100,
+      "effective": 100
+    },
+    "mmlu_conceptual_physics": {
+      "original": 235,
+      "effective": 235
+    },
+    "mmlu_management": {
+      "original": 103,
+      "effective": 103
+    },
+    "mmlu_nutrition": {
+      "original": 306,
+      "effective": 306
+    },
+    "mmlu_medical_genetics": {
+      "original": 100,
+      "effective": 100
+    },
+    "mmlu_virology": {
+      "original": 166,
+      "effective": 166
+    },
+    "mmlu_miscellaneous": {
+      "original": 783,
+      "effective": 783
+    },
+    "mmlu_professional_accounting": {
+      "original": 282,
+      "effective": 282
+    },
+    "mmlu_global_facts": {
+      "original": 100,
+      "effective": 100
+    },
+    "mmlu_marketing": {
+      "original": 234,
+      "effective": 234
+    },
+    "mmlu_professional_medicine": {
+      "original": 272,
+      "effective": 272
+    },
+    "mmlu_human_aging": {
+      "original": 223,
+      "effective": 223
+    },
+    "mmlu_clinical_knowledge": {
+      "original": 265,
+      "effective": 265
+    },
+    "mmlu_business_ethics": {
+      "original": 100,
+      "effective": 100
+    },
+    "mmlu_college_medicine": {
+      "original": 173,
+      "effective": 173
+    },
+    "mmlu_human_sexuality": {
+      "original": 131,
+      "effective": 131
+    },
+    "mmlu_sociology": {
+      "original": 201,
+      "effective": 201
+    },
+    "mmlu_high_school_government_and_politics": {
+      "original": 193,
+      "effective": 193
+    },
+    "mmlu_security_studies": {
+      "original": 245,
+      "effective": 245
+    },
+    "mmlu_high_school_geography": {
+      "original": 198,
+      "effective": 198
+    },
+    "mmlu_high_school_psychology": {
+      "original": 545,
+      "effective": 545
+    },
+    "mmlu_high_school_macroeconomics": {
+      "original": 390,
+      "effective": 390
+    },
+    "mmlu_professional_psychology": {
+      "original": 612,
+      "effective": 612
+    },
+    "mmlu_high_school_microeconomics": {
+      "original": 238,
+      "effective": 238
+    },
+    "mmlu_public_relations": {
+      "original": 110,
+      "effective": 110
+    },
+    "mmlu_us_foreign_policy": {
+      "original": 100,
+      "effective": 100
+    },
+    "mmlu_econometrics": {
+      "original": 114,
+      "effective": 114
+    },
+    "mmlu_prehistory": {
+      "original": 324,
+      "effective": 324
+    },
+    "mmlu_high_school_us_history": {
+      "original": 204,
+      "effective": 204
+    },
+    "mmlu_jurisprudence": {
+      "original": 108,
+      "effective": 108
+    },
+    "mmlu_moral_disputes": {
+      "original": 346,
+      "effective": 346
+    },
+    "mmlu_high_school_world_history": {
+      "original": 237,
+      "effective": 237
+    },
+    "mmlu_moral_scenarios": {
+      "original": 895,
+      "effective": 895
+    },
+    "mmlu_international_law": {
+      "original": 121,
+      "effective": 121
+    },
+    "mmlu_high_school_european_history": {
+      "original": 165,
+      "effective": 165
+    },
+    "mmlu_logical_fallacies": {
+      "original": 163,
+      "effective": 163
+    },
+    "mmlu_professional_law": {
+      "original": 1534,
+      "effective": 1534
+    },
+    "mmlu_world_religions": {
+      "original": 171,
+      "effective": 171
+    },
+    "mmlu_philosophy": {
+      "original": 311,
+      "effective": 311
+    },
+    "mmlu_formal_logic": {
+      "original": 126,
+      "effective": 126
+    },
+    "lambada_standard": {
+      "original": 5153,
+      "effective": 5153
+    },
+    "lambada_openai": {
+      "original": 5153,
+      "effective": 5153
+    },
+    "hellaswag": {
+      "original": 10042,
+      "effective": 10042
+    },
+    "sst2": {
+      "original": 872,
+      "effective": 872
+    },
+    "mnli_mismatch": {
+      "original": 9832,
+      "effective": 9832
+    },
+    "mnli": {
+      "original": 9815,
+      "effective": 9815
+    },
+    "qqp": {
+      "original": 40430,
+      "effective": 40430
+    },
+    "rte": {
+      "original": 277,
+      "effective": 277
+    },
+    "cola": {
+      "original": 1043,
+      "effective": 1043
+    },
+    "qnli": {
+      "original": 5463,
+      "effective": 5463
+    },
+    "wnli": {
+      "original": 71,
+      "effective": 71
+    },
+    "mrpc": {
+      "original": 408,
+      "effective": 408
+    },
+    "arithmetic_3ds": {
+      "original": 2000,
+      "effective": 2000
+    },
+    "arithmetic_4ds": {
+      "original": 2000,
+      "effective": 2000
+    },
+    "arithmetic_2dm": {
+      "original": 2000,
+      "effective": 2000
+    },
+    "arithmetic_1dc": {
+      "original": 2000,
+      "effective": 2000
+    },
+    "arithmetic_4da": {
+      "original": 2000,
+      "effective": 2000
+    },
+    "arithmetic_2ds": {
+      "original": 2000,
+      "effective": 2000
+    },
+    "arithmetic_3da": {
+      "original": 2000,
+      "effective": 2000
+    },
+    "arithmetic_5da": {
+      "original": 2000,
+      "effective": 2000
+    },
+    "arithmetic_5ds": {
+      "original": 2000,
+      "effective": 2000
+    },
+    "arithmetic_2da": {
+      "original": 2000,
+      "effective": 2000
+    }
+  },
+  "config": {
+    "model": "MoT",
+    "model_args": "name=snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322",
+    "batch_size": "auto",
+    "batch_sizes": [],
+    "device": null,
+    "use_cache": null,
+    "limit": null,
+    "bootstrap_iters": 100000,
+    "gen_kwargs": null,
+    "random_seed": 0,
+    "numpy_seed": 1234,
+    "torch_seed": 1234,
+    "fewshot_seed": 1234
+  },
+  "git_hash": "2dbd573d",
+  "date": 1749313079.3626463,
+  "pretty_env_info": "'NoneType' object has no attribute 'splitlines'",
+  "transformers_version": "4.52.4",
+  "lm_eval_version": "0.4.8",
+  "upper_git_hash": null,
+  "task_hashes": {},
+  "model_source": "MoT",
+  "model_name": "",
+  "model_name_sanitized": "",
+  "system_instruction": null,
+  "system_instruction_sha": null,
+  "fewshot_as_multiturn": false,
+  "chat_template": null,
+  "chat_template_sha": null,
+  "start_time": 164182.316408238,
+  "end_time": 174527.436987795,
+  "total_evaluation_time_seconds": "10345.120579556999"
+}
