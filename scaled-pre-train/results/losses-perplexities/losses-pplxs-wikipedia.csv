@@ -1,0 +1,6 @@
+model,dataset,loss,perplexity,time
+snimu/MoT_pad-lr_pull-nn_bpt-16_how-noop-noop_BTMdim-1024-1024-1024_niter-100000_773322,wikipedia,2.9351276886683246,18.823906581298996,9438.239534959997
+snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-48-256-1024_niter-100000_773322,wikipedia,2.9540838433945,19.184138990681106,9631.676796740008
+snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-64-768-1024_niter-100000_773322,wikipedia,2.936261235999412,18.845256468632677,9496.570004818
+snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000_773322,wikipedia,2.9355600794850103,18.83204762556845,9491.274676557005
+snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-64-896-1024_niter-100000_773322,wikipedia,2.940948841588962,18.933802971591913,9494.354786636992
