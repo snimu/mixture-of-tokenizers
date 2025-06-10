@@ -6,3 +6,4 @@ snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-768-1024_niter-100000
 snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-64-896-1024_niter-100000_773322,wikipedia,2.940948841588962,18.933802971591913,9494.354786636992
 snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-896-1024_niter-100000_773322,wikipedia,2.9196102573359775,18.534062536999674,5105.241099594001
 snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-64-1024-1024_niter-100000_773322,wikipedia,2.9341873954666777,18.806214908895317,4972.184139908
+snimu/MoT_pad-lr_pull-yn_bpt-16_how-concat-noop_BTMdim-128-1024-1024_niter-100000_773322,wikipedia,2.9610877886919016,19.318975292589002,11171.100865884997
