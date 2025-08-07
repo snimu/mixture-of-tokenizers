@@ -60,6 +60,49 @@ torchrun --nproc_per_node=8 train_gpt.py \
     --save-checkpoint-every 500 \
     --wandb-project MoT-scaled-pre-train-tests
 
+# 1.3 Same as 1.1, but with attn on the bytes at the input
+torchrun --nproc_per_node=8 train_gpt.py \
+    --num-iterations 10000 \
+    --cooldown-frac 0.6 \
+    --seq-len 1024 \
+    --batch-size-train 64 \
+    --batch-size-val 32 \
+    --val-loss-every 250 \
+    --bytes-per-token 16 \
+    --byte-mixin-method concat \
+    --byte-mixout-method noop \
+    --use-byte-self-attn \
+    --padding-in left \
+    --pull-in \
+    --model-dim 1024 \
+    --byte-dim 48 \
+    --token-dim 256 \
+    --seed 9090333 \
+    --save-checkpoint-every 500 \
+    --wandb-project MoT-scaled-pre-train-tests
+
+# 1.4 Same as 1.3, but with bidirectional attn between the bytes of a single token
+torchrun --nproc_per_node=8 train_gpt.py \
+    --num-iterations 10000 \
+    --cooldown-frac 0.6 \
+    --seq-len 1024 \
+    --batch-size-train 64 \
+    --batch-size-val 32 \
+    --val-loss-every 250 \
+    --bytes-per-token 16 \
+    --byte-mixin-method concat \
+    --byte-mixout-method noop \
+    --use-byte-self-attn \
+    --mix-bytes-within-tok-in \
+    --padding-in left \
+    --pull-in \
+    --model-dim 1024 \
+    --byte-dim 48 \
+    --token-dim 256 \
+    --seed 9090333 \
+    --save-checkpoint-every 500 \
+    --wandb-project MoT-scaled-pre-train-tests
+
 # 1.3 Cross-attn
 torchrun --nproc_per_node=8 train_gpt.py \
     --num-iterations 10000 \

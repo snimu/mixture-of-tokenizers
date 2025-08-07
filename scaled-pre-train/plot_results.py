@@ -165,12 +165,14 @@ def tabulate_evals(
 
     # Add a "best" column
     tabledata["best"] = []
+    tabledata[r"% best"] = []
     for metric_idx, metric in enumerate(tabledata["metric"]):
         compare_fct = max if any(term in metric for term in higher_is_better) else min
         values = [float(tabledata[names[name_idx]][metric_idx]) for name_idx in range(len(files))]
         best_value = compare_fct(values)
         best_idx = values.index(best_value)
         tabledata["best"].append(names[best_idx])
+        tabledata[r"% best"].append(f"{best_value / (sum(values) + 1e-5)*100:.2f}%")
 
     table = tabulate(tabledata, headers="keys", floatfmt=".4f", tablefmt=tablefmt)
     print(f"\n\n{table}\n\n")
@@ -355,12 +357,15 @@ def tabulate_comparisons_between_models(
         file: str,
         model_type0: str,
         model_type1: str,
+        cmp_model: str | None = "gpt-4.1",
 ):
     df = pl.read_csv(f"results/generation/{file}")
     df = df.filter(
         (pl.col("model_type0") == model_type0)
         & (pl.col("model_type1") == model_type1)
     )
+    if cmp_model is not None:
+        df = df.filter(pl.col("cmp_model") == cmp_model)
     df = df.with_columns(
         [pl.col("win0").cast(pl.Int32), pl.col("win1").cast(pl.Int32)],
     )
@@ -377,7 +382,7 @@ def tabulate_comparisons_between_models(
         results[f"Wins ({model_type0})"].append(wins0)
         results[f"Wins ({model_type1})"].append(wins1)
         win_rate0 = wins0 / (wins0 + wins1)
-        results[f"Win rate ({model_type0})"].append(win_rate0)
+        results[f"Win rate ({model_type0})"].append(f"{win_rate0*100:.2f}%")
 
     # Temperature combinations as domains
     temperatures1 = df["temperature1"].unique().to_list()
@@ -408,10 +413,17 @@ def tabulate_comparisons_between_models(
     print(table)
 
 
-def plot_temperature_preferences(file: str, name: str):
+def plot_temperature_preferences(
+        file: str,
+        name: str,
+        cmp_model: str | None = "gpt-4.1",
+        plot: bool = True,
+):
     df = pl.read_csv(f"results/generation/{file}").with_columns(
-        [pl.col("win0").cast(pl.Int32), pl.col("win1").cast(pl.Int32)],
+        [pl.col("win0").cast(pl.Int32), pl.col("win1").cast(pl.Int32)]
     )
+    if cmp_model is not None:
+        df = df.filter(pl.col("cmp_model") == cmp_model)
     temperatures = sorted(list(set(
         df["temperature1"].unique().to_list() + df["temperature2"].unique().to_list()
     )))
@@ -422,51 +434,140 @@ def plot_temperature_preferences(file: str, name: str):
         wins_self = df_temp_left["win0"].sum() + df_temp_right["win1"].sum()
         wins_other = df_temp_left["win1"].sum() + df_temp_right["win0"].sum()
         win_rates.append(wins_self / (wins_self + wins_other))
-    max_win_rate = max(win_rates)
-    max_win_rate_idx = win_rates.index(max_win_rate)
-    max_win_rate_temp = temperatures[max_win_rate_idx]
-    print(f"\n\nMax win rate: {max_win_rate:.2f}; at temperature {max_win_rate_temp}")
-    plt.bar(temperatures, win_rates, width=0.04)
-    plt.xlabel("Temperature")
-    plt.ylabel("Win rate")
-    plt.title(f"Win rate for {name}")
-    plt.grid(axis="y")
+    if plot:
+        plt.bar(temperatures, win_rates, width=0.04)
+        plt.xlabel("Temperature")
+        plt.ylabel("Win rate")
+        plt.title(f"Win rate for {name}")
+        plt.grid(axis="y")
+        plt.show()
+    return temperatures, win_rates
+
+
+def tabulate_win_rates(
+        files: list[str],
+        names: list[str],
+        cmp_model: str = "gpt-4.1",
+):
+    assert len(files) == len(names)
+    results = dict()
+    for name, file in zip(names, files):
+        temperatures, win_rates = plot_temperature_preferences(
+            file, name, cmp_model=cmp_model, plot=False
+        )
+        if "temperature" not in results:
+            results["temperature"] = temperatures
+        results[name] = win_rates
+    table = tabulate(results, headers="keys", floatfmt=".4f", tablefmt="pipe")
+    print(table)
+
+
+def plot_pplxs(csv_path: str, lim_from_zero: bool = True, show_values: bool = False):
+    """
+    Reads LLM experiment data from a CSV file and creates a two-panel bar plot.
+
+    The plot displays model parameters (top) and perplexity (bottom) for each model,
+    with models sorted by their parameter count. Bar colors indicate performance
+    relative to the 'Baseline' model.
+
+    Args:
+        csv_path (str): The file path to the CSV data.
+        lim_from_zero (bool, optional): If True, the y-axes start at 0. If False,
+            matplotlib determines the axis limits automatically. Defaults to True.
+        show_values (bool, optional): If True, the numeric value is displayed
+            on top of each bar. Defaults to False.
+    """
+    # 1. Read and prepare the data using Polars
+    try:
+        df = pl.read_csv(csv_path)
+    except FileNotFoundError:
+        print(f"Error: The file at {csv_path} was not found.")
+        return
+
+    # Sort the dataframe and create the 'parameters_in_millions' column
+    df_sorted = (
+        df.sort(by='parameters')
+        .with_columns(
+            (pl.col("parameters") / 1_000_000).alias("parameters_in_millions")
+        )
+    )
+
+    # --- Color Logic Preparation ---
+    try:
+        baseline_row = df_sorted.filter(pl.col('model') == 'Baseline')
+        baseline_params = baseline_row['parameters_in_millions'][0]
+        baseline_ppl = baseline_row['perplexity'][0]
+    except IndexError:
+        print("Error: 'Baseline' model not found in the data.")
+        return
+
+    param_colors = [
+        'royalblue' if row['model'] == 'Baseline' else 
+        'mediumseagreen' if row['parameters_in_millions'] < baseline_params else 'salmon'
+        for row in df_sorted.iter_rows(named=True)
+    ]
+    ppl_colors = [
+        'royalblue' if row['model'] == 'Baseline' else 
+        'mediumseagreen' if row['perplexity'] < baseline_ppl else 'salmon'
+        for row in df_sorted.iter_rows(named=True)
+    ]
+
+    # Extract data for plotting
+    model_names = df_sorted['model'].to_list()
+    params_mil = df_sorted['parameters_in_millions'].to_list()
+    perplexity = df_sorted['perplexity'].to_list()
+
+    # 2. Create the plot using matplotlib
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+    
+    # --- Top Plot: Number of Parameters ---
+    ax1.bar(model_names, params_mil, color=param_colors, edgecolor='black')
+    ax1.set_ylabel('Parameters (Millions)')
+    ax1.set_title(f'Parameters and Perplexity on {"Wikipedia" if "wikipedia" in csv_path else "GSM8K"}', fontsize=16, pad=20)
+    ax1.grid(axis='y', linestyle='--', alpha=0.7)
+
+    # --- Bottom Plot: Perplexity ---
+    ax2.bar(model_names, perplexity, color=ppl_colors, edgecolor='black')
+    ax2.set_ylabel('Perplexity')
+    ax2.set_xlabel('Model')
+    ax2.grid(axis='y', linestyle='--', alpha=0.7)
+
+    # 3. Apply conditional axis limits
+    ax1.set_ylim(bottom=0 if lim_from_zero else 400, top=None if lim_from_zero else 460)
+
+    low = 17.5 if "wikipedia" in csv_path else 20
+    high = 20 if "wikipedia" in csv_path else 23
+    ax2.set_ylim(bottom=0 if lim_from_zero else low, top=None if lim_from_zero else high)
+    
+    # 4. Optionally add value labels to each bar
+    if show_values:
+        # Add labels to the parameters plot
+        for i, val in enumerate(params_mil):
+            ax1.text(i, val, f'{val:.1f}M', ha='center', va='bottom', fontsize=8, color='dimgray')
+        
+        # Add labels to the perplexity plot
+        for i, val in enumerate(perplexity):
+            ax2.text(i, val, f'{val:.2f}', ha='center', va='bottom', fontsize=8, color='dimgray')
+
+    # Improve x-axis label readability by rotating them
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.show()
 
 
 if __name__ == "__main__":
-    file = "results100_000steps.json"
-    # tabulate_results(
-    #     file,
-    #     mixin_mixout=[("concat", "split"), ("concat", "copy")],
-    #     ignore_add=True,
-    #     data_frac=0.1,
-    #     tablefmt="pipe",
-    #     info_columns=["mean", "std", "n_params", "step_time"],
-    # )
-
-    # tabulate_evals(
-    #     files=[
-    #         "noop-noop-1024-1024-1024-greedy.json",
-    #         "concat-noop-48-256-1024-greedy.json",
-    #     ],
-    #     names=["Baseline", "MoT"],
-    #     extra_forbidden_evals=["truthfulqa"],
-    #     tablefmt="pipe",
-    # )
-
     # file_pairs=[
-    #     ("bytes-tokens-000.json", "tokens-tokens-000.json"),
-    #     ("bytes-tokens-010.json", "tokens-tokens-010.json"),
-    #     ("bytes-tokens-020.json", "tokens-tokens-020.json"),
-    #     ("bytes-tokens-030.json", "tokens-tokens-030.json"),
-    #     ("bytes-tokens-040.json", "tokens-tokens-040.json"),
-    #     ("bytes-tokens-050.json", "tokens-tokens-050.json"),
-    #     ("bytes-tokens-060.json", "tokens-tokens-060.json"),
-    #     ("bytes-tokens-070.json", "tokens-tokens-070.json"),
-    #     ("bytes-tokens-080.json", "tokens-tokens-080.json"),
-    #     ("bytes-tokens-090.json", "tokens-tokens-090.json"),
-    #     ("bytes-tokens-100.json", "tokens-tokens-100.json"),
+    #     ("bytes-tokens-large-000.json", "tokens-tokens-000.json"),
+    #     ("bytes-tokens-large-010.json", "tokens-tokens-010.json"),
+    #     ("bytes-tokens-large-020.json", "tokens-tokens-020.json"),
+    #     ("bytes-tokens-large-030.json", "tokens-tokens-030.json"),
+    #     ("bytes-tokens-large-040.json", "tokens-tokens-040.json"),
+    #     ("bytes-tokens-large-050.json", "tokens-tokens-050.json"),
+    #     ("bytes-tokens-large-060.json", "tokens-tokens-060.json"),
+    #     ("bytes-tokens-large-070.json", "tokens-tokens-070.json"),
+    #     ("bytes-tokens-large-080.json", "tokens-tokens-080.json"),
+    #     ("bytes-tokens-large-090.json", "tokens-tokens-090.json"),
+    #     ("bytes-tokens-large-100.json", "tokens-tokens-100.json"),
     # ]
     # name_pairs=[("MoT", "Baseline")] * len(file_pairs)
     # cmp_models=["gpt-4.1"]
@@ -474,25 +575,29 @@ if __name__ == "__main__":
     #     file_pairs=file_pairs,
     #     name_pairs=name_pairs,
     #     cmp_models=cmp_models,
-    #     save_to="comparison-between-models.csv",
+    #     save_to="comparison-between-models-large.csv",
     #     tokens_out=[20, 100, 500],
     #     n_samples_per_completion=25,
     # )
 
-    # to_str = lambda x: f"0{round(x * 100)}" if x < 10 else str(round(x * 100))
+    # def to_str(x):
+    #     s = f"0{x}" if x < 10 else str(x)
+    #     if len(s) < 3:
+    #         s = s + "0"
+    #     return s
     # file_pairs=[]
     # for i in range(10):
     #     T1 = to_str(i)
     #     for j in range(i+1, 11):
     #         T2 = to_str(j)
-    #         file_pairs.append((f"bytes-tokens-{T1}.json", f"bytes-tokens-{T2}.json"))
+    #         file_pairs.append((f"bytes-tokens-large-{T1}.json", f"bytes-tokens-large-{T2}.json"))
     # name_pairs=[("MoT", "MoT")] * len(file_pairs)
     # cmp_models=["gpt-4.1"]
     # compare_generations(
     #     file_pairs=file_pairs,
     #     name_pairs=name_pairs,
     #     cmp_models=cmp_models,
-    #     save_to="comparison-temperatures_MoT.csv",
+    #     save_to="comparison-temperatures_MoT-large.csv",
     #     tokens_out=[20, 100, 500],
     #     n_samples_per_completion=5,
     # )
@@ -504,7 +609,6 @@ if __name__ == "__main__":
     #         T2 = f"0{j}" + ("0" if j < 10 else "")
     #         file_pairs.append((f"tokens-tokens-{T1}.json", f"tokens-tokens-{T2}.json"))
     # name_pairs=[("Baseline", "Baseline")] * len(file_pairs)
-    # cmp_models=["gpt-4.1"]
     # compare_generations(
     #     file_pairs=file_pairs,
     #     name_pairs=name_pairs,
@@ -521,7 +625,7 @@ if __name__ == "__main__":
     # compare_generations(
     #     file_pairs=file_pairs,
     #     name_pairs=[("Baseline", "Baseline")] * len(file_pairs),
-    #     cmp_models=["gpt-4.1"],
+    #     cmp_models=cmp_models,
     #     save_to="comparison-temperatures_Baseline.csv",
     #     tokens_out=[20, 100, 500],
     #     n_samples_per_completion=5,
@@ -534,16 +638,43 @@ if __name__ == "__main__":
     # compare_generations(
     #     file_pairs=file_pairs,
     #     name_pairs=[("MoT", "MoT")] * len(file_pairs),
-    #     cmp_models=["gpt-4.1"],
+    #     cmp_models=cmp_models,
     #     save_to="comparison-temperatures_MoT.csv",
     #     tokens_out=[20, 100, 500],
     #     n_samples_per_completion=5,
     # )
 
-    tabulate_comparisons_between_models(
-        file="comparison-between-models.csv",
-        model_type0="MoT",
-        model_type1="Baseline",
+    # tabulate_comparisons_between_models(
+    #     file="comparison-between-models-large.csv",
+    #     model_type0="MoT",
+    #     model_type1="Baseline",
+    # )
+    # plot_temperature_preferences("comparison-temperatures_Baseline.csv", "Baseline")
+    # plot_temperature_preferences("comparison-temperatures_MoT-large.csv", "MoT")
+    # tabulate_win_rates(
+    #     files=[
+    #         "comparison-temperatures_Baseline.csv",
+    #         "comparison-temperatures_MoT.csv",
+    #         "comparison-temperatures_MoT-large.csv",
+    #     ],
+    #     names=["Baseline", "MoT", "MoT-large",]
+    # )
+    # tabulate_evals(
+    #     files=[
+    #         "noop-noop-1024-1024-1024-greedy.json",
+    #         # "concat-noop-48-256-1024-greedy.json",
+    #         # "concat-noop-64-768-1024-greedy.json",
+    #         # "concat-noop-128-768-1024-greedy.json",
+    #         # "concat-noop-64-896-1024-greedy.json",
+    #         "concat-noop-64-1024-1024-greedy.json",
+    #     ],
+    #     names=["Baseline", "64-1024"],
+    #     # names=["Baseline", "48-256", "64-768", "128-768", "64-896", "128-896"],
+    #     extra_forbidden_evals=["truthfulqa"]#, "arithmetic"],
+    # )
+
+    plot_pplxs(
+        "results/losses-perplexities/losses-pplxs-wikipedia-short.csv",
+        lim_from_zero=False,
+        show_values=True,
     )
-    plot_temperature_preferences("comparison-temperatures_Baseline.csv", "Baseline")
-    plot_temperature_preferences("comparison-temperatures_MoT.csv", "MoT")

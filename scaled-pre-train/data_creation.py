@@ -62,9 +62,9 @@ def tokens_to_bytes(tokens: torch.Tensor, emb: nn.Embedding) -> torch.Tensor:
     with torch.no_grad():
         byte_tensor = emb(tokens).to(torch.int64)
     if tokens.ndim == 2:
-        return byte_tensor.view(byte_tensor.shape[0], -1)  # einops.rearrange(byte_tensor, "b n c -> b (n c)")
+        return byte_tensor.view(byte_tensor.shape[0], -1)
     else:
-        return byte_tensor.view(-1).unsqueeze(0)  # einops.rearrange(byte_tensor, "n c -> (n c)")[None]
+        return byte_tensor.view(-1).unsqueeze(0)
 
 
 # Thanks Google Gemini Pro 2.5 for the 150x speedup!
@@ -1077,7 +1077,6 @@ def main():
     parser.add_argument("--skip-fm-val-batches", action="store_true")
     parser.add_argument("--skip-fw-val-batches", action="store_true")
     parser.add_argument("--tokenize", action="store_true")
-    parser.add_argument("--start-upload-loop", action="store_true")
     args = parser.parse_args()
     if args.tokenize:
         num_train_batches, on_hf = tokenize_finemath(B=1024, T=1024, vocab_size=50257, num_fm_val_batches=1, overlap=128)
