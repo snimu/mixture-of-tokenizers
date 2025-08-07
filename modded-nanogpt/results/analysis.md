@@ -362,7 +362,7 @@ Here is the experiments I had planned before creating this document:
 
 - [ ] Do MoT by addition, but apply linear layer to the bytes before so that they can be mixed
 - [x] Zero-init bytes?
-- [ ] Try it with `bpt=8, byte_dim=128` and `bpt=32, byte_dim=32`
+- [x] Try it with `bpt=8, byte_dim=128` and `bpt=32, byte_dim=32`
   - So many bytes are pulled that it might hurt
   - On the other hand, doing it more might give more of an advantage
 - [x] Decrease `token_dim` (and maybe `byte_dim` too?) but increase expansion factor in MLP.
@@ -545,6 +545,33 @@ To get a fuller view of the results, let's also look at loss over time (because 
 
 ![1, 71011, 71041-71044: time, 1200-1600](images/1_71011_71041-71044_time_1200-1600.png)
 
-Unfortunately, the norms add a significant amount of time to the runs; especially the norming of the lambdas. So per unit of time (the measure we ultimately care about in a speedrun), the best run is with a weighted sum of normed embeddings, but without norming the lambdas.
+Unfortunately, the norms add a significant amount of time to the runs; especially the norming of the lambdas. So per unit of time (the measure we ultimately care about in a speedrun), the best run is with a weighted sum of normed embeddings, but without norming the lambdas (so [#71041])
 
 Next up, I should perform an experiment with this norm setting and the best hyperparameter setting I found so far. I'm curious about those hyperparameters though; is `0.3` better for `lr_token` or `0.35`? And which of `0.4`, `0.45`, and `0.5` is the best value for `lr_byte`? Let's just try all combinations in #71061-71066.
+
+## 71061, 71062, 71063, 71064, 71065, 71066
+
+Norms like in [#71041](#71041-71042-71043-71044); sweeping the following hyperparameter settings:
+
+| Experiment number | `lr_tok` | `lr_byte` |
+| --- | --- | --- |
+| 71061 | 0.3 | 0.4 |
+| 71062 | 0.3 | 0.45 |
+| 71063 | 0.3 | 0.5 |
+| 71064 | 0.35 | 0.4 |
+| 71065 | 0.35 | 0.45 |
+| 71066 | 0.35 | 0.5 |
+
+...
+
+## 71071, 71072
+
+Variation of [#71011](#71011-71012-71013-71021-71022), but with a different number of bytes per token:
+
+| Experiment number | bytes per token |
+| --- | --- |
+| 71011 | 16 |
+| 71071 | 8 |
+| 71072 | 32 |
+
+...
