@@ -417,7 +417,7 @@ def pull_from_left(
 
 def make_token_to_bytes_embedding(vocab_size: int) -> nn.Embedding:
     ttb_emb = nn.Embedding(vocab_size, 16)
-    with open("embeddings/ttb_16_left_pad.json", "r") as f:
+    with open("../embeddings/ttb_16_left_pad.json", "r") as f:
         text = f.read()
     ttb = json.loads(text)
     ttb = {int(k): [int(x) for x in v] for k, v in ttb.items()}
